@@ -790,6 +790,8 @@ class Handler(BaseHTTPRequestHandler):
                 "ok": True,
                 "name": "职安盾 VeriWork",
                 "llmConfigured": bool(os.environ.get("LLM_API_URL") and os.environ.get("LLM_MODEL")),
+                "model": os.environ.get("LLM_MODEL", ""),
+                "apiUrlConfigured": bool(os.environ.get("LLM_API_URL")),
                 "rules": len(RISKS),
                 "laws": len(LAWS),
             })

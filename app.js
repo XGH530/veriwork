@@ -9,7 +9,8 @@ const state = {
   timeline: APP_DATA.timeline.map((item) => ({ ...item })),
   settings: {
     apiBase: "http://127.0.0.1:8000",
-    runMode: "demo"
+    runMode: "demo",
+    model: ""
   }
 };
 
@@ -629,14 +630,34 @@ function saveSettings() {
     console.warn("设置保存失败", error);
   }
   updateModeUI();
+  refreshBackendStatus();
   toast("模型设置已保存。");
+}
+
+async function refreshBackendStatus() {
+  if (state.settings.runMode !== "api") {
+    state.settings.model = "";
+    updateModeUI();
+    return;
+  }
+  try {
+    const response = await fetch(`${state.settings.apiBase.replace(/\/$/, "")}/api/health`);
+    const payload = await response.json();
+    state.settings.model = payload.model || "";
+  } catch (error) {
+    state.settings.model = "";
+  }
+  updateModeUI();
 }
 
 function updateModeUI() {
   const apiMode = state.settings.runMode === "api";
   $("#modeChip").innerHTML = `<span></span>${apiMode ? "后端 API 模式" : "演示模式"}`;
-  $("#engineStatus").textContent = apiMode ? `后端：${state.settings.apiBase}` : "本地规则 + 法源检索";
-  $("#analysisModeLabel").textContent = apiMode ? "后端可信链路" : "本地可信链路";
+  const modelLabel = state.settings.model ? `模型：${state.settings.model}` : "模型：未配置";
+  $("#engineStatus").textContent = apiMode ? `后端：${state.settings.apiBase} · ${modelLabel}` : "本地规则 + 法源检索";
+  $("#analysisModeLabel").textContent = apiMode ? `后端可信链路 · ${modelLabel}` : "本地可信链路";
+  const modelInput = $("#modelStatusInput");
+  if (modelInput) modelInput.value = apiMode ? (state.settings.model || "后端未返回模型名称") : "演示模式未调用模型";
 }
 
 function buildReport(result) {
@@ -758,6 +779,7 @@ function init() {
   renderComparison();
   updateEvidenceDocuments(null);
   loadSettings();
+  refreshBackendStatus();
   bindEvents();
   $("#contractInput").value = APP_DATA.demoCases[0].text;
   $("#contractInput").dispatchEvent(new Event("input"));

@@ -410,6 +410,9 @@
           <option value="api">后端 API 模式</option>
         </select>
       </label>
+      <label>当前模型
+        <input id="modelStatusInput" type="text" value="未连接后端" readonly>
+      </label>
       <p class="dialog-note">API 模式下，后端负责调用大模型；密钥只配置在服务器环境变量中，不进入浏览器。</p>
       <div class="dialog-actions">
         <button class="ghost-button" value="cancel">取消</button>
