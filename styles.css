@@ -883,3 +883,39 @@ table th { color: #586474; background: #f8f9fa; }
 
 .metric-card span { font-size: 12px; }
 .metric-card small { font-size: 11px; }
+
+/* 用户登录状态 */
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  color: #475569;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  font-size: 12px;
+}
+.user-chip strong { color: #173f6d; font-weight: 700; }
+.auth-actions { flex-wrap: wrap; }
+.auth-dialog { width: min(480px, 92vw); }
+
+/* 阿拉伯数字统一显示 */
+.metric-card strong,
+.score-ring strong,
+.risk-gauge strong,
+.case-risk,
+.comparison-row strong,
+.risk-bars b,
+.progress-steps b,
+.workflow-line b,
+.hero-side li b {
+  font-family: "Aptos", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.metric-card strong {
+  font-size: 26px;
+  font-weight: 800;
+}

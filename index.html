@@ -61,6 +61,7 @@
           <h1 id="pageTitle">合同风险核查工作台</h1>
         </div>
         <div class="topbar-actions">
+          <div class="user-chip" id="userChip"><span>未登录</span><button id="openAuth" class="link-button">登录</button></div>
           <div class="mode-chip" id="modeChip"><span></span>演示模式</div>
           <button class="secondary-button" id="quickDemo">载入风险样例</button>
           <button class="primary-button" data-go="analysis">开始研判</button>
@@ -326,27 +327,27 @@
 
       <section class="page" id="page-architecture">
         <div class="page-intro">
-          <div><span class="section-kicker">系统设计</span><h2>可信 AI 系统架构</h2></div>
-          <p>不是“把合同丢给大模型”，而是让确定性规则、检索法源、语义模型和校验器各自负责擅长的部分。</p>
+          <div><span class="section-kicker">系统设计</span><h2>系统工作流程与数据说明</h2></div>
+          <p>系统按合同审查的实际步骤组织：先读取材料，再核查规则和法规，最后由人员确认不确定事项。</p>
         </div>
 
         <article class="panel architecture-panel">
           <div class="panel-heading">
-            <div><span class="section-kicker">核查链路</span><h3>六层可信研判链</h3></div>
-            <span class="status-ok">可解释 · 可追溯 · 可复核</span>
+            <div><span class="section-kicker">工作流程</span><h3>系统处理步骤</h3></div>
+            <span class="status-ok">规则优先 · 法源可追溯 · 人工复核</span>
           </div>
           <div class="architecture-flow">
-            <div><b>01</b><strong>输入层</strong><span>合同、Offer、实习协议、聊天与工资记录</span></div>
+            <div><b>01</b><strong>材料接收</strong><span>合同、Offer、实习协议、聊天与工资记录</span></div>
             <i>→</i>
-            <div><b>02</b><strong>抽取层</strong><span>OCR、条款切分、主体与关键事实结构化</span></div>
+            <div><b>02</b><strong>文本抽取</strong><span>PDF、Word和文本内容读取与条款切分</span></div>
             <i>→</i>
-            <div><b>03</b><strong>知识层</strong><span>法律法规、地方政策、版本和权威来源</span></div>
+            <div><b>03</b><strong>规则核查</strong><span>试用期、社保、收费、加班和离职条件</span></div>
             <i>→</i>
-            <div><b>04</b><strong>决策层</strong><span>确定性规则 + 大模型语义研判</span></div>
+            <div><b>04</b><strong>模型辅助</strong><span>补充长尾表述，不修改硬性规则结论</span></div>
             <i>→</i>
-            <div><b>05</b><strong>校验层</strong><span>引用核查、冲突检测、拒答与人工复核</span></div>
+            <div><b>05</b><strong>人工复核</strong><span>核对原文、法源和待核实事项</span></div>
             <i>→</i>
-            <div><b>06</b><strong>行动层</strong><span>问题清单、证据计划、投诉与仲裁材料</span></div>
+            <div><b>06</b><strong>材料整理</strong><span>沟通问题、证据清单和办理材料</span></div>
           </div>
         </article>
 
@@ -362,21 +363,21 @@
           </article>
 
           <article class="panel">
-            <div class="panel-heading"><div><span class="section-kicker">技术路线</span><h3>原型技术路线</h3></div></div>
+            <div class="panel-heading"><div><span class="section-kicker">运行说明</span><h3>系统运行环境与数据来源</h3></div></div>
             <div class="stack-list">
-              <div><span>前端</span><strong>原生 HTML / CSS / JavaScript PWA</strong></div>
-              <div><span>后端</span><strong>Python 标准库 HTTP 服务</strong></div>
-              <div><span>模型</span><strong>OpenAI-compatible API，可替换国产模型</strong></div>
-              <div><span>知识库</span><strong>公开法律法规与政策版本库</strong></div>
-              <div><span>决策</span><strong>规则引擎 + RAG + LLM + 交叉校验</strong></div>
-              <div><span>安全</span><strong>最小留存、脱敏、审计日志、人工复核</strong></div>
+              <div><span>用户入口</span><strong>Web浏览器，兼容手机和电脑</strong></div>
+              <div><span>后端服务</span><strong>Python标准库HTTP服务</strong></div>
+              <div><span>模型接入</span><strong>可选大模型辅助，不参与硬规则最终判断</strong></div>
+              <div><span>法规来源</span><strong>公开法律法规与人社政策原文</strong></div>
+              <div><span>处理方式</span><strong>规则优先、模型辅助、人工复核</strong></div>
+              <div><span>数据保护</span><strong>最小留存、访问控制、操作记录</strong></div>
             </div>
           </article>
         </div>
 
         <article class="panel disclosure-panel">
-          <div class="panel-heading"><div><span class="section-kicker">AI使用说明</span><h3>人工智能使用说明</h3></div></div>
-          <p>本原型可使用大模型完成条款语义理解、风险解释和材料草拟；硬性规则判断、法源检索、引用校验和最终结构调整由确定性程序与团队完成。正式参赛时需记录模型名称、版本、调用日期、提示词策略、人工修改记录及团队原创贡献。</p>
+          <div class="panel-heading"><div><span class="section-kicker">使用说明</span><h3>生成式人工智能使用说明</h3></div></div>
+          <p>系统可使用大模型辅助理解合同语义、补充风险提示和草拟材料。硬性规则判断、法源检索、引用校验和最终结论由确定性程序与团队完成。正式提交时记录模型名称、版本、调用日期和人工修改过程。</p>
         </article>
 
         <article class="panel disclosure-panel">
@@ -394,6 +395,21 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="authDialog" class="settings-dialog auth-dialog">
+    <div class="dialog-head">
+      <div><span class="section-kicker">用户登录</span><h3>登录职安盾</h3></div>
+      <button class="icon-button" id="closeAuth" aria-label="关闭">×</button>
+    </div>
+    <label>用户名<input id="authUsername" type="text" value="demo" autocomplete="username"></label>
+    <label>密码<input id="authPassword" type="password" value="demo123456" autocomplete="current-password"></label>
+    <p class="dialog-note">演示账号已预填：demo / demo123456。注册用户需要至少8位密码。</p>
+    <div class="dialog-actions auth-actions">
+      <button id="registerButton" class="ghost-button">注册</button>
+      <button id="demoLoginButton" class="secondary-button">演示账号登录</button>
+      <button id="loginButton" class="primary-button">登录</button>
+    </div>
+  </dialog>
 
   <dialog id="settingsDialog" class="settings-dialog">
     <form method="dialog">

@@ -11,7 +11,9 @@ const state = {
     apiBase: "http://127.0.0.1:8000",
     runMode: "demo",
     model: ""
-  }
+  },
+  user: null,
+  authToken: localStorage.getItem("veriwork-token") || ""
 };
 
 function escapeHtml(value = "") {
@@ -100,15 +102,108 @@ async function extractDocumentViaApi(file) {
   const baseUrl = state.settings.apiBase.replace(/\/$/, "");
   const response = await fetch(`${baseUrl}/api/extract`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: apiHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({
       filename: file.name,
       content_base64: arrayBufferToBase64(await file.arrayBuffer())
     })
   });
   const payload = await response.json();
+  if (response.status === 401) {
+    $("#authDialog")?.showModal();
+    throw new Error("登录已失效，请重新登录");
+  }
   if (!response.ok || payload.error) throw new Error(payload.error || `API ${response.status}`);
   return payload.text;
+}
+
+function apiHeaders(extra = {}) {
+  const headers = { ...extra };
+  if (state.authToken) headers.Authorization = `Bearer ${state.authToken}`;
+  return headers;
+}
+
+async function authRequest(path, payload) {
+  const response = await fetch(`${state.settings.apiBase.replace(/\/$/, "")}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok || data.error) throw new Error(data.error || `请求失败 ${response.status}`);
+  return data;
+}
+
+async function loginWithCredentials(username, password) {
+  const data = await authRequest("/api/auth/login", { username, password });
+  state.authToken = data.token;
+  state.user = data.user;
+  localStorage.setItem("veriwork-token", data.token);
+  updateUserUI();
+  $("#authDialog")?.close();
+  toast(`已登录：${data.user.username}`);
+}
+
+async function registerAccount(username, password) {
+  const data = await authRequest("/api/auth/register", { username, password });
+  state.authToken = data.token;
+  state.user = data.user;
+  localStorage.setItem("veriwork-token", data.token);
+  updateUserUI();
+  $("#authDialog")?.close();
+  toast(`注册成功：${data.user.username}`);
+}
+
+async function loadCurrentUser() {
+  if (!state.authToken) {
+    state.user = null;
+    updateUserUI();
+    return false;
+  }
+  try {
+    const response = await fetch(`${state.settings.apiBase.replace(/\/$/, "")}/api/auth/me`, {
+      headers: apiHeaders()
+    });
+    const data = await response.json();
+    state.user = data.authenticated ? data.user : null;
+    if (!state.user) {
+      state.authToken = "";
+      localStorage.removeItem("veriwork-token");
+    }
+  } catch (error) {
+    state.user = null;
+  }
+  updateUserUI();
+  return Boolean(state.user);
+}
+
+async function logoutAccount() {
+  try {
+    await fetch(`${state.settings.apiBase.replace(/\/$/, "")}/api/auth/logout`, {
+      method: "POST",
+      headers: apiHeaders({ "Content-Type": "application/json" }),
+      body: "{}"
+    });
+  } catch (error) {
+    console.warn(error);
+  }
+  state.authToken = "";
+  state.user = null;
+  localStorage.removeItem("veriwork-token");
+  updateUserUI();
+  toast("已退出登录。");
+}
+
+function updateUserUI() {
+  const chip = $("#userChip");
+  if (!chip) return;
+  if (state.user) {
+    chip.innerHTML = `<span>用户：<strong>${escapeHtml(state.user.username)}</strong></span><button id="logoutButton" class="link-button">退出</button>`;
+    $("#logoutButton")?.addEventListener("click", logoutAccount);
+  } else {
+    chip.innerHTML = '<span>未登录</span><button id="openAuth" class="link-button">登录</button>';
+    $("#openAuth")?.addEventListener("click", () => $("#authDialog")?.showModal());
+  }
 }
 
 function formatDate(date = new Date()) {
@@ -138,7 +233,7 @@ function renderMetrics() {
     { label: "规则条目", value: APP_DATA.riskPatterns.length, hint: "可解释硬约束" },
     { label: "法源条目", value: APP_DATA.lawCorpus.length, hint: "全部可追溯来源" },
     { label: "回归用例", value: APP_DATA.evaluationCases.length, hint: "用于开发集验证" },
-    { label: "可信链路", value: "4 层", hint: "规则 / 检索 / 模型 / 校验" }
+    { label: "可信链路", value: 4, hint: "层级：规则 / 检索 / 模型 / 校验" }
   ];
   $("#metricGrid").innerHTML = metrics.map((item) => `
     <article class="metric-card">
@@ -324,9 +419,13 @@ async function analyzeWithApi(text, options) {
   const url = `${state.settings.apiBase.replace(/\/$/, "")}/api/analyze`;
   const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: apiHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ text, ...options })
   });
+  if (response.status === 401) {
+    $("#authDialog")?.showModal();
+    throw new Error("登录已失效，请重新登录");
+  }
   if (!response.ok) throw new Error(`API ${response.status}`);
   const payload = await response.json();
   if (!payload || !Array.isArray(payload.risks)) throw new Error("返回结构不完整");
@@ -345,6 +444,12 @@ async function runAnalysis() {
   const text = $("#contractInput").value.trim();
   if (text.length < 20) {
     toast("请先粘贴或载入需要研判的文本。");
+    return;
+  }
+
+  if (state.settings.runMode === "api" && !state.user) {
+    $("#authDialog")?.showModal();
+    toast("请先登录后再使用后端可信研判。");
     return;
   }
 
@@ -711,6 +816,12 @@ function bindEvents() {
   $("#fileInput").addEventListener("change", async (event) => {
     const file = event.target.files[0];
     if (!file) return;
+    if (state.settings.runMode === "api" && !state.user) {
+      $("#authDialog")?.showModal();
+      toast("文件解析需要登录，请先登录或使用演示账号。");
+      event.target.value = "";
+      return;
+    }
     const extension = `.${file.name.split(".").pop().toLowerCase()}`;
     try {
       let text;
@@ -768,7 +879,31 @@ function bindEvents() {
 
   $("#runEvaluation").addEventListener("click", runEvaluation);
   $("#openSettings").addEventListener("click", () => $("#settingsDialog").showModal());
-  $("#saveSettings").addEventListener("click", saveSettings);
+  $("#saveSettings").addEventListener("click", async () => {
+    saveSettings();
+    await loadCurrentUser();
+  });
+
+  document.addEventListener("click", (event) => {
+    if (event.target.closest("#openAuth")) $("#authDialog")?.showModal();
+    if (event.target.closest("#closeAuth")) $("#authDialog")?.close();
+    if (event.target.closest("#loginButton")) {
+      loginWithCredentials($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => toast(`登录失败：${error.message}`));
+    }
+    if (event.target.closest("#demoLoginButton")) {
+      loginWithCredentials("demo", "demo123456").catch((error) => toast(`演示登录失败：${error.message}`));
+    }
+    if (event.target.closest("#registerButton")) {
+      registerAccount($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => toast(`注册失败：${error.message}`));
+    }
+  });
+  ["authUsername", "authPassword"].forEach((id) => {
+    $(`#${id}`)?.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        loginWithCredentials($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => toast(`登录失败：${error.message}`));
+      }
+    });
+  });
 }
 
 function init() {
@@ -779,8 +914,14 @@ function init() {
   renderComparison();
   updateEvidenceDocuments(null);
   loadSettings();
-  refreshBackendStatus();
   bindEvents();
+  (async () => {
+    await refreshBackendStatus();
+    const authenticated = await loadCurrentUser();
+    if (state.settings.runMode === "api" && !authenticated) {
+      $("#authDialog")?.showModal();
+    }
+  })();
   $("#contractInput").value = APP_DATA.demoCases[0].text;
   $("#contractInput").dispatchEvent(new Event("input"));
 

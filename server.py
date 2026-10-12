@@ -9,16 +9,19 @@ OpenAI-compatible 大模型接口。硬规则和法源引用由程序控制，�
 from __future__ import annotations
 
 import base64
+import hashlib
 import io
 import json
 import mimetypes
 import os
 import re
+import secrets
+import sqlite3
 import sys
 import time
 import urllib.error
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlparse
@@ -43,6 +46,130 @@ load_env_file()
 HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = int(os.environ.get("PORT", "8000"))
 MAX_BODY = 12 * 1024 * 1024
+DB_PATH = BASE_DIR / "data" / "veriwork.db"
+PBKDF2_ITERATIONS = 200_000
+SESSION_DAYS = 7
+
+
+def auth_db() -> sqlite3.Connection:
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(DB_PATH)
+    connection.row_factory = sqlite3.Row
+    return connection
+
+
+def hash_password(password: str, salt: str | None = None) -> tuple[str, str]:
+    salt = salt or secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256", password.encode("utf-8"), bytes.fromhex(salt), PBKDF2_ITERATIONS
+    ).hex()
+    return salt, digest
+
+
+def init_auth_db() -> None:
+    with auth_db() as connection:
+        connection.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                salt TEXT NOT NULL,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'student',
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS sessions (
+                token TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            );
+            """
+        )
+        existing = connection.execute("SELECT id FROM users WHERE username = ?", ("demo",)).fetchone()
+        if not existing:
+            salt, digest = hash_password("demo123456")
+            connection.execute(
+                "INSERT INTO users(username, salt, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)",
+                ("demo", salt, digest, "student", datetime.now().isoformat(timespec="seconds")),
+            )
+        connection.commit()
+
+
+init_auth_db()
+
+
+def register_user(username: str, password: str, role: str = "student") -> dict:
+    username = username.strip()
+    if not (3 <= len(username) <= 32):
+        raise ValueError("用户名长度应为3至32位")
+    if len(password) < 8:
+        raise ValueError("密码至少8位")
+    salt, digest = hash_password(password)
+    try:
+        with auth_db() as connection:
+            cursor = connection.execute(
+                "INSERT INTO users(username, salt, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)",
+                (username, salt, digest, role, datetime.now().isoformat(timespec="seconds")),
+            )
+            connection.commit()
+            return {"id": cursor.lastrowid, "username": username, "role": role}
+    except sqlite3.IntegrityError as exc:
+        raise ValueError("用户名已存在") from exc
+
+
+def authenticate_user(username: str, password: str) -> dict | None:
+    with auth_db() as connection:
+        row = connection.execute("SELECT * FROM users WHERE username = ?", (username.strip(),)).fetchone()
+    if not row:
+        return None
+    _, digest = hash_password(password, row["salt"])
+    if not secrets.compare_digest(digest, row["password_hash"]):
+        return None
+    return {"id": row["id"], "username": row["username"], "role": row["role"]}
+
+
+def create_session(user_id: int) -> str:
+    token = secrets.token_urlsafe(32)
+    now = datetime.now()
+    expires = now + timedelta(days=SESSION_DAYS)
+    with auth_db() as connection:
+        connection.execute(
+            "INSERT INTO sessions(token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
+            (token, user_id, now.isoformat(timespec="seconds"), expires.isoformat(timespec="seconds")),
+        )
+        connection.commit()
+    return token
+
+
+def resolve_session(token: str | None) -> dict | None:
+    if not token:
+        return None
+    with auth_db() as connection:
+        row = connection.execute(
+            """
+            SELECT users.id, users.username, users.role, sessions.expires_at
+            FROM sessions JOIN users ON sessions.user_id = users.id
+            WHERE sessions.token = ?
+            """,
+            (token,),
+        ).fetchone()
+        if not row:
+            return None
+        if datetime.fromisoformat(row["expires_at"]) < datetime.now():
+            connection.execute("DELETE FROM sessions WHERE token = ?", (token,))
+            connection.commit()
+            return None
+    return {"id": row["id"], "username": row["username"], "role": row["role"]}
+
+
+def revoke_session(token: str | None) -> None:
+    if not token:
+        return
+    with auth_db() as connection:
+        connection.execute("DELETE FROM sessions WHERE token = ?", (token,))
+        connection.commit()
 
 
 LAWS = [
@@ -783,8 +910,55 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
 
+    def bearer_token(self) -> str | None:
+        header = self.headers.get("Authorization", "")
+        if header.lower().startswith("bearer "):
+            return header[7:].strip()
+        return None
+
+    def current_user(self) -> dict | None:
+        return resolve_session(self.bearer_token())
+
+    def require_user(self) -> dict | None:
+        user = self.current_user()
+        if not user:
+            self.send_json({"error": "请先登录后再使用研判和文件解析功能"}, 401)
+            return None
+        return user
+
+    def handle_auth(self, path: str) -> None:
+        try:
+            content_length = int(self.headers.get("Content-Length", "0"))
+            body = json.loads(self.rfile.read(content_length).decode("utf-8")) if content_length else {}
+            if path == "/api/auth/register":
+                user = register_user(str(body.get("username", "")), str(body.get("password", "")))
+                token = create_session(user["id"])
+                self.send_json({"token": token, "user": user})
+                return
+            if path == "/api/auth/login":
+                user = authenticate_user(str(body.get("username", "")), str(body.get("password", "")))
+                if not user:
+                    self.send_json({"error": "用户名或密码错误"}, 401)
+                    return
+                token = create_session(user["id"])
+                self.send_json({"token": token, "user": user})
+                return
+            if path == "/api/auth/logout":
+                revoke_session(self.bearer_token())
+                self.send_json({"ok": True})
+                return
+            self.send_json({"error": "not_found"}, 404)
+        except (ValueError, json.JSONDecodeError) as exc:
+            self.send_json({"error": str(exc)}, 400)
+        except Exception as exc:  # noqa: BLE001
+            self.send_json({"error": f"认证失败：{type(exc).__name__}"}, 500)
+
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path == "/api/auth/me":
+            user = self.current_user()
+            self.send_json({"authenticated": bool(user), "user": user})
+            return
         if parsed.path == "/api/health":
             self.send_json({
                 "ok": True,
@@ -803,11 +977,16 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path.startswith("/api/auth/"):
+            self.handle_auth(parsed.path)
+            return
         if parsed.path == "/api/extract":
             self.handle_extract()
             return
         if parsed.path != "/api/analyze":
             self.send_json({"error": "not_found"}, 404)
+            return
+        if not self.require_user():
             return
 
         try:
@@ -831,6 +1010,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"error": f"内部错误：{type(exc).__name__}"}, 500)
 
     def handle_extract(self) -> None:
+        if not self.require_user():
+            return
         try:
             content_length = int(self.headers.get("Content-Length", "0"))
             if content_length <= 0 or content_length > MAX_BODY:
