@@ -1,0 +1,248 @@
+{
+  "schema_version": "1.0",
+  "package_version": "2026-10-12-verified-partial",
+  "created_on": "2026-10-12",
+  "status": "partially_verified",
+  "warning": "最低工资数值已经依据官方公开来源记录；地方生效日期、社保基数和办事指南仍需继续核验。",
+  "profiles": [
+    {
+      "jurisdiction": "全国规则",
+      "title": "全国基础规则包",
+      "coverage": "全国",
+      "version": "2026-10-12",
+      "last_checked": "2026-10-12",
+      "policies": [
+        {
+          "policy_id": "minimum_wage",
+          "name": "全国最低工资汇总参考",
+          "value": null,
+          "unit": "policy_rule",
+          "effective_from": "截至2026-10-01",
+          "source_name": "人力资源和社会保障部",
+          "source_url": "https://www.mohrss.gov.cn/SYrlzyhshbzb/laodongguanxi_/fwyd/202610/t20261008_585187.html",
+          "status": "verified_national_summary",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": "2026-10-01",
+          "notes": "作为地区和城市数值的官方汇总入口，具体地方生效日期仍需地方通知核验。"
+        },
+        {
+          "policy_id": "social_insurance_base",
+          "name": "社会保险缴费基数口径",
+          "value": null,
+          "unit": "policy_rule",
+          "effective_from": null,
+          "source_name": "人力资源和社会保障部",
+          "source_url": "https://www.mohrss.gov.cn/",
+          "status": "pending_official_verification",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": null,
+          "notes": "待补地方年度社保缴费基数通知。"
+        },
+        {
+          "policy_id": "labor_inspection_guide",
+          "name": "劳动保障监察投诉办事指南",
+          "value": null,
+          "unit": "policy_rule",
+          "effective_from": null,
+          "source_name": "人力资源和社会保障部",
+          "source_url": "https://www.mohrss.gov.cn/",
+          "status": "pending_official_verification",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": null,
+          "notes": "待补办事指南和属地受理渠道。"
+        }
+      ]
+    },
+    {
+      "jurisdiction": "北京",
+      "title": "北京地区政策适配包",
+      "coverage": "全市",
+      "version": "2026-10-12",
+      "last_checked": "2026-10-12",
+      "policies": [
+        {
+          "policy_id": "minimum_wage",
+          "name": "北京最低工资标准",
+          "value": {
+            "monthly": [
+              "2540"
+            ],
+            "hourly": [
+              "27.7"
+            ]
+          },
+          "unit": "CNY/month",
+          "effective_from": "截至2026-10-01",
+          "source_name": "人力资源和社会保障部全国汇总",
+          "source_url": "https://www.mohrss.gov.cn/SYrlzyhshbzb/laodongguanxi_/fwyd/202610/t20261008_585187.html",
+          "status": "verified_national_summary",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": "2026-10-01",
+          "notes": "数值来源为人社部截至2026-10-01全国汇总；地方通知和生效日期待进一步核验。"
+        },
+        {
+          "policy_id": "social_insurance_base",
+          "name": "社会保险缴费基数口径",
+          "value": null,
+          "unit": "policy_rule",
+          "effective_from": null,
+          "source_name": "北京市/上海市/广东省人社部门",
+          "source_url": "https://www.mohrss.gov.cn/",
+          "status": "pending_official_verification",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": null,
+          "notes": "待补地方年度社保缴费基数通知。"
+        },
+        {
+          "policy_id": "labor_inspection_guide",
+          "name": "劳动保障监察投诉办事指南",
+          "value": null,
+          "unit": "policy_rule",
+          "effective_from": null,
+          "source_name": "属地人社部门",
+          "source_url": "https://www.mohrss.gov.cn/",
+          "status": "pending_official_verification",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": null,
+          "notes": "待补属地办事指南。"
+        }
+      ],
+      "official_sources": [
+        "https://www.mohrss.gov.cn/SYrlzyhshbzb/laodongguanxi_/fwyd/202610/t20261008_585187.html"
+      ]
+    },
+    {
+      "jurisdiction": "上海",
+      "title": "上海地区政策适配包",
+      "coverage": "全市",
+      "version": "2026-10-12",
+      "last_checked": "2026-10-12",
+      "policies": [
+        {
+          "policy_id": "minimum_wage",
+          "name": "上海最低工资标准",
+          "value": {
+            "monthly": [
+              "2740"
+            ],
+            "hourly": [
+              "25"
+            ]
+          },
+          "unit": "CNY/month",
+          "effective_from": "截至2026-10-01",
+          "source_name": "人力资源和社会保障部全国汇总",
+          "source_url": "https://www.mohrss.gov.cn/SYrlzyhshbzb/laodongguanxi_/fwyd/202610/t20261008_585187.html",
+          "status": "verified_national_summary",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": "2026-10-01",
+          "notes": "数值来源为人社部截至2026-10-01全国汇总；地方通知和生效日期待进一步核验。"
+        },
+        {
+          "policy_id": "social_insurance_base",
+          "name": "社会保险缴费基数口径",
+          "value": null,
+          "unit": "policy_rule",
+          "effective_from": null,
+          "source_name": "北京市/上海市/广东省人社部门",
+          "source_url": "https://www.mohrss.gov.cn/",
+          "status": "pending_official_verification",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": null,
+          "notes": "待补地方年度社保缴费基数通知。"
+        },
+        {
+          "policy_id": "labor_inspection_guide",
+          "name": "劳动保障监察投诉办事指南",
+          "value": null,
+          "unit": "policy_rule",
+          "effective_from": null,
+          "source_name": "属地人社部门",
+          "source_url": "https://www.mohrss.gov.cn/",
+          "status": "pending_official_verification",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": null,
+          "notes": "待补属地办事指南。"
+        }
+      ],
+      "official_sources": [
+        "https://www.mohrss.gov.cn/SYrlzyhshbzb/laodongguanxi_/fwyd/202610/t20261008_585187.html"
+      ]
+    },
+    {
+      "jurisdiction": "广东",
+      "title": "广东地区政策适配包",
+      "coverage": "省级规则，城市标准需细分",
+      "version": "2026-10-12",
+      "last_checked": "2026-10-12",
+      "policies": [
+        {
+          "policy_id": "minimum_wage",
+          "name": "广东省最低工资标准",
+          "value": {
+            "monthly": [
+              "2680",
+              "2300",
+              "2040"
+            ],
+            "hourly": [
+              "25.4",
+              "21.9",
+              "20.2"
+            ]
+          },
+          "unit": "CNY/month",
+          "effective_from": "2026-08-13 17:30",
+          "source_name": "广东省人民政府",
+          "source_url": "https://www.gd.gov.cn/zwgk/gongbao/2026/18/content/post_4942204.html",
+          "status": "verified",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": "2026-08-13 17:30",
+          "notes": "官方通知发布时间：2026-08-13 17:30；自2026年9月1日起执行，具体档次对应地区见附件。"
+        },
+        {
+          "policy_id": "social_insurance_base",
+          "name": "社会保险缴费基数口径",
+          "value": null,
+          "unit": "policy_rule",
+          "effective_from": null,
+          "source_name": "北京市/上海市/广东省人社部门",
+          "source_url": "https://www.mohrss.gov.cn/",
+          "status": "pending_official_verification",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": null,
+          "notes": "待补地方年度社保缴费基数通知。"
+        },
+        {
+          "policy_id": "labor_inspection_guide",
+          "name": "劳动保障监察投诉办事指南",
+          "value": null,
+          "unit": "policy_rule",
+          "effective_from": null,
+          "source_name": "属地人社部门",
+          "source_url": "https://www.mohrss.gov.cn/",
+          "status": "pending_official_verification",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": null,
+          "notes": "待补属地办事指南。"
+        }
+      ],
+      "official_sources": [
+        "https://www.mohrss.gov.cn/SYrlzyhshbzb/laodongguanxi_/fwyd/202610/t20261008_585187.html",
+        "https://www.gd.gov.cn/zwgk/gongbao/2026/18/content/post_4942204.html"
+      ]
+    }
+  ]
+}

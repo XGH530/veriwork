@@ -1,0 +1,82 @@
+{
+  "generated_from": "results/*.json",
+  "rows": [
+    {
+      "dataset": "80条开发回归集",
+      "system": "规则+语义回退链",
+      "precision": 0.9811,
+      "recall": 1.0,
+      "f1": 0.9905,
+      "exact_match_rate": 0.9875,
+      "abstention_recall": 1.0,
+      "note": "同一批样本已参与规则开发，不能作为独立盲测",
+      "source": "rules_v1_report.json"
+    },
+    {
+      "dataset": "32条早期留出集",
+      "system": "规则+语义回退链",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "exact_match_rate": 1.0,
+      "abstention_recall": 1.0,
+      "note": "暴露问题后用于规则强化，不再视为冻结留出集",
+      "source": "holdout_v1_hybrid_report.json"
+    },
+    {
+      "dataset": "40条冻结留出集",
+      "system": "规则+语义回退链",
+      "precision": 1.0,
+      "recall": 0.2692,
+      "f1": 0.4242,
+      "exact_match_rate": 0.525,
+      "abstention_recall": 0.8333,
+      "note": "创建后不再针对结果调规则，是最保守的规则链泛化结果",
+      "source": "frozen_holdout_v2_report.json"
+    },
+    {
+      "dataset": "holdout-v2.0.0-frozen",
+      "system": "通用模型直答",
+      "precision": 0.963,
+      "recall": 1.0,
+      "f1": 0.9811,
+      "exact_match_rate": 0.975,
+      "abstention_recall": 1.0,
+      "note": "公平对照；模型：deepseek-flash；法源覆盖 0.0%",
+      "source": "deepseek_flash_pair_v1.json"
+    },
+    {
+      "dataset": "holdout-v2.0.0-frozen",
+      "system": "职安盾混合链",
+      "precision": 0.963,
+      "recall": 1.0,
+      "f1": 0.9811,
+      "exact_match_rate": 0.975,
+      "abstention_recall": 1.0,
+      "note": "公平对照；模型：deepseek-flash；法源覆盖 100.0%",
+      "source": "deepseek_flash_pair_v1.json"
+    },
+    {
+      "dataset": "holdout-v2.0.0-frozen",
+      "system": "通用模型直答",
+      "precision": 0.9286,
+      "recall": 1.0,
+      "f1": 0.963,
+      "exact_match_rate": 0.95,
+      "abstention_recall": 1.0,
+      "note": "公平对照；模型：deepseek-v4-pro；法源覆盖 0.0%",
+      "source": "deepseek_v4_pro_pair_v1.json"
+    },
+    {
+      "dataset": "holdout-v2.0.0-frozen",
+      "system": "职安盾混合链",
+      "precision": 0.9286,
+      "recall": 1.0,
+      "f1": 0.963,
+      "exact_match_rate": 0.95,
+      "abstention_recall": 1.0,
+      "note": "公平对照；模型：deepseek-v4-pro；法源覆盖 100.0%",
+      "source": "deepseek_v4_pro_pair_v1.json"
+    }
+  ]
+}

@@ -1,0 +1,508 @@
+{
+  "version": "holdout-1.0.0",
+  "created_on": "2026-10-08",
+  "description": "32条独立留出样本，覆盖13类风险、安全对照和待核实场景。",
+  "limitations": "仍为团队合成文本，不是经授权的真实用户数据。",
+  "cases": [
+    {
+      "id": "holdout_01",
+      "split": "holdout",
+      "family": "no_social_insurance",
+      "title": "no_social_insurance",
+      "difficulty": "high",
+      "text": "入职后社保由员工自行购买，公司不承担费用",
+      "expected_risks": [
+        "no_social_insurance"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_02",
+      "split": "holdout",
+      "family": "no_social_insurance",
+      "title": "no_social_insurance",
+      "difficulty": "medium",
+      "text": "公司称试用期不办理社保，转正后再补缴",
+      "expected_risks": [
+        "no_social_insurance"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_03",
+      "split": "holdout",
+      "family": "employment_deposit",
+      "title": "employment_deposit",
+      "difficulty": "medium",
+      "text": "被录用后需先交800元工装费才能上岗",
+      "expected_risks": [
+        "employment_deposit"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_04",
+      "split": "holdout",
+      "family": "employment_deposit",
+      "title": "employment_deposit",
+      "difficulty": "hard",
+      "text": "公司要求上交毕业证原件代为保管",
+      "expected_risks": [
+        "employment_deposit"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_05",
+      "split": "holdout",
+      "family": "training_loan",
+      "title": "training_loan",
+      "difficulty": "medium",
+      "text": "为获得岗位，需要先办理1万元技能提升贷款",
+      "expected_risks": [
+        "training_loan"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_06",
+      "split": "holdout",
+      "family": "training_loan",
+      "title": "training_loan",
+      "difficulty": "hard",
+      "text": "岗前培训收费3000元，入职后从工资中扣除",
+      "expected_risks": [
+        "training_loan"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_07",
+      "split": "holdout",
+      "family": "probation_salary",
+      "title": "probation_salary",
+      "difficulty": "medium",
+      "text": "试用期薪酬为约定工资的75%",
+      "expected_risks": [
+        "probation_salary"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_08",
+      "split": "holdout",
+      "family": "probation_salary",
+      "title": "probation_salary",
+      "difficulty": "hard",
+      "text": "前三个月只发正式工资的一半",
+      "expected_risks": [
+        "probation_salary"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_09",
+      "split": "holdout",
+      "family": "probation_duration",
+      "title": "probation_duration",
+      "difficulty": "medium",
+      "text": "劳动合同期限两年，约定试用期8个月",
+      "expected_risks": [
+        "probation_duration"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_10",
+      "split": "holdout",
+      "family": "probation_duration",
+      "title": "probation_duration",
+      "difficulty": "easy",
+      "text": "公司表示表现好可提前转正，但试用期最长一年",
+      "expected_risks": [
+        "probation_duration"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_11",
+      "split": "holdout",
+      "family": "noncompete_risk",
+      "title": "noncompete_risk",
+      "difficulty": "medium",
+      "text": "竞业禁止期三年，未约定任何补偿",
+      "expected_risks": [
+        "noncompete_risk"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_12",
+      "split": "holdout",
+      "family": "noncompete_risk",
+      "title": "noncompete_risk",
+      "difficulty": "hard",
+      "text": "离开公司后24个月内不得同业，但每月无补偿",
+      "expected_risks": [
+        "noncompete_risk"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_13",
+      "split": "holdout",
+      "family": "overtime_unpaid",
+      "title": "overtime_unpaid",
+      "difficulty": "medium",
+      "text": "工作日加班不计算加班工资",
+      "expected_risks": [
+        "overtime_unpaid"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_14",
+      "split": "holdout",
+      "family": "overtime_unpaid",
+      "title": "overtime_unpaid",
+      "difficulty": "hard",
+      "text": "公司说绩效已覆盖所有额外工时，不再结算加班工资",
+      "expected_risks": [
+        "overtime_unpaid"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_15",
+      "split": "holdout",
+      "family": "resignation_penalty",
+      "title": "resignation_penalty",
+      "difficulty": "hard",
+      "text": "未完成服务期离职，按剩余月份赔偿公司",
+      "expected_risks": [
+        "resignation_penalty"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_16",
+      "split": "holdout",
+      "family": "resignation_penalty",
+      "title": "resignation_penalty",
+      "difficulty": "medium",
+      "text": "离职须经经理书面同意，否则扣发工资",
+      "expected_risks": [
+        "resignation_penalty"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_17",
+      "split": "holdout",
+      "family": "unilateral_change",
+      "title": "unilateral_change",
+      "difficulty": "medium",
+      "text": "公司有权依业务变化调整员工岗位和薪资",
+      "expected_risks": [
+        "unilateral_change"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_18",
+      "split": "holdout",
+      "family": "unilateral_change",
+      "title": "unilateral_change",
+      "difficulty": "hard",
+      "text": "工作地点可根据项目需要变更，员工不得异议",
+      "expected_risks": [
+        "unilateral_change"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_19",
+      "split": "holdout",
+      "family": "wage_delay",
+      "title": "wage_delay",
+      "difficulty": "medium",
+      "text": "上月工资推迟到下月底发放",
+      "expected_risks": [
+        "wage_delay"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_20",
+      "split": "holdout",
+      "family": "wage_delay",
+      "title": "wage_delay",
+      "difficulty": "hard",
+      "text": "离职后工资三个月后再发放",
+      "expected_risks": [
+        "wage_delay"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_21",
+      "split": "holdout",
+      "family": "no_written_contract",
+      "title": "no_written_contract",
+      "difficulty": "hard",
+      "text": "公司先以试用协议代替劳动合同",
+      "expected_risks": [
+        "no_written_contract"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_22",
+      "split": "holdout",
+      "family": "no_written_contract",
+      "title": "no_written_contract",
+      "difficulty": "medium",
+      "text": "毕业前先实习，入职满三个月后再签书面合同",
+      "expected_risks": [
+        "no_written_contract"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_23",
+      "split": "holdout",
+      "family": "social_base",
+      "title": "social_base",
+      "difficulty": "medium",
+      "text": "社保先按最低档缴纳，转正后再调",
+      "expected_risks": [
+        "social_base"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_24",
+      "split": "holdout",
+      "family": "social_base",
+      "title": "social_base",
+      "difficulty": "hard",
+      "text": "公司说按基本工资缴社保，不含绩效奖金",
+      "expected_risks": [
+        "social_base"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_25",
+      "split": "holdout",
+      "family": "discrimination",
+      "title": "discrimination",
+      "difficulty": "hard",
+      "text": "岗位更倾向未婚女性",
+      "expected_risks": [
+        "discrimination"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_26",
+      "split": "holdout",
+      "family": "discrimination",
+      "title": "discrimination",
+      "difficulty": "medium",
+      "text": "入职前签署不生育承诺书",
+      "expected_risks": [
+        "discrimination"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_safe_27",
+      "split": "holdout",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "easy",
+      "text": "公司依法缴纳社会保险，不采用现金补贴",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_safe_28",
+      "split": "holdout",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "medium",
+      "text": "公司不要求员工缴纳押金或提交证件原件",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_safe_29",
+      "split": "holdout",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "medium",
+      "text": "合同期限三年以上，试用期约定六个月，工资按90%发放",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_safe_30",
+      "split": "holdout",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "medium",
+      "text": "竞业限制两年并支付补偿，未扩大到普通员工",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_review_31",
+      "split": "holdout",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "hard",
+      "text": "兼职主播合作协议，收入按平台分成",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    },
+    {
+      "id": "holdout_review_32",
+      "split": "holdout",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "hard",
+      "text": "项目合作人员报酬按阶段结算，合作期限和社保尚未确定",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_after_creation",
+      "notes": "不参与规则开发；用于测量泛化差距。"
+    }
+  ]
+}

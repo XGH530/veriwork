@@ -1,0 +1,25 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>VeriWork Tests</title></head>
+<body>
+<pre id="result">running</pre>
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const lines = [];
+  let passed = 0;
+  APP_DATA.evaluationCases.forEach((testCase) => {
+    const result = window.VeriWork.analyzeContract(testCase.text, { caseType: "评测样本" });
+    const actual = result.risks.map((risk) => risk.id);
+    const missing = testCase.expected.filter((id) => !actual.includes(id));
+    const ok = missing.length === 0;
+    if (ok) passed += 1;
+    lines.push(`${ok ? "PASS" : "FAIL"}\t${testCase.id}\texpected=${testCase.expected.join(",")}\tactual=${actual.join(",")}`);
+  });
+  lines.unshift(`SUMMARY\t${passed}/${APP_DATA.evaluationCases.length}`);
+  document.getElementById("result").textContent = lines.join("\n");
+});
+</script>
+</body>
+</html>

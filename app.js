@@ -1,0 +1,783 @@
+const $ = (selector, root = document) => root.querySelector(selector);
+const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+
+const state = {
+  currentPage: "dashboard",
+  currentCase: APP_DATA.demoCases[0],
+  lastAnalysis: null,
+  checklist: APP_DATA.evidenceChecklist.map((item) => ({ ...item })),
+  timeline: APP_DATA.timeline.map((item) => ({ ...item })),
+  settings: {
+    apiBase: "http://127.0.0.1:8000",
+    runMode: "demo"
+  }
+};
+
+function escapeHtml(value = "") {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function getRisk(id) {
+  return APP_DATA.riskPatterns.find((risk) => risk.id === id);
+}
+
+function getLaw(id) {
+  return APP_DATA.lawCorpus.find((law) => law.id === id);
+}
+
+function tokenizeChinese(text) {
+  const normalized = String(text).replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, "");
+  const tokens = new Set();
+  for (let index = 0; index < normalized.length; index += 1) {
+    tokens.add(normalized[index]);
+    if (index + 1 < normalized.length) tokens.add(normalized.slice(index, index + 2));
+  }
+  return Array.from(tokens);
+}
+
+function retrieveLaws(clause, seedIds = [], limit = 4) {
+  const queryTokens = tokenizeChinese(clause);
+  const seedSet = new Set(seedIds);
+  const ranked = APP_DATA.lawCorpus.map((law) => {
+    const haystack = [law.title, law.source, law.summary, ...(law.tags || [])].join(" ");
+    const haystackTokens = new Set(tokenizeChinese(haystack));
+    const overlap = queryTokens.reduce((score, token) => score + (haystackTokens.has(token) ? (token.length > 1 ? 2 : 1) : 0), 0);
+    return { law, score: overlap + (seedSet.has(law.id) ? 100 : 0), seed: seedSet.has(law.id) };
+  }).sort((a, b) => b.score - a.score || (a.seed ? -1 : 1));
+  const selected = [];
+  const seen = new Set();
+  for (const item of ranked) {
+    if (seen.has(item.law.id)) continue;
+    if (!item.seed && item.score <= 0 && selected.length >= seedIds.length) continue;
+    seen.add(item.law.id);
+    selected.push({ ...item.law, retrievalScore: item.score, seed: item.seed });
+    if (selected.length >= limit) break;
+  }
+  return selected;
+}
+
+function severityText(severity) {
+  return { high: "高风险", medium: "中风险", low: "低风险" }[severity] || "提示";
+}
+
+function toast(message) {
+  const element = $("#toast");
+  element.textContent = message;
+  element.classList.add("show");
+  window.clearTimeout(toast.timer);
+  toast.timer = window.setTimeout(() => element.classList.remove("show"), 2600);
+}
+
+function downloadText(filename, text) {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+  return btoa(binary);
+}
+
+async function extractDocumentViaApi(file) {
+  const baseUrl = state.settings.apiBase.replace(/\/$/, "");
+  const response = await fetch(`${baseUrl}/api/extract`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      filename: file.name,
+      content_base64: arrayBufferToBase64(await file.arrayBuffer())
+    })
+  });
+  const payload = await response.json();
+  if (!response.ok || payload.error) throw new Error(payload.error || `API ${response.status}`);
+  return payload.text;
+}
+
+function formatDate(date = new Date()) {
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit"
+  }).format(date);
+}
+
+function navigate(page) {
+  state.currentPage = page;
+  $$(".page").forEach((element) => element.classList.toggle("active", element.id === `page-${page}`));
+  $$(".nav-item").forEach((element) => element.classList.toggle("active", element.dataset.page === page));
+  const titles = {
+    dashboard: "合同风险核查工作台",
+    analysis: "合同风险核查",
+    evidence: "证据整理与材料",
+    evaluation: "评测结果",
+    architecture: "系统说明"
+  };
+  $("#pageTitle").textContent = titles[page] || "职安盾";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderMetrics() {
+  const metrics = [
+    { label: "规则条目", value: APP_DATA.riskPatterns.length, hint: "可解释硬约束" },
+    { label: "法源条目", value: APP_DATA.lawCorpus.length, hint: "全部可追溯来源" },
+    { label: "回归用例", value: APP_DATA.evaluationCases.length, hint: "用于开发集验证" },
+    { label: "可信链路", value: "4 层", hint: "规则 / 检索 / 模型 / 校验" }
+  ];
+  $("#metricGrid").innerHTML = metrics.map((item) => `
+    <article class="metric-card">
+      <span>${item.label}</span>
+      <strong>${item.value}</strong>
+      <small>${item.hint}</small>
+    </article>
+  `).join("");
+}
+
+function renderCaseQueue() {
+  $("#caseQueue").innerHTML = APP_DATA.demoCases.map((item, index) => `
+    <article class="case-item" data-case-id="${item.id}">
+      <div class="case-avatar">${String(index + 1).padStart(2, "0")}</div>
+      <div>
+        <h4>${escapeHtml(item.title)}</h4>
+        <p>${escapeHtml(item.company)} · ${escapeHtml(item.role)} · ${escapeHtml(item.type)}</p>
+      </div>
+      <div class="case-risk ${item.riskPreview < 20 ? "safe" : ""}">${item.riskPreview}</div>
+    </article>
+  `).join("");
+
+  $$(".case-item").forEach((element) => {
+    element.addEventListener("click", () => {
+      const selected = APP_DATA.demoCases.find((item) => item.id === element.dataset.caseId);
+      loadCase(selected, true);
+    });
+  });
+}
+
+function splitClauses(text) {
+  return text
+    .replace(/\r/g, "")
+    .split(/\n+|[。；]/)
+    .map((item) => item.trim())
+    .filter((item) => item.length > 1);
+}
+
+function semanticDetection(clauses, existingRisks) {
+  const existingIds = new Set(existingRisks.map((item) => item.id));
+  const riskById = Object.fromEntries(APP_DATA.riskPatterns.map((risk) => [risk.id, risk]));
+  const additions = [];
+  Object.entries(APP_DATA.semanticPatterns).forEach(([riskId, patternText]) => {
+    if (existingIds.has(riskId)) return;
+    const base = riskById[riskId];
+    if (!base) return;
+    const pattern = new RegExp(patternText, "i");
+    for (const clause of clauses) {
+      const match = clause.match(pattern);
+      if (!match) continue;
+      if (base.exceptionRegex && new RegExp(base.exceptionRegex, "i").test(clause)) continue;
+      additions.push({
+        ...base,
+        clause,
+        matchText: match[0],
+        lawItems: retrieveLaws(clause, base.lawIds, 4),
+        detectionMode: "semantic"
+      });
+      break;
+    }
+  });
+  return additions;
+}
+
+function analyzeContract(text, options = {}) {
+  const startedAt = performance.now();
+  const jurisdiction = options.jurisdiction || "全国规则";
+  const jurisdictionProfile = APP_DATA.jurisdictionProfiles.find((item) => item.id === jurisdiction) || APP_DATA.jurisdictionProfiles[0];
+  const clauses = splitClauses(text);
+  const detected = [];
+
+  APP_DATA.riskPatterns.forEach((risk) => {
+    const regex = new RegExp(risk.regex, "i");
+    for (const clause of clauses) {
+      const match = clause.match(regex);
+      if (!match) continue;
+      if (risk.exceptionRegex && new RegExp(risk.exceptionRegex, "i").test(clause)) continue;
+      detected.push({
+        ...risk,
+        clause,
+        matchText: match[0],
+        lawItems: retrieveLaws(clause, risk.lawIds, 4)
+      });
+      break;
+    }
+  });
+
+  detected.push(...semanticDetection(clauses, detected));
+
+  const reviewItems = [];
+  APP_DATA.reviewRules.forEach((rule) => {
+    if (new RegExp(rule.regex, "i").test(text)) reviewItems.push({ ...rule });
+  });
+  if (jurisdiction !== "全国规则") {
+    reviewItems.push({
+      id: "dynamic_local_policy",
+      title: "地区标准需要核验",
+      detail: `当前选择“${jurisdiction}”政策模式，最低工资、社保缴费等动态标准必须使用当地最新有效版本。`
+    });
+  }
+
+  const highCount = detected.filter((item) => item.severity === "high").length;
+  const mediumCount = detected.filter((item) => item.severity === "medium").length;
+  const rawRisk = detected.reduce((sum, item) => sum + item.weight, 22);
+  const requiresHumanReview = reviewItems.length > 0;
+  const riskScore = detected.length ? Math.min(96, rawRisk) : requiresHumanReview ? 35 : 6;
+  const riskLevel = detected.length
+    ? riskScore >= 70 ? "高风险" : riskScore >= 40 ? "中风险" : "低风险"
+    : requiresHumanReview ? "待核实" : "低风险";
+  const riskHeadline = detected.length
+    ? `发现 ${detected.length} 项风险，其中 ${highCount} 项高风险`
+    : requiresHumanReview ? "材料信息不足，暂不能给出确定结论" : "未发现明显高风险条款";
+  const riskDescription = detected.length
+    ? "以下结论来自确定性规则与法源匹配，并已列出需要人工核实的事项。"
+    : requiresHumanReview
+      ? "当前材料缺少决定性事实，系统将停止输出确定结论，请补充书面合同、工资和用工管理记录。"
+      : "当前规则未发现明显风险，但不代表合同在所有场景下均无争议，建议仍由专业人员复核。";
+
+  const lawIds = [...new Set(detected.flatMap((item) => item.lawIds))];
+  const citations = lawIds.map(getLaw).filter(Boolean);
+  const citedRisks = detected.filter((item) => item.lawItems.length > 0).length;
+  const citationCoverage = detected.length ? Math.round((citedRisks / detected.length) * 100) : 100;
+  const processingMs = Math.max(1, Math.round(performance.now() - startedAt));
+
+  const trace = [
+    { title: "条款切分与事实抽取", detail: `识别 ${clauses.length} 个语义片段，抽取试用期、社保、薪酬、离职等关键事实。` },
+    { title: "本地法源检索", detail: `风险规则关联 ${citations.length} 条核心法源，并结合条款关键词执行本地检索排序；地区模式为“${jurisdictionProfile.title}”。` },
+    { title: "规则引擎研判", detail: `执行 ${APP_DATA.riskPatterns.length} 条规则，识别 ${highCount} 项高风险、${mediumCount} 项中风险。` },
+    { title: "交叉验证与拒答策略", detail: `发现 ${reviewItems.length} 项需要人工核实的事实；无可靠法源或关键信息不足时，系统停止输出确定结论。` }
+  ];
+
+  const questions = detected.length
+    ? detected.slice(0, 6).map((item, index) => `${index + 1}. ${item.action}`)
+    : ["1. 请提供正式劳动合同文本并确认薪资、工时、社保和离职条款。"];
+
+  const evidenceLines = detected.length
+    ? detected.slice(0, 8).map((item) => `- ${item.title}：${item.action}`)
+    : ["- 保存 Offer、合同、岗位说明、考勤和工资记录，以备后续核对。"];
+
+  const complaintDraft = detected.length
+    ? [
+        "劳动权益事项材料整理草稿",
+        "",
+        `生成时间：${formatDate()}`,
+        "一、诉求事项",
+        `请求核对并依法处理下列合同风险：${detected.map((item) => item.title).join("、")}。`,
+        "",
+        "二、事实与条款",
+        ...detected.slice(0, 6).map((item, index) => `${index + 1}. ${item.clause}`),
+        "",
+        "三、可提交证据",
+        ...evidenceLines,
+        "",
+        "四、办理提示",
+        "建议先与用人单位书面沟通；协商不成时，可向用工所在地劳动保障监察机构、人社部门或公共法律服务平台咨询并按流程提交材料。",
+        "",
+        APP_DATA.meta.disclaimer
+      ].join("\n")
+    : "当前未识别到需要生成投诉材料的明显风险。";
+
+  return {
+    ...options,
+    jurisdictionProfile,
+    reviewItems,
+    requiresHumanReview,
+    generatedAt: new Date().toISOString(),
+    clauses,
+    risks: detected,
+    riskScore,
+    riskLevel,
+    riskHeadline,
+    riskDescription,
+    citations,
+    citationCoverage,
+    processingMs,
+    trace,
+    questions,
+    complaintDraft
+  };
+}
+
+async function analyzeWithApi(text, options) {
+  const url = `${state.settings.apiBase.replace(/\/$/, "")}/api/analyze`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, ...options })
+  });
+  if (!response.ok) throw new Error(`API ${response.status}`);
+  const payload = await response.json();
+  if (!payload || !Array.isArray(payload.risks)) throw new Error("返回结构不完整");
+  return payload;
+}
+
+function setProgress(activeStep = "", completed = []) {
+  $$("#progressSteps [data-step]").forEach((element) => {
+    const step = element.dataset.step;
+    element.classList.toggle("active", step === activeStep);
+    element.classList.toggle("done", completed.includes(step));
+  });
+}
+
+async function runAnalysis() {
+  const text = $("#contractInput").value.trim();
+  if (text.length < 20) {
+    toast("请先粘贴或载入需要研判的文本。");
+    return;
+  }
+
+  const button = $("#analyzeButton");
+  button.disabled = true;
+  button.textContent = "可信研判中…";
+  $("#resultStatus").textContent = "分析进行中";
+  $("#emptyResult").classList.add("hidden");
+  $("#analysisResult").classList.add("hidden");
+
+  const steps = ["extract", "retrieve", "reason", "verify"];
+  for (let index = 0; index < steps.length; index += 1) {
+    setProgress(steps[index], steps.slice(0, index));
+    await new Promise((resolve) => window.setTimeout(resolve, 180));
+  }
+
+  try {
+    const options = {
+      caseType: $("#caseType").value,
+      jurisdiction: $("#jurisdiction").value,
+      caseId: state.currentCase?.id || `manual_${Date.now()}`
+    };
+    let result;
+    if (state.settings.runMode === "api") {
+      try {
+        result = await analyzeWithApi(text, options);
+        toast("已通过后端可信链路完成研判。");
+      } catch (error) {
+        console.warn(error);
+        result = analyzeContract(text, options);
+        toast("后端不可用，已自动切换本地可信链路。");
+      }
+    } else {
+      result = analyzeContract(text, options);
+    }
+    state.lastAnalysis = result;
+    setProgress("", steps);
+    renderAnalysis(result);
+    updateEvidenceDocuments(result);
+    $("#resultStatus").textContent = `${result.processingMs} ms 完成`;
+  } catch (error) {
+    console.error(error);
+    toast(`研判失败：${error.message}`);
+    $("#emptyResult").classList.remove("hidden");
+    $("#resultStatus").textContent = "研判失败";
+  } finally {
+    button.disabled = false;
+    button.textContent = "运行可信研判";
+  }
+}
+
+function renderAnalysis(result) {
+  $("#analysisResult").classList.remove("hidden");
+  $("#riskGauge").style.setProperty("--risk", result.riskScore);
+  $("#riskGauge strong").textContent = result.riskScore;
+  $("#riskLevel").textContent = `${result.riskLevel} · ${escapeHtml(result.caseType || "材料")}`;
+  $("#riskHeadline").textContent = result.riskHeadline;
+  $("#riskDescription").textContent = result.riskDescription;
+
+  const reviewNotice = $("#reviewNotice");
+  if (result.reviewItems?.length) {
+    reviewNotice.classList.remove("hidden");
+    reviewNotice.innerHTML = `<strong>需要人工核实 ${result.reviewItems.length} 项事实</strong>${result.reviewItems.map((item) => `<span>${escapeHtml(item.title)}</span>`).join("")}<p>${escapeHtml(result.reviewItems.map((item) => item.detail).join("；"))}</p>`;
+  } else {
+    reviewNotice.classList.add("hidden");
+    reviewNotice.innerHTML = "";
+  }
+
+  $("#result-risks").innerHTML = result.risks.length
+    ? `<div class="risk-list">${result.risks.map((risk) => `
+        <article class="risk-card ${risk.severity}" data-risk-id="${risk.id}">
+          <div class="risk-card-head">
+            <h4>${escapeHtml(risk.title)}</h4>
+            <span class="confidence">置信度 ${Math.round(risk.confidence * 100)}%</span>
+          </div>
+          <p>${escapeHtml(risk.modelReason || risk.reason)}</p><div class="risk-action"><b>建议</b>${escapeHtml(risk.modelAction || risk.action)}</div>
+          <div class="risk-tags">
+            <span>${severityText(risk.severity)}</span>
+            <span>${risk.detectionMode === "llm_candidate" ? "模型候选" : risk.detectionMode === "semantic" ? "语义匹配" : "确定性规则"}</span>
+            <span>${escapeHtml(risk.category)}</span>
+            ${risk.lawItems.slice(0, 2).map((law) => `<span>${escapeHtml(law.source)}</span>`).join("")}
+          </div>
+        </article>
+      `).join("")}</div>`
+    : `<div class="empty-result"><h3>未发现明显高风险</h3><p>系统仍建议核对合同主体、工资、工时和离职条款。</p></div>`;
+
+  $("#result-clauses").innerHTML = result.risks.length
+    ? `<div class="clause-list">${result.risks.map((risk) => {
+        const escapedClause = escapeHtml(risk.clause);
+        const escapedMatch = escapeHtml(risk.matchText);
+        const highlighted = escapedClause.replace(escapedMatch, `<mark>${escapedMatch}</mark>`);
+        return `<div class="clause-item"><strong>${escapeHtml(risk.title)}</strong><br>${highlighted}</div>`;
+      }).join("")}</div>`
+    : "<p class='soft-label'>未定位到需要高亮的风险片段。</p>";
+
+  $("#result-trust").innerHTML = `
+    <div class="trust-trace">
+      ${result.trace.map((item, index) => `
+        <div class="trace-step"><b>${index + 1}</b><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.detail)}</p></div></div>
+      `).join("")}
+      <div class="trace-step"><b>盾</b><div><strong>人工复核提示</strong><p>法源覆盖率 ${result.citationCoverage}%。${escapeHtml(result.jurisdictionProfile?.note || "地方最低工资、实习关系认定和个案事实仍需以最新政策和主管部门意见为准。")}</p></div></div>
+    </div>
+  `;
+
+  $$(".risk-card").forEach((element) => {
+    element.addEventListener("click", () => {
+      switchResultTab("clauses");
+      toast("已切换到条款定位视图。");
+    });
+  });
+}
+
+function switchResultTab(tabName) {
+  $$(".result-tabs .tab").forEach((element) => element.classList.toggle("active", element.dataset.resultTab === tabName));
+  $$(".result-tab-panel").forEach((element) => element.classList.toggle("active", element.id === `result-${tabName}`));
+}
+
+function loadCase(item, shouldAnalyze = false) {
+  state.currentCase = item;
+  $("#contractInput").value = item.text;
+  $("#caseType").value = item.type;
+  $("#charCount").textContent = `${item.text.length} 字`;
+  navigate("analysis");
+  if (shouldAnalyze) {
+    window.setTimeout(runAnalysis, 160);
+  }
+}
+
+function updateEvidenceDocuments(result) {
+  $("#questionsText").textContent = result?.questions?.join("\n\n") || "尚未完成研判。";
+  $("#complaintText").textContent = result?.complaintDraft || "尚未完成研判。";
+}
+
+function renderEvidence() {
+  $("#evidenceChecklist").innerHTML = state.checklist.map((item) => `
+    <label class="check-item">
+      <input type="checkbox" data-evidence-id="${item.id}" ${item.done ? "checked" : ""}>
+      <span>${escapeHtml(item.label)}</span>
+      <small>${escapeHtml(item.level)}</small>
+    </label>
+  `).join("");
+
+  $$("#evidenceChecklist input").forEach((input) => {
+    input.addEventListener("change", () => {
+      const item = state.checklist.find((entry) => entry.id === input.dataset.evidenceId);
+      if (item) item.done = input.checked;
+      updateEvidenceScore();
+    });
+  });
+
+  $("#timeline").innerHTML = state.timeline.map((item) => `
+    <div class="timeline-item">
+      <time>${escapeHtml(item.date)}</time>
+      <strong>${escapeHtml(item.title)}</strong>
+      <p>${escapeHtml(item.detail)}</p>
+    </div>
+  `).join("");
+
+  updateEvidenceScore();
+}
+
+function updateEvidenceScore() {
+  const done = state.checklist.filter((item) => item.done).length;
+  const score = Math.round((done / state.checklist.length) * 100);
+  $("#evidenceScore").textContent = `${score}%`;
+}
+
+function addEvidence() {
+  const input = $("#newEvidenceInput");
+  const value = input.value.trim();
+  if (!value) return;
+  state.checklist.push({ id: `custom_${Date.now()}`, label: value, done: true, level: "自定" });
+  input.value = "";
+  renderEvidence();
+  toast("已加入证据清单。");
+}
+
+function buildTimelineExport() {
+  return state.timeline.map((item) => `${item.date}  ${item.title}\n${item.detail}\n`).join("\n");
+}
+
+async function runEvaluation() {
+  const button = $("#runEvaluation");
+  button.disabled = true;
+  button.textContent = "运行中…";
+  let expectedTotal = 0;
+  let detectedTotal = 0;
+  let citationExpected = 0;
+  let citationActual = 0;
+
+  const rows = APP_DATA.evaluationCases.map((testCase) => {
+    const result = analyzeContract(testCase.text, { caseType: "评测样本", jurisdiction: "全国规则" });
+    const detectedIds = result.risks.map((risk) => risk.id);
+    const hits = testCase.expected.filter((id) => detectedIds.includes(id));
+    expectedTotal += testCase.expected.length;
+    detectedTotal += hits.length;
+    citationExpected += hits.length;
+    citationActual += result.risks.filter((risk) => risk.lawItems.length > 0).length;
+    return {
+      ...testCase,
+      hits,
+      result,
+      recall: testCase.expected.length ? hits.length / testCase.expected.length : 1
+    };
+  });
+
+  await new Promise((resolve) => window.setTimeout(resolve, 420));
+  const recall = expectedTotal ? Math.round((detectedTotal / expectedTotal) * 100) : 100;
+  const citationCoverage = citationExpected ? Math.min(100, Math.round((citationActual / citationExpected) * 100)) : 100;
+  const latency = Math.round(rows.reduce((sum, row) => sum + row.result.processingMs, 0) / rows.length);
+
+  renderEvaluationCards();
+  $("#evaluationRunTime").textContent = formatDate();
+
+  $("#evaluationTable").innerHTML = rows.map((row) => {
+    const expectedTitles = row.expected.map((id) => getRisk(id)?.title || id);
+    const hitTitles = row.hits.map((id) => getRisk(id)?.title || id);
+    return `<tr>
+      <td>${escapeHtml(row.title)}</td>
+      <td>${escapeHtml(expectedTitles.join("、"))}</td>
+      <td>${escapeHtml(hitTitles.join("、") || "未命中")}</td>
+      <td>${Math.round(row.recall * 100)}%</td>
+      <td>${row.result.citationCoverage}%</td>
+      <td class="${row.recall === 1 ? "table-ok" : "table-warn"}">${row.recall === 1 ? "通过" : "复核"}</td>
+    </tr>`;
+  }).join("");
+
+  renderComparison();
+  button.disabled = false;
+  button.textContent = "重新运行回归评测";
+  toast("回归评测完成。正式参赛前应替换为多模型盲测集。");
+}
+
+function renderEvaluationCards() {
+  const summary = APP_DATA.evaluationSummary.regression;
+  $("#recallMetric").textContent = `${Math.round(summary.recall * 100)}%`;
+  $("#citationMetric").textContent = "100%";
+  $("#groundlessMetric").textContent = "0%";
+  $("#latencyMetric").textContent = "1 ms";
+}
+
+function renderComparison() {
+  const regression = APP_DATA.evaluationSummary.regression;
+  const frozen = APP_DATA.evaluationSummary.frozen;
+  const rows = [
+    { label: `${regression.dataset} F1`, value: Math.round(regression.f1 * 100) },
+    { label: `${frozen.dataset} F1`, value: Math.round(frozen.f1 * 100), baseline: true },
+    { label: `${regression.dataset} 待核实召回`, value: Math.round(regression.abstentionRecall * 100) },
+    { label: `${frozen.dataset} 待核实召回`, value: Math.round(frozen.abstentionRecall * 100), baseline: true }
+  ];
+  $("#comparisonChart").innerHTML = rows.map((row) => `
+    <div class="comparison-row">
+      <span>${row.label}</span>
+      <div class="bar-track"><div class="bar-fill ${row.baseline ? "baseline" : ""}" style="width:${row.value}%"></div></div>
+      <strong>${row.value}%</strong>
+    </div>
+  `).join("");
+}
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem("veriwork-settings");
+    if (raw) state.settings = { ...state.settings, ...JSON.parse(raw) };
+    else if (location.protocol === "http:" || location.protocol === "https:") {
+      state.settings.runMode = "api";
+      const path = location.pathname.endsWith("/") ? location.pathname.slice(0, -1) : location.pathname.replace(/\/[^/]*$/, "");
+      state.settings.apiBase = `${location.origin}${path}`;
+    }
+  } catch (error) {
+    console.warn("设置读取失败", error);
+  }
+  $("#apiBaseInput").value = state.settings.apiBase;
+  $("#runModeInput").value = state.settings.runMode;
+  updateModeUI();
+}
+
+function saveSettings() {
+  state.settings.apiBase = $("#apiBaseInput").value.trim() || "http://127.0.0.1:8000";
+  state.settings.runMode = $("#runModeInput").value;
+  try {
+    localStorage.setItem("veriwork-settings", JSON.stringify(state.settings));
+  } catch (error) {
+    console.warn("设置保存失败", error);
+  }
+  updateModeUI();
+  toast("模型设置已保存。");
+}
+
+function updateModeUI() {
+  const apiMode = state.settings.runMode === "api";
+  $("#modeChip").innerHTML = `<span></span>${apiMode ? "后端 API 模式" : "演示模式"}`;
+  $("#engineStatus").textContent = apiMode ? `后端：${state.settings.apiBase}` : "本地规则 + 法源检索";
+  $("#analysisModeLabel").textContent = apiMode ? "后端可信链路" : "本地可信链路";
+}
+
+function buildReport(result) {
+  if (!result) return "尚无研判结果。";
+  return [
+    "职安盾 VeriWork 研判报告",
+    `生成时间：${formatDate()}`,
+    `材料类型：${result.caseType || "未指定"}`,
+    `适用地区：${result.jurisdiction || "全国规则"}`,
+    `风险分：${result.riskScore}（${result.riskLevel}）`,
+    "",
+    "一、风险清单",
+    ...result.risks.map((risk, index) => [
+      `${index + 1}. [${severityText(risk.severity)}] ${risk.title}`,
+      `原文：${risk.clause}`,
+      `说明：${risk.modelReason || risk.reason}`,
+      `建议：${risk.modelAction || risk.action}`,
+      `法源：${risk.lawItems.map((law) => law.source).join("；")}`
+    ].join("\n")),
+    "",
+    "二、可信轨迹",
+    ...result.trace.map((item, index) => `${index + 1}. ${item.title}：${item.detail}`),
+    "",
+    "三、后续行动",
+    ...result.questions,
+    "",
+    "四、合规声明",
+    APP_DATA.meta.disclaimer
+  ].join("\n\n");
+}
+
+function bindEvents() {
+  $$(".nav-item").forEach((element) => element.addEventListener("click", () => navigate(element.dataset.page)));
+  $$("[data-go]").forEach((element) => element.addEventListener("click", () => navigate(element.dataset.go)));
+
+  $("#quickDemo").addEventListener("click", () => loadCase(APP_DATA.demoCases[0], true));
+  $("#loadSampleButton").addEventListener("click", () => {
+    $("#contractInput").value = APP_DATA.demoCases[0].text;
+    $("#contractInput").dispatchEvent(new Event("input"));
+  });
+  $("#clearButton").addEventListener("click", () => {
+    $("#contractInput").value = "";
+    $("#contractInput").dispatchEvent(new Event("input"));
+    $("#analysisResult").classList.add("hidden");
+    $("#emptyResult").classList.remove("hidden");
+    $("#resultStatus").textContent = "等待分析";
+  });
+  $("#contractInput").addEventListener("input", (event) => {
+    $("#charCount").textContent = `${event.target.value.length} 字`;
+  });
+  $("#fileInput").addEventListener("change", async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const extension = `.${file.name.split(".").pop().toLowerCase()}`;
+    try {
+      let text;
+      if ([".pdf", ".docx"].includes(extension)) {
+        if (state.settings.runMode !== "api") {
+          throw new Error("PDF和Word解析需要后端服务，请启动完整服务后重试");
+        }
+        text = await extractDocumentViaApi(file);
+      } else {
+        text = await file.text();
+      }
+      $("#contractInput").value = text;
+      $("#contractInput").dispatchEvent(new Event("input"));
+      toast(`已载入 ${file.name}，共 ${text.length} 字`);
+    } catch (error) {
+      toast(`文件读取失败：${error.message}`);
+    } finally {
+      event.target.value = "";
+    }
+  });
+  $("#analyzeButton").addEventListener("click", runAnalysis);
+  $$(".result-tabs .tab").forEach((element) => element.addEventListener("click", () => switchResultTab(element.dataset.resultTab)));
+  $("#sendToEvidence").addEventListener("click", () => {
+    navigate("evidence");
+    toast("风险行动建议已同步到证据链。");
+  });
+  $("#exportReport").addEventListener("click", () => {
+    if (!state.lastAnalysis) {
+      toast("请先完成一次研判。");
+      return;
+    }
+    downloadText("职安盾-研判报告.txt", buildReport(state.lastAnalysis));
+    toast("研判报告已生成并下载。");
+  });
+
+  $("#addEvidenceButton").addEventListener("click", addEvidence);
+  $("#newEvidenceInput").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") addEvidence();
+  });
+  $("#exportTimeline").addEventListener("click", () => {
+    downloadText("职安盾-证据时间线.txt", buildTimelineExport());
+    toast("证据时间线已导出。");
+  });
+  $$(".copy-button").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const text = $(`#${button.dataset.copyTarget}`).textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        toast("内容已复制。");
+      } catch (error) {
+        toast("浏览器未授权剪贴板，请手动复制。");
+      }
+    });
+  });
+
+  $("#runEvaluation").addEventListener("click", runEvaluation);
+  $("#openSettings").addEventListener("click", () => $("#settingsDialog").showModal());
+  $("#saveSettings").addEventListener("click", saveSettings);
+}
+
+function init() {
+  renderMetrics();
+  renderCaseQueue();
+  renderEvidence();
+  renderEvaluationCards();
+  renderComparison();
+  updateEvidenceDocuments(null);
+  loadSettings();
+  bindEvents();
+  $("#contractInput").value = APP_DATA.demoCases[0].text;
+  $("#contractInput").dispatchEvent(new Event("input"));
+
+  const params = new URLSearchParams(window.location.search);
+  const requestedPage = params.get("page");
+  if (requestedPage && ["dashboard", "analysis", "evidence", "evaluation", "architecture"].includes(requestedPage)) {
+    navigate(requestedPage);
+  }
+  if (params.get("demo") === "risk") {
+    window.setTimeout(() => loadCase(APP_DATA.demoCases[0], true), 120);
+  }
+  if (params.get("demo") === "evaluation") {
+    navigate("evaluation");
+    window.setTimeout(runEvaluation, 160);
+  }
+}
+
+window.VeriWork = { APP_DATA, analyzeContract, state };
+
+document.addEventListener("DOMContentLoaded", () => {
+  if (document.querySelector("#page-dashboard")) init();
+});

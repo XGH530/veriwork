@@ -1,0 +1,620 @@
+{
+  "version": "holdout-v2.0.0-frozen",
+  "created_on": "2026-10-08",
+  "description": "40条冻结留出样本，用于报告混合规则链的真实泛化差距。",
+  "limitations": "团队合成文本，不是真实用户数据；不能替代外部盲测。",
+  "cases": [
+    {
+      "id": "frozen_001",
+      "split": "frozen_holdout",
+      "family": "no_social_insurance",
+      "title": "no_social_insurance",
+      "difficulty": "medium",
+      "text": "公司提出社保费用由个人全部承担，单位只发现金补贴。",
+      "expected_risks": [
+        "no_social_insurance"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_002",
+      "split": "frozen_holdout",
+      "family": "no_social_insurance",
+      "title": "no_social_insurance",
+      "difficulty": "easy",
+      "text": "约定试用期内员工自行缴纳社会保险，公司不办理参保。",
+      "expected_risks": [
+        "no_social_insurance"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_003",
+      "split": "frozen_holdout",
+      "family": "employment_deposit",
+      "title": "employment_deposit",
+      "difficulty": "medium",
+      "text": "入职材料中要求上交毕业证书原件，由人事统一保管。",
+      "expected_risks": [
+        "employment_deposit"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_004",
+      "split": "frozen_holdout",
+      "family": "employment_deposit",
+      "title": "employment_deposit",
+      "difficulty": "easy",
+      "text": "转正前需支付1000元工牌和设备保证金。",
+      "expected_risks": [
+        "employment_deposit"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_005",
+      "split": "frozen_holdout",
+      "family": "training_loan",
+      "title": "training_loan",
+      "difficulty": "medium",
+      "text": "零基础求职者被要求办理两万元技能培训分期。",
+      "expected_risks": [
+        "training_loan"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_006",
+      "split": "frozen_holdout",
+      "family": "training_loan",
+      "title": "training_loan",
+      "difficulty": "hard",
+      "text": "岗前课程收费4800元，费用入职后从工资扣除。",
+      "expected_risks": [
+        "training_loan"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_007",
+      "split": "frozen_holdout",
+      "family": "probation_salary",
+      "title": "probation_salary",
+      "difficulty": "hard",
+      "text": "试岗期只按约定工资的65%支付。",
+      "expected_risks": [
+        "probation_salary"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_008",
+      "split": "frozen_holdout",
+      "family": "probation_salary",
+      "title": "probation_salary",
+      "difficulty": "medium",
+      "text": "试用期按合同工资的78%结算。",
+      "expected_risks": [
+        "probation_salary"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_009",
+      "split": "frozen_holdout",
+      "family": "probation_duration",
+      "title": "probation_duration",
+      "difficulty": "medium",
+      "text": "一年期合同设置三个月试用期。",
+      "expected_risks": [
+        "probation_duration"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_010",
+      "split": "frozen_holdout",
+      "family": "probation_duration",
+      "title": "probation_duration",
+      "difficulty": "easy",
+      "text": "合同写两年，试用期四个月。",
+      "expected_risks": [
+        "probation_duration"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_011",
+      "split": "frozen_holdout",
+      "family": "noncompete_risk",
+      "title": "noncompete_risk",
+      "difficulty": "hard",
+      "text": "离职后两年内不得同业，合同没有补偿条款。",
+      "expected_risks": [
+        "noncompete_risk"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_012",
+      "split": "frozen_holdout",
+      "family": "noncompete_risk",
+      "title": "noncompete_risk",
+      "difficulty": "hard",
+      "text": "禁止参与竞业两年，但不给补偿。",
+      "expected_risks": [
+        "noncompete_risk"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_013",
+      "split": "frozen_holdout",
+      "family": "overtime_unpaid",
+      "title": "overtime_unpaid",
+      "difficulty": "hard",
+      "text": "非工作时间处理工作，被认定为不计薪工时。",
+      "expected_risks": [
+        "overtime_unpaid"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_014",
+      "split": "frozen_holdout",
+      "family": "overtime_unpaid",
+      "title": "overtime_unpaid",
+      "difficulty": "hard",
+      "text": "法定节假日值班，公司以调休替代全部加班工资。",
+      "expected_risks": [
+        "overtime_unpaid"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_015",
+      "split": "frozen_holdout",
+      "family": "resignation_penalty",
+      "title": "resignation_penalty",
+      "difficulty": "medium",
+      "text": "合同期内辞职需要向公司赔偿三个月工资。",
+      "expected_risks": [
+        "resignation_penalty"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_016",
+      "split": "frozen_holdout",
+      "family": "resignation_penalty",
+      "title": "resignation_penalty",
+      "difficulty": "medium",
+      "text": "未到服务期离开，按未履行年限缴纳赔偿金。",
+      "expected_risks": [
+        "resignation_penalty"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_017",
+      "split": "frozen_holdout",
+      "family": "unilateral_change",
+      "title": "unilateral_change",
+      "difficulty": "medium",
+      "text": "公司可按业务需要调整岗位，员工不得提出异议。",
+      "expected_risks": [
+        "unilateral_change"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_018",
+      "split": "frozen_holdout",
+      "family": "unilateral_change",
+      "title": "unilateral_change",
+      "difficulty": "hard",
+      "text": "办公地点随项目变化，员工须接受安排。",
+      "expected_risks": [
+        "unilateral_change"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_019",
+      "split": "frozen_holdout",
+      "family": "wage_delay",
+      "title": "wage_delay",
+      "difficulty": "medium",
+      "text": "上月工资延后至下下月发放。",
+      "expected_risks": [
+        "wage_delay"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_020",
+      "split": "frozen_holdout",
+      "family": "wage_delay",
+      "title": "wage_delay",
+      "difficulty": "hard",
+      "text": "离职后工资分三期发放。",
+      "expected_risks": [
+        "wage_delay"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_021",
+      "split": "frozen_holdout",
+      "family": "no_written_contract",
+      "title": "no_written_contract",
+      "difficulty": "medium",
+      "text": "公司先用试用协议替代书面劳动合同。",
+      "expected_risks": [
+        "no_written_contract"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_022",
+      "split": "frozen_holdout",
+      "family": "no_written_contract",
+      "title": "no_written_contract",
+      "difficulty": "hard",
+      "text": "入职三个月后补签劳动合同。",
+      "expected_risks": [
+        "no_written_contract"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_023",
+      "split": "frozen_holdout",
+      "family": "social_base",
+      "title": "social_base",
+      "difficulty": "easy",
+      "text": "社保按最低档缴纳。",
+      "expected_risks": [
+        "social_base"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_024",
+      "split": "frozen_holdout",
+      "family": "social_base",
+      "title": "social_base",
+      "difficulty": "hard",
+      "text": "社保缴费基数只按底薪计算。",
+      "expected_risks": [
+        "social_base"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_025",
+      "split": "frozen_holdout",
+      "family": "discrimination",
+      "title": "discrimination",
+      "difficulty": "medium",
+      "text": "招聘要求三年内无生育计划。",
+      "expected_risks": [
+        "discrimination"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_026",
+      "split": "frozen_holdout",
+      "family": "discrimination",
+      "title": "discrimination",
+      "difficulty": "hard",
+      "text": "此岗位更希望招未婚男性。",
+      "expected_risks": [
+        "discrimination"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_safe_027",
+      "split": "frozen_holdout",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "easy",
+      "text": "员工可依法参保，公司不通过现金替代。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_safe_028",
+      "split": "frozen_holdout",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "medium",
+      "text": "入职流程不收费，也不扣押任何证件。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_safe_029",
+      "split": "frozen_holdout",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "medium",
+      "text": "合同两年，试用期两个月，工资为约定工资的85%。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_safe_030",
+      "split": "frozen_holdout",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "medium",
+      "text": "竞业限制一年，按季度支付补偿。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_safe_031",
+      "split": "frozen_holdout",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "easy",
+      "text": "加班按规定安排调休或者支付加班费。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_safe_032",
+      "split": "frozen_holdout",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "easy",
+      "text": "书面劳动合同在入职一个月内签订。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_safe_033",
+      "split": "frozen_holdout",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "medium",
+      "text": "岗位调整由双方协商并签署补充协议。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_safe_034",
+      "split": "frozen_holdout",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "medium",
+      "text": "公司按实际工资申报社保缴费基数。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_review_035",
+      "split": "frozen_holdout",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "hard",
+      "text": "平台骑手合作协议，报酬按单结算，是否建立劳动关系未明确。",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_review_036",
+      "split": "frozen_holdout",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "medium",
+      "text": "毕业前实习，毕业后视考核决定是否转正。",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_review_037",
+      "split": "frozen_holdout",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "medium",
+      "text": "兼职内容审核，每周排班由平台安排。",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_review_038",
+      "split": "frozen_holdout",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "hard",
+      "text": "项目制合作，费用和纳税方式尚未确定。",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_review_039",
+      "split": "frozen_holdout",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "hard",
+      "text": "公司说工资由基本工资和绩效构成，具体比例待定。",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    },
+    {
+      "id": "frozen_review_040",
+      "split": "frozen_holdout",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "medium",
+      "text": "口头承诺有年终奖，但合同未写。",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_frozen_holdout",
+      "contains_personal_data": false,
+      "review_status": "frozen_no_rule_tuning_allowed",
+      "notes": "V2冻结留出集；仅运行一次，不根据结果继续调规则。"
+    }
+  ]
+}

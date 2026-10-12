@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.veriwork-settings.json
+.env
+.env.*
+!.env.example
+.venv/
+.idea/
+work/
+data/official_sources/raw/*.html
+data/competition_history/**/*.pdf

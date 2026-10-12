@@ -1,0 +1,1656 @@
+{
+  "system": "LLM model-only",
+  "model": "deepseek-flash",
+  "dataset_version": "holdout-v2.0.0-frozen",
+  "generated_at": "2026-10-08T16:35:55",
+  "successful_cases": 40,
+  "failed_cases": 0,
+  "errors": [],
+  "metrics": {
+    "frozen_holdout": {
+      "cases": 40,
+      "expected_risks": 26,
+      "predicted_risks": 28,
+      "true_positive": 26,
+      "false_positive": 2,
+      "false_negative": 0,
+      "precision": 0.9286,
+      "recall": 1.0,
+      "f1": 0.963,
+      "exact_match_rate": 0.95,
+      "citation_coverage": 0.0,
+      "abstention_recall": 0.8333,
+      "confident_error_cases": 1
+    },
+    "all": {
+      "cases": 40,
+      "expected_risks": 26,
+      "predicted_risks": 28,
+      "true_positive": 26,
+      "false_positive": 2,
+      "false_negative": 0,
+      "precision": 0.9286,
+      "recall": 1.0,
+      "f1": 0.963,
+      "exact_match_rate": 0.95,
+      "citation_coverage": 0.0,
+      "abstention_recall": 0.8333,
+      "confident_error_cases": 1
+    }
+  },
+  "cases": [
+    {
+      "id": "frozen_001",
+      "split": "frozen_holdout",
+      "family": "no_social_insurance",
+      "difficulty": "medium",
+      "title": "no_social_insurance",
+      "text": "公司提出社保费用由个人全部承担，单位只发现金补贴。",
+      "expected_risks": [
+        "no_social_insurance"
+      ],
+      "predicted_risks": [
+        "no_social_insurance"
+      ],
+      "model_risks": [
+        "no_social_insurance"
+      ],
+      "rule_risks": [],
+      "true_positive": [
+        "no_social_insurance"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 4604,
+      "raw_model_result": {
+        "risks": [
+          "no_social_insurance"
+        ],
+        "abstain": false,
+        "confidence": 0.95,
+        "evidence": [
+          {
+            "id": "no_social_insurance",
+            "clause": "社保费用由个人全部承担，单位只发现金补贴",
+            "reason": "单位以现金补贴替代法定社保缴纳，且将单位应承担费用转由个人承担，存在未依法缴纳社保风险。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_002",
+      "split": "frozen_holdout",
+      "family": "no_social_insurance",
+      "difficulty": "easy",
+      "title": "no_social_insurance",
+      "text": "约定试用期内员工自行缴纳社会保险，公司不办理参保。",
+      "expected_risks": [
+        "no_social_insurance"
+      ],
+      "predicted_risks": [
+        "no_social_insurance"
+      ],
+      "model_risks": [
+        "no_social_insurance"
+      ],
+      "rule_risks": [
+        "no_social_insurance"
+      ],
+      "true_positive": [
+        "no_social_insurance"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "中风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 2438,
+      "raw_model_result": {
+        "risks": [
+          "no_social_insurance"
+        ],
+        "abstain": false,
+        "confidence": 0.98,
+        "evidence": [
+          {
+            "id": "no_social_insurance",
+            "clause": "约定试用期内员工自行缴纳社会保险，公司不办理参保。",
+            "reason": "公司不办理参保，要求员工自行缴纳，免除自身法定社保缴纳义务，违反社会保险法。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_003",
+      "split": "frozen_holdout",
+      "family": "employment_deposit",
+      "difficulty": "medium",
+      "title": "employment_deposit",
+      "text": "入职材料中要求上交毕业证书原件，由人事统一保管。",
+      "expected_risks": [
+        "employment_deposit"
+      ],
+      "predicted_risks": [
+        "employment_deposit"
+      ],
+      "model_risks": [
+        "employment_deposit"
+      ],
+      "rule_risks": [],
+      "true_positive": [
+        "employment_deposit"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 18035,
+      "raw_model_result": {
+        "risks": [
+          "employment_deposit"
+        ],
+        "abstain": false,
+        "confidence": 0.82,
+        "evidence": [
+          {
+            "id": "employment_deposit",
+            "clause": "入职材料中要求上交毕业证书原件，由人事统一保管。",
+            "reason": "要求上交并保管毕业证书原件，属于用人单位扣押劳动者证件，与禁止收取押金/扣押证件同类风险。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_004",
+      "split": "frozen_holdout",
+      "family": "employment_deposit",
+      "difficulty": "easy",
+      "title": "employment_deposit",
+      "text": "转正前需支付1000元工牌和设备保证金。",
+      "expected_risks": [
+        "employment_deposit"
+      ],
+      "predicted_risks": [
+        "employment_deposit"
+      ],
+      "model_risks": [
+        "employment_deposit"
+      ],
+      "rule_risks": [
+        "employment_deposit"
+      ],
+      "true_positive": [
+        "employment_deposit"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "中风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 1776,
+      "raw_model_result": {
+        "risks": [
+          "employment_deposit"
+        ],
+        "abstain": false,
+        "confidence": 0.98,
+        "evidence": [
+          {
+            "id": "employment_deposit",
+            "clause": "转正前需支付1000元工牌和设备保证金。",
+            "reason": "要求劳动者支付工牌和设备保证金，属于违法收取押金/保证金。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_005",
+      "split": "frozen_holdout",
+      "family": "training_loan",
+      "difficulty": "medium",
+      "title": "training_loan",
+      "text": "零基础求职者被要求办理两万元技能培训分期。",
+      "expected_risks": [
+        "training_loan"
+      ],
+      "predicted_risks": [
+        "training_loan"
+      ],
+      "model_risks": [
+        "training_loan"
+      ],
+      "rule_risks": [],
+      "true_positive": [
+        "training_loan"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 1976,
+      "raw_model_result": {
+        "risks": [
+          "training_loan"
+        ],
+        "abstain": false,
+        "confidence": 0.95,
+        "evidence": [
+          {
+            "id": "training_loan",
+            "clause": "零基础求职者被要求办理两万元技能培训分期。",
+            "reason": "以求职为名要求办理高额技能培训分期，属于典型培训贷风险，可能诱导求职者承担不合理债务。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_006",
+      "split": "frozen_holdout",
+      "family": "training_loan",
+      "difficulty": "hard",
+      "title": "training_loan",
+      "text": "岗前课程收费4800元，费用入职后从工资扣除。",
+      "expected_risks": [
+        "training_loan"
+      ],
+      "predicted_risks": [
+        "training_loan"
+      ],
+      "model_risks": [
+        "training_loan"
+      ],
+      "rule_risks": [],
+      "true_positive": [
+        "training_loan"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 1256,
+      "raw_model_result": {
+        "risks": [
+          "training_loan"
+        ],
+        "abstain": false,
+        "confidence": 0.9,
+        "evidence": [
+          {
+            "id": "training_loan",
+            "clause": "岗前课程收费4800元，费用入职后从工资扣除。",
+            "reason": "以岗前培训名义收取4800元并由工资抵扣，属变相培训费/培训贷，涉嫌违法收费。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_007",
+      "split": "frozen_holdout",
+      "family": "probation_salary",
+      "difficulty": "hard",
+      "title": "probation_salary",
+      "text": "试岗期只按约定工资的65%支付。",
+      "expected_risks": [
+        "probation_salary"
+      ],
+      "predicted_risks": [
+        "probation_salary"
+      ],
+      "model_risks": [
+        "probation_salary"
+      ],
+      "rule_risks": [],
+      "true_positive": [
+        "probation_salary"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 2278,
+      "raw_model_result": {
+        "risks": [
+          "probation_salary"
+        ],
+        "abstain": false,
+        "confidence": 0.98,
+        "evidence": [
+          {
+            "id": "probation_salary",
+            "clause": "试岗期只按约定工资的65%支付。",
+            "reason": "试岗期工资不得低于约定工资的80%，65%明显偏低，涉嫌违法。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_008",
+      "split": "frozen_holdout",
+      "family": "probation_salary",
+      "difficulty": "medium",
+      "title": "probation_salary",
+      "text": "试用期按合同工资的78%结算。",
+      "expected_risks": [
+        "probation_salary"
+      ],
+      "predicted_risks": [
+        "probation_salary"
+      ],
+      "model_risks": [
+        "probation_salary"
+      ],
+      "rule_risks": [
+        "probation_salary"
+      ],
+      "true_positive": [
+        "probation_salary"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "中风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 1234,
+      "raw_model_result": {
+        "risks": [
+          "probation_salary"
+        ],
+        "abstain": false,
+        "confidence": 0.9,
+        "evidence": [
+          {
+            "id": "probation_salary",
+            "clause": "试用期按合同工资的78%结算。",
+            "reason": "试用期工资低于合同工资的80%，低于法定下限，存在被认定为违法压低试用期工资的风险。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_009",
+      "split": "frozen_holdout",
+      "family": "probation_duration",
+      "difficulty": "medium",
+      "title": "probation_duration",
+      "text": "一年期合同设置三个月试用期。",
+      "expected_risks": [
+        "probation_duration"
+      ],
+      "predicted_risks": [
+        "probation_duration"
+      ],
+      "model_risks": [
+        "probation_duration"
+      ],
+      "rule_risks": [],
+      "true_positive": [
+        "probation_duration"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 1839,
+      "raw_model_result": {
+        "risks": [
+          "probation_duration"
+        ],
+        "abstain": false,
+        "confidence": 0.95,
+        "evidence": [
+          {
+            "id": "probation_duration",
+            "clause": "一年期合同设置三个月试用期。",
+            "reason": "一年期劳动合同试用期不得超过二个月，约定三个月超过法定上限。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_010",
+      "split": "frozen_holdout",
+      "family": "probation_duration",
+      "difficulty": "easy",
+      "title": "probation_duration",
+      "text": "合同写两年，试用期四个月。",
+      "expected_risks": [
+        "probation_duration"
+      ],
+      "predicted_risks": [
+        "probation_duration"
+      ],
+      "model_risks": [
+        "probation_duration"
+      ],
+      "rule_risks": [],
+      "true_positive": [
+        "probation_duration"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 1711,
+      "raw_model_result": {
+        "risks": [
+          "probation_duration"
+        ],
+        "abstain": false,
+        "confidence": 0.93,
+        "evidence": [
+          {
+            "id": "probation_duration",
+            "clause": "合同写两年，试用期四个月",
+            "reason": "合同期限一年以上不满三年的，试用期不得超过二个月，约定四个月超出法定上限。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_011",
+      "split": "frozen_holdout",
+      "family": "noncompete_risk",
+      "difficulty": "hard",
+      "title": "noncompete_risk",
+      "text": "离职后两年内不得同业，合同没有补偿条款。",
+      "expected_risks": [
+        "noncompete_risk"
+      ],
+      "predicted_risks": [
+        "noncompete_risk"
+      ],
+      "model_risks": [
+        "noncompete_risk"
+      ],
+      "rule_risks": [],
+      "true_positive": [
+        "noncompete_risk"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 2356,
+      "raw_model_result": {
+        "risks": [
+          "noncompete_risk"
+        ],
+        "abstain": false,
+        "confidence": 0.95,
+        "evidence": [
+          {
+            "id": "noncompete_risk",
+            "clause": "离职后两年内不得同业，合同没有补偿条款。",
+            "reason": "约定离职后两年竞业限制且无补偿条款，限制就业且补偿缺失，存在竞业限制风险。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_012",
+      "split": "frozen_holdout",
+      "family": "noncompete_risk",
+      "difficulty": "hard",
+      "title": "noncompete_risk",
+      "text": "禁止参与竞业两年，但不给补偿。",
+      "expected_risks": [
+        "noncompete_risk"
+      ],
+      "predicted_risks": [
+        "noncompete_risk"
+      ],
+      "model_risks": [
+        "noncompete_risk"
+      ],
+      "rule_risks": [],
+      "true_positive": [
+        "noncompete_risk"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 1456,
+      "raw_model_result": {
+        "risks": [
+          "noncompete_risk"
+        ],
+        "abstain": false,
+        "confidence": 0.95,
+        "evidence": [
+          {
+            "id": "noncompete_risk",
+            "clause": "禁止参与竞业两年，但不给补偿。",
+            "reason": "约定两年竞业限制却无经济补偿，限制劳动者就业权且补偿缺失，属高风险的竞业条款。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_013",
+      "split": "frozen_holdout",
+      "family": "overtime_unpaid",
+      "difficulty": "hard",
+      "title": "overtime_unpaid",
+      "text": "非工作时间处理工作，被认定为不计薪工时。",
+      "expected_risks": [
+        "overtime_unpaid"
+      ],
+      "predicted_risks": [
+        "overtime_unpaid"
+      ],
+      "model_risks": [
+        "overtime_unpaid"
+      ],
+      "rule_risks": [],
+      "true_positive": [
+        "overtime_unpaid"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 2056,
+      "raw_model_result": {
+        "risks": [
+          "overtime_unpaid"
+        ],
+        "abstain": false,
+        "confidence": 0.95,
+        "evidence": [
+          {
+            "id": "overtime_unpaid",
+            "clause": "非工作时间处理工作，被认定为不计薪工时。",
+            "reason": "非工作时间工作不计薪，涉嫌未支付加班费。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_014",
+      "split": "frozen_holdout",
+      "family": "overtime_unpaid",
+      "difficulty": "hard",
+      "title": "overtime_unpaid",
+      "text": "法定节假日值班，公司以调休替代全部加班工资。",
+      "expected_risks": [
+        "overtime_unpaid"
+      ],
+      "predicted_risks": [
+        "overtime_unpaid"
+      ],
+      "model_risks": [
+        "overtime_unpaid"
+      ],
+      "rule_risks": [],
+      "true_positive": [
+        "overtime_unpaid"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 2904,
+      "raw_model_result": {
+        "risks": [
+          "overtime_unpaid"
+        ],
+        "abstain": false,
+        "confidence": 0.95,
+        "evidence": [
+          {
+            "id": "overtime_unpaid",
+            "clause": "法定节假日值班，公司以调休替代全部加班工资。",
+            "reason": "法定休假日安排工作应支付不低于300%工资，不能仅以调休替代，构成未依法支付加班工资。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_015",
+      "split": "frozen_holdout",
+      "family": "resignation_penalty",
+      "difficulty": "medium",
+      "title": "resignation_penalty",
+      "text": "合同期内辞职需要向公司赔偿三个月工资。",
+      "expected_risks": [
+        "resignation_penalty"
+      ],
+      "predicted_risks": [
+        "resignation_penalty"
+      ],
+      "model_risks": [
+        "resignation_penalty"
+      ],
+      "rule_risks": [
+        "resignation_penalty"
+      ],
+      "true_positive": [
+        "resignation_penalty"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "中风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 1677,
+      "raw_model_result": {
+        "risks": [
+          "resignation_penalty"
+        ],
+        "abstain": false,
+        "confidence": 0.95,
+        "evidence": [
+          {
+            "id": "resignation_penalty",
+            "clause": "合同期内辞职需要向公司赔偿三个月工资",
+            "reason": "约定劳动者辞职需赔偿三个月工资，限制劳动者依法解除劳动合同的权利，通常属于违法违约金。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_016",
+      "split": "frozen_holdout",
+      "family": "resignation_penalty",
+      "difficulty": "medium",
+      "title": "resignation_penalty",
+      "text": "未到服务期离开，按未履行年限缴纳赔偿金。",
+      "expected_risks": [
+        "resignation_penalty"
+      ],
+      "predicted_risks": [
+        "resignation_penalty"
+      ],
+      "model_risks": [
+        "resignation_penalty"
+      ],
+      "rule_risks": [
+        "resignation_penalty"
+      ],
+      "true_positive": [
+        "resignation_penalty"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "中风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 3335,
+      "raw_model_result": {
+        "risks": [
+          "resignation_penalty"
+        ],
+        "abstain": false,
+        "confidence": 0.9,
+        "evidence": [
+          {
+            "id": "resignation_penalty",
+            "clause": "未到服务期离开，按未履行年限缴纳赔偿金。",
+            "reason": "约定未满服务期离职即按未履行年限支付赔偿金，属于对辞职设置经济惩罚，可能构成违法违约金。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_017",
+      "split": "frozen_holdout",
+      "family": "unilateral_change",
+      "difficulty": "medium",
+      "title": "unilateral_change",
+      "text": "公司可按业务需要调整岗位，员工不得提出异议。",
+      "expected_risks": [
+        "unilateral_change"
+      ],
+      "predicted_risks": [
+        "unilateral_change"
+      ],
+      "model_risks": [
+        "unilateral_change"
+      ],
+      "rule_risks": [],
+      "true_positive": [
+        "unilateral_change"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 1669,
+      "raw_model_result": {
+        "risks": [
+          "unilateral_change"
+        ],
+        "abstain": false,
+        "confidence": 0.97,
+        "evidence": [
+          {
+            "id": "unilateral_change",
+            "clause": "公司可按业务需要调整岗位，员工不得提出异议。",
+            "reason": "赋予公司单方调岗权并排除员工异议，属于单方变更劳动合同，可能排除劳动者协商权利。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_018",
+      "split": "frozen_holdout",
+      "family": "unilateral_change",
+      "difficulty": "hard",
+      "title": "unilateral_change",
+      "text": "办公地点随项目变化，员工须接受安排。",
+      "expected_risks": [
+        "unilateral_change"
+      ],
+      "predicted_risks": [
+        "unilateral_change"
+      ],
+      "model_risks": [
+        "unilateral_change"
+      ],
+      "rule_risks": [],
+      "true_positive": [
+        "unilateral_change"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 2297,
+      "raw_model_result": {
+        "risks": [
+          "unilateral_change"
+        ],
+        "abstain": false,
+        "confidence": 0.7,
+        "evidence": [
+          {
+            "id": "unilateral_change",
+            "clause": "办公地点随项目变化，员工须接受安排。",
+            "reason": "工作地点属劳动合同必备条款，约定随项目变动且员工须无条件接受，排除协商，构成用人单位单方变更。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_019",
+      "split": "frozen_holdout",
+      "family": "wage_delay",
+      "difficulty": "medium",
+      "title": "wage_delay",
+      "text": "上月工资延后至下下月发放。",
+      "expected_risks": [
+        "wage_delay"
+      ],
+      "predicted_risks": [
+        "wage_delay"
+      ],
+      "model_risks": [
+        "wage_delay"
+      ],
+      "rule_risks": [
+        "wage_delay"
+      ],
+      "true_positive": [
+        "wage_delay"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "中风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 1561,
+      "raw_model_result": {
+        "risks": [
+          "wage_delay"
+        ],
+        "abstain": false,
+        "confidence": 0.95,
+        "evidence": [
+          {
+            "id": "wage_delay",
+            "clause": "上月工资延后至下下月发放。",
+            "reason": "工资发放被推迟约两个月，属未按期足额支付劳动报酬，构成拖欠工资风险。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_020",
+      "split": "frozen_holdout",
+      "family": "wage_delay",
+      "difficulty": "hard",
+      "title": "wage_delay",
+      "text": "离职后工资分三期发放。",
+      "expected_risks": [
+        "wage_delay"
+      ],
+      "predicted_risks": [
+        "wage_delay"
+      ],
+      "model_risks": [
+        "wage_delay"
+      ],
+      "rule_risks": [],
+      "true_positive": [
+        "wage_delay"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 1684,
+      "raw_model_result": {
+        "risks": [
+          "wage_delay"
+        ],
+        "abstain": false,
+        "confidence": 0.75,
+        "evidence": [
+          {
+            "id": "wage_delay",
+            "clause": "离职后工资分三期发放。",
+            "reason": "离职时工资应一次结清，分三期发放构成拖欠或延迟支付工资，存在工资延迟风险。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_021",
+      "split": "frozen_holdout",
+      "family": "no_written_contract",
+      "difficulty": "medium",
+      "title": "no_written_contract",
+      "text": "公司先用试用协议替代书面劳动合同。",
+      "expected_risks": [
+        "no_written_contract"
+      ],
+      "predicted_risks": [
+        "no_written_contract"
+      ],
+      "model_risks": [
+        "no_written_contract"
+      ],
+      "rule_risks": [],
+      "true_positive": [
+        "no_written_contract"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 3041,
+      "raw_model_result": {
+        "risks": [
+          "no_written_contract"
+        ],
+        "abstain": false,
+        "confidence": 0.9,
+        "evidence": [
+          {
+            "id": "no_written_contract",
+            "clause": "公司先用试用协议替代书面劳动合同。",
+            "reason": "以试用协议代替书面劳动合同，可能违反建立劳动关系应订立书面劳动合同的规定。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_022",
+      "split": "frozen_holdout",
+      "family": "no_written_contract",
+      "difficulty": "hard",
+      "title": "no_written_contract",
+      "text": "入职三个月后补签劳动合同。",
+      "expected_risks": [
+        "no_written_contract"
+      ],
+      "predicted_risks": [
+        "no_written_contract"
+      ],
+      "model_risks": [
+        "no_written_contract"
+      ],
+      "rule_risks": [],
+      "true_positive": [
+        "no_written_contract"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 3304,
+      "raw_model_result": {
+        "risks": [
+          "no_written_contract"
+        ],
+        "abstain": false,
+        "confidence": 0.95,
+        "evidence": [
+          {
+            "id": "no_written_contract",
+            "clause": "入职三个月后补签劳动合同",
+            "reason": "用工之日起一个月内应订立书面合同，三个月后补签表明前期未依法签订书面合同。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_023",
+      "split": "frozen_holdout",
+      "family": "social_base",
+      "difficulty": "easy",
+      "title": "social_base",
+      "text": "社保按最低档缴纳。",
+      "expected_risks": [
+        "social_base"
+      ],
+      "predicted_risks": [
+        "social_base"
+      ],
+      "model_risks": [
+        "social_base"
+      ],
+      "rule_risks": [
+        "social_base"
+      ],
+      "true_positive": [
+        "social_base"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 1439,
+      "raw_model_result": {
+        "risks": [
+          "social_base"
+        ],
+        "abstain": false,
+        "confidence": 0.9,
+        "evidence": [
+          {
+            "id": "social_base",
+            "clause": "社保按最低档缴纳。",
+            "reason": "明确约定按最低档（最低基数）缴纳社保，未按实际工资核定缴费基数，属社保基数不实风险。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_024",
+      "split": "frozen_holdout",
+      "family": "social_base",
+      "difficulty": "hard",
+      "title": "social_base",
+      "text": "社保缴费基数只按底薪计算。",
+      "expected_risks": [
+        "social_base"
+      ],
+      "predicted_risks": [
+        "social_base"
+      ],
+      "model_risks": [
+        "social_base"
+      ],
+      "rule_risks": [],
+      "true_positive": [
+        "social_base"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 1512,
+      "raw_model_result": {
+        "risks": [
+          "social_base"
+        ],
+        "abstain": false,
+        "confidence": 0.95,
+        "evidence": [
+          {
+            "id": "social_base",
+            "clause": "社保缴费基数只按底薪计算。",
+            "reason": "缴费基数仅按底薪核定，未含奖金、津贴等实际工资，涉嫌低报基数、少缴社保，损害劳动者社保权益。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_025",
+      "split": "frozen_holdout",
+      "family": "discrimination",
+      "difficulty": "medium",
+      "title": "discrimination",
+      "text": "招聘要求三年内无生育计划。",
+      "expected_risks": [
+        "discrimination"
+      ],
+      "predicted_risks": [
+        "discrimination"
+      ],
+      "model_risks": [
+        "discrimination"
+      ],
+      "rule_risks": [],
+      "true_positive": [
+        "discrimination"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 1523,
+      "raw_model_result": {
+        "risks": [
+          "discrimination"
+        ],
+        "abstain": false,
+        "confidence": 0.95,
+        "evidence": [
+          {
+            "id": "discrimination",
+            "clause": "招聘要求三年内无生育计划。",
+            "reason": "将生育计划作为招录条件，限制女性就业，构成就业性别歧视，违反妇女权益保障法相关规定。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_026",
+      "split": "frozen_holdout",
+      "family": "discrimination",
+      "difficulty": "hard",
+      "title": "discrimination",
+      "text": "此岗位更希望招未婚男性。",
+      "expected_risks": [
+        "discrimination"
+      ],
+      "predicted_risks": [
+        "discrimination"
+      ],
+      "model_risks": [
+        "discrimination"
+      ],
+      "rule_risks": [],
+      "true_positive": [
+        "discrimination"
+      ],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 1192,
+      "raw_model_result": {
+        "risks": [
+          "discrimination"
+        ],
+        "abstain": false,
+        "confidence": 0.95,
+        "evidence": [
+          {
+            "id": "discrimination",
+            "clause": "此岗位更希望招未婚男性。",
+            "reason": "以男性、未婚作为招聘偏好，构成性别与婚姻状况歧视，违反平等就业原则。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_safe_027",
+      "split": "frozen_holdout",
+      "family": "safe_control",
+      "difficulty": "easy",
+      "title": "safe_control",
+      "text": "员工可依法参保，公司不通过现金替代。",
+      "expected_risks": [],
+      "predicted_risks": [],
+      "model_risks": [],
+      "rule_risks": [],
+      "true_positive": [],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 0,
+      "risks_with_citation": 0,
+      "processing_ms": 9610,
+      "raw_model_result": {
+        "risks": [],
+        "abstain": false,
+        "confidence": 0.9,
+        "evidence": []
+      }
+    },
+    {
+      "id": "frozen_safe_028",
+      "split": "frozen_holdout",
+      "family": "safe_control",
+      "difficulty": "medium",
+      "title": "safe_control",
+      "text": "入职流程不收费，也不扣押任何证件。",
+      "expected_risks": [],
+      "predicted_risks": [],
+      "model_risks": [],
+      "rule_risks": [],
+      "true_positive": [],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 0,
+      "risks_with_citation": 0,
+      "processing_ms": 8269,
+      "raw_model_result": {
+        "risks": [],
+        "abstain": false,
+        "confidence": 0.95,
+        "evidence": []
+      }
+    },
+    {
+      "id": "frozen_safe_029",
+      "split": "frozen_holdout",
+      "family": "safe_control",
+      "difficulty": "medium",
+      "title": "safe_control",
+      "text": "合同两年，试用期两个月，工资为约定工资的85%。",
+      "expected_risks": [],
+      "predicted_risks": [],
+      "model_risks": [],
+      "rule_risks": [],
+      "true_positive": [],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 0,
+      "risks_with_citation": 0,
+      "processing_ms": 5584,
+      "raw_model_result": {
+        "risks": [],
+        "abstain": false,
+        "confidence": 0.95,
+        "evidence": []
+      }
+    },
+    {
+      "id": "frozen_safe_030",
+      "split": "frozen_holdout",
+      "family": "safe_control",
+      "difficulty": "medium",
+      "title": "safe_control",
+      "text": "竞业限制一年，按季度支付补偿。",
+      "expected_risks": [],
+      "predicted_risks": [
+        "noncompete_risk"
+      ],
+      "model_risks": [
+        "noncompete_risk"
+      ],
+      "rule_risks": [],
+      "true_positive": [],
+      "false_positive": [
+        "noncompete_risk"
+      ],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 3119,
+      "raw_model_result": {
+        "risks": [
+          "noncompete_risk"
+        ],
+        "abstain": false,
+        "confidence": 0.82,
+        "evidence": [
+          {
+            "id": "noncompete_risk",
+            "clause": "竞业限制一年，按季度支付补偿。",
+            "reason": "竞业限制补偿通常应按月支付，按季度支付可能违反法定周期，增加劳动者履约后获偿风险。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_safe_031",
+      "split": "frozen_holdout",
+      "family": "safe_control",
+      "difficulty": "easy",
+      "title": "safe_control",
+      "text": "加班按规定安排调休或者支付加班费。",
+      "expected_risks": [],
+      "predicted_risks": [],
+      "model_risks": [],
+      "rule_risks": [],
+      "true_positive": [],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 0,
+      "risks_with_citation": 0,
+      "processing_ms": 3224,
+      "raw_model_result": {
+        "risks": [],
+        "abstain": false,
+        "confidence": 0.95,
+        "evidence": []
+      }
+    },
+    {
+      "id": "frozen_safe_032",
+      "split": "frozen_holdout",
+      "family": "safe_control",
+      "difficulty": "easy",
+      "title": "safe_control",
+      "text": "书面劳动合同在入职一个月内签订。",
+      "expected_risks": [],
+      "predicted_risks": [],
+      "model_risks": [],
+      "rule_risks": [],
+      "true_positive": [],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 0,
+      "risks_with_citation": 0,
+      "processing_ms": 5236,
+      "raw_model_result": {
+        "risks": [],
+        "abstain": false,
+        "confidence": 0.95,
+        "evidence": []
+      }
+    },
+    {
+      "id": "frozen_safe_033",
+      "split": "frozen_holdout",
+      "family": "safe_control",
+      "difficulty": "medium",
+      "title": "safe_control",
+      "text": "岗位调整由双方协商并签署补充协议。",
+      "expected_risks": [],
+      "predicted_risks": [],
+      "model_risks": [],
+      "rule_risks": [],
+      "true_positive": [],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 0,
+      "risks_with_citation": 0,
+      "processing_ms": 2145,
+      "raw_model_result": {
+        "risks": [],
+        "abstain": false,
+        "confidence": 0.6,
+        "evidence": []
+      }
+    },
+    {
+      "id": "frozen_safe_034",
+      "split": "frozen_holdout",
+      "family": "safe_control",
+      "difficulty": "medium",
+      "title": "safe_control",
+      "text": "公司按实际工资申报社保缴费基数。",
+      "expected_risks": [],
+      "predicted_risks": [],
+      "model_risks": [],
+      "rule_risks": [],
+      "true_positive": [],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": false,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 0,
+      "risks_with_citation": 0,
+      "processing_ms": 1906,
+      "raw_model_result": {
+        "risks": [],
+        "abstain": false,
+        "confidence": 0.85,
+        "evidence": []
+      }
+    },
+    {
+      "id": "frozen_review_035",
+      "split": "frozen_holdout",
+      "family": "review_required",
+      "difficulty": "hard",
+      "title": "review_required",
+      "text": "平台骑手合作协议，报酬按单结算，是否建立劳动关系未明确。",
+      "expected_risks": [],
+      "predicted_risks": [],
+      "model_risks": [],
+      "rule_risks": [],
+      "true_positive": [],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": true,
+      "predicted_abstain": true,
+      "review_items": [
+        {
+          "id": "relationship_ambiguity",
+          "title": "劳动关系性质需核实",
+          "detail": "实习、兼职、劳务或非全日制关系适用规则不同，需要结合实际管理方式、报酬和用工事实判断。"
+        },
+        {
+          "id": "missing_terms",
+          "title": "关键条款缺失或表述不确定",
+          "detail": "工资、试用期、社保或合同期限未明确，不能仅凭当前材料输出确定结论。"
+        }
+      ],
+      "risk_level": "待核实",
+      "predicted_risk_count": 0,
+      "risks_with_citation": 0,
+      "processing_ms": 9623,
+      "raw_model_result": {
+        "risks": [],
+        "abstain": true,
+        "confidence": 0.3,
+        "evidence": []
+      }
+    },
+    {
+      "id": "frozen_review_036",
+      "split": "frozen_holdout",
+      "family": "review_required",
+      "difficulty": "medium",
+      "title": "review_required",
+      "text": "毕业前实习，毕业后视考核决定是否转正。",
+      "expected_risks": [],
+      "predicted_risks": [],
+      "model_risks": [],
+      "rule_risks": [],
+      "true_positive": [],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": true,
+      "predicted_abstain": true,
+      "review_items": [
+        {
+          "id": "relationship_ambiguity",
+          "title": "劳动关系性质需核实",
+          "detail": "实习、兼职、劳务或非全日制关系适用规则不同，需要结合实际管理方式、报酬和用工事实判断。"
+        }
+      ],
+      "risk_level": "待核实",
+      "predicted_risk_count": 0,
+      "risks_with_citation": 0,
+      "processing_ms": 7818,
+      "raw_model_result": {
+        "risks": [],
+        "abstain": true,
+        "confidence": 0.0,
+        "evidence": []
+      }
+    },
+    {
+      "id": "frozen_review_037",
+      "split": "frozen_holdout",
+      "family": "review_required",
+      "difficulty": "medium",
+      "title": "review_required",
+      "text": "兼职内容审核，每周排班由平台安排。",
+      "expected_risks": [],
+      "predicted_risks": [],
+      "model_risks": [],
+      "rule_risks": [],
+      "true_positive": [],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": true,
+      "predicted_abstain": true,
+      "review_items": [
+        {
+          "id": "relationship_ambiguity",
+          "title": "劳动关系性质需核实",
+          "detail": "实习、兼职、劳务或非全日制关系适用规则不同，需要结合实际管理方式、报酬和用工事实判断。"
+        }
+      ],
+      "risk_level": "待核实",
+      "predicted_risk_count": 0,
+      "risks_with_citation": 0,
+      "processing_ms": 3308,
+      "raw_model_result": {
+        "risks": [],
+        "abstain": true,
+        "confidence": 0.0,
+        "evidence": []
+      }
+    },
+    {
+      "id": "frozen_review_038",
+      "split": "frozen_holdout",
+      "family": "review_required",
+      "difficulty": "hard",
+      "title": "review_required",
+      "text": "项目制合作，费用和纳税方式尚未确定。",
+      "expected_risks": [],
+      "predicted_risks": [],
+      "model_risks": [],
+      "rule_risks": [],
+      "true_positive": [],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": true,
+      "predicted_abstain": true,
+      "review_items": [
+        {
+          "id": "missing_terms",
+          "title": "关键条款缺失或表述不确定",
+          "detail": "工资、试用期、社保或合同期限未明确，不能仅凭当前材料输出确定结论。"
+        }
+      ],
+      "risk_level": "待核实",
+      "predicted_risk_count": 0,
+      "risks_with_citation": 0,
+      "processing_ms": 2971,
+      "raw_model_result": {
+        "risks": [],
+        "abstain": true,
+        "confidence": 0.0,
+        "evidence": []
+      }
+    },
+    {
+      "id": "frozen_review_039",
+      "split": "frozen_holdout",
+      "family": "review_required",
+      "difficulty": "hard",
+      "title": "review_required",
+      "text": "公司说工资由基本工资和绩效构成，具体比例待定。",
+      "expected_risks": [],
+      "predicted_risks": [
+        "unilateral_change"
+      ],
+      "model_risks": [
+        "unilateral_change"
+      ],
+      "rule_risks": [],
+      "true_positive": [],
+      "false_positive": [
+        "unilateral_change"
+      ],
+      "false_negative": [],
+      "expected_abstain": true,
+      "predicted_abstain": false,
+      "review_items": [],
+      "risk_level": "低风险",
+      "predicted_risk_count": 1,
+      "risks_with_citation": 0,
+      "processing_ms": 3880,
+      "raw_model_result": {
+        "risks": [
+          "unilateral_change"
+        ],
+        "abstain": false,
+        "confidence": 0.45,
+        "evidence": [
+          {
+            "id": "unilateral_change",
+            "clause": "工资由基本工资和绩效构成，具体比例待定",
+            "reason": "薪酬核心比例未在合同中确定，用人单位可事后单方设定，实际降低固定工资与相关基数"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frozen_review_040",
+      "split": "frozen_holdout",
+      "family": "review_required",
+      "difficulty": "medium",
+      "title": "review_required",
+      "text": "口头承诺有年终奖，但合同未写。",
+      "expected_risks": [],
+      "predicted_risks": [],
+      "model_risks": [],
+      "rule_risks": [],
+      "true_positive": [],
+      "false_positive": [],
+      "false_negative": [],
+      "expected_abstain": true,
+      "predicted_abstain": true,
+      "review_items": [
+        {
+          "id": "oral_context",
+          "title": "口头约定需要补充证据",
+          "detail": "未写入书面材料的口头承诺需要聊天、录音、邮件或其他证据佐证。"
+        }
+      ],
+      "risk_level": "待核实",
+      "predicted_risk_count": 0,
+      "risks_with_citation": 0,
+      "processing_ms": 13273,
+      "raw_model_result": {
+        "risks": [],
+        "abstain": true,
+        "confidence": 0.0,
+        "evidence": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,1232 @@
+{
+  "version": "1.0.0",
+  "created_on": "2026-10-08",
+  "description": "80条合成评测样本，覆盖13类风险、16条安全对照和12条待核实边界样例。",
+  "limitations": "全部为团队合成文本，不含真实个人信息，不能替代经授权的真实用户盲测。",
+  "cases": [
+    {
+      "id": "no_social_insurance_01",
+      "split": "development",
+      "family": "no_social_insurance",
+      "title": "放弃或未依法缴纳社保",
+      "difficulty": "easy",
+      "text": "公司提出每月额外补800元，由员工自愿放弃社会保险。",
+      "expected_risks": [
+        "no_social_insurance"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "no_social_insurance_02",
+      "split": "development",
+      "family": "no_social_insurance",
+      "title": "放弃或未依法缴纳社保",
+      "difficulty": "easy",
+      "text": "入职后不缴纳社保，改为发放社保补贴。",
+      "expected_risks": [
+        "no_social_insurance"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "no_social_insurance_03",
+      "split": "test",
+      "family": "no_social_insurance",
+      "title": "放弃或未依法缴纳社保",
+      "difficulty": "medium",
+      "text": "乙方确认无需公司办理社会保险，相关责任自行承担。",
+      "expected_risks": [
+        "no_social_insurance"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "no_social_insurance_04",
+      "split": "test",
+      "family": "no_social_insurance",
+      "title": "放弃或未依法缴纳社保",
+      "difficulty": "hard",
+      "text": "试用期不购买社保，转正后再考虑是否办理。",
+      "expected_risks": [
+        "no_social_insurance"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "employment_deposit_01",
+      "split": "development",
+      "family": "employment_deposit",
+      "title": "押金、保证金与证件扣押",
+      "difficulty": "easy",
+      "text": "新员工入职时需缴纳2000元设备押金，离职时视情况返还。",
+      "expected_risks": [
+        "employment_deposit"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "employment_deposit_02",
+      "split": "development",
+      "family": "employment_deposit",
+      "title": "押金、保证金与证件扣押",
+      "difficulty": "easy",
+      "text": "员工须统一缴纳1000元履约保证金，方可办理入职。",
+      "expected_risks": [
+        "employment_deposit"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "employment_deposit_03",
+      "split": "test",
+      "family": "employment_deposit",
+      "title": "押金、保证金与证件扣押",
+      "difficulty": "medium",
+      "text": "员工身份证原件由公司保管，离职手续办完后归还。",
+      "expected_risks": [
+        "employment_deposit"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "employment_deposit_04",
+      "split": "test",
+      "family": "employment_deposit",
+      "title": "押金、保证金与证件扣押",
+      "difficulty": "hard",
+      "text": "入职需交服装费500元，工作满一年后退还。",
+      "expected_risks": [
+        "employment_deposit"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "training_loan_01",
+      "split": "development",
+      "family": "training_loan",
+      "title": "培训贷与岗前收费",
+      "difficulty": "easy",
+      "text": "公司要求毕业生通过分期贷款支付岗前培训费。",
+      "expected_risks": [
+        "training_loan"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "training_loan_02",
+      "split": "development",
+      "family": "training_loan",
+      "title": "培训贷与岗前收费",
+      "difficulty": "easy",
+      "text": "入职前先交9800元培训费，工作满一年后返还。",
+      "expected_risks": [
+        "training_loan"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "training_loan_03",
+      "split": "test",
+      "family": "training_loan",
+      "title": "培训贷与岗前收费",
+      "difficulty": "medium",
+      "text": "无经验员工需办理培训贷，由公司指定平台完成。",
+      "expected_risks": [
+        "training_loan"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "training_loan_04",
+      "split": "test",
+      "family": "training_loan",
+      "title": "培训贷与岗前收费",
+      "difficulty": "hard",
+      "text": "工作未满两年离职，需偿还公司介绍的培训贷款。",
+      "expected_risks": [
+        "training_loan"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "probation_salary_01",
+      "split": "development",
+      "family": "probation_salary",
+      "title": "试用期工资低于底线",
+      "difficulty": "easy",
+      "text": "试用期工资为转正工资的70%，转正后另行调整。",
+      "expected_risks": [
+        "probation_salary"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "probation_salary_02",
+      "split": "development",
+      "family": "probation_salary",
+      "title": "试用期工资低于底线",
+      "difficulty": "easy",
+      "text": "试用期薪资按正式员工工资的50%发放。",
+      "expected_risks": [
+        "probation_salary"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "probation_salary_03",
+      "split": "test",
+      "family": "probation_salary",
+      "title": "试用期工资低于底线",
+      "difficulty": "medium",
+      "text": "试用期工资60%，绩效奖金另行考核。",
+      "expected_risks": [
+        "probation_salary"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "probation_salary_04",
+      "split": "test",
+      "family": "probation_salary",
+      "title": "试用期工资低于底线",
+      "difficulty": "hard",
+      "text": "试用期月薪为合同约定工资的60%，不享受正式员工福利。",
+      "expected_risks": [
+        "probation_salary"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "probation_duration_01",
+      "split": "development",
+      "family": "probation_duration",
+      "title": "试用期期限异常",
+      "difficulty": "easy",
+      "text": "合同期限一年，试用期六个月，期满后再决定是否录用。",
+      "expected_risks": [
+        "probation_duration"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "probation_duration_02",
+      "split": "development",
+      "family": "probation_duration",
+      "title": "试用期期限异常",
+      "difficulty": "easy",
+      "text": "公司将试用期延长至六个月，并保留再次考核的权利。",
+      "expected_risks": [
+        "probation_duration"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "probation_duration_03",
+      "split": "test",
+      "family": "probation_duration",
+      "title": "试用期期限异常",
+      "difficulty": "medium",
+      "text": "转正后仍需再次试用三个月，合格后才能享受正式待遇。",
+      "expected_risks": [
+        "probation_duration"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "probation_duration_04",
+      "split": "test",
+      "family": "probation_duration",
+      "title": "试用期期限异常",
+      "difficulty": "hard",
+      "text": "劳动合同约定试用期6个月后转正，考核不合格不录用。",
+      "expected_risks": [
+        "probation_duration"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "noncompete_risk_01",
+      "split": "development",
+      "family": "noncompete_risk",
+      "title": "竞业限制期限或补偿异常",
+      "difficulty": "easy",
+      "text": "离职后三年内不得从事同类业务，公司不另行支付补偿。",
+      "expected_risks": [
+        "noncompete_risk"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "noncompete_risk_02",
+      "split": "development",
+      "family": "noncompete_risk",
+      "title": "竞业限制期限或补偿异常",
+      "difficulty": "easy",
+      "text": "竞业限制期限为三年，且公司无需支付经济补偿。",
+      "expected_risks": [
+        "noncompete_risk"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "noncompete_risk_03",
+      "split": "test",
+      "family": "noncompete_risk",
+      "title": "竞业限制期限或补偿异常",
+      "difficulty": "medium",
+      "text": "竞业限制期内不支付经济补偿，员工仍应履行限制义务。",
+      "expected_risks": [
+        "noncompete_risk"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "noncompete_risk_04",
+      "split": "test",
+      "family": "noncompete_risk",
+      "title": "竞业限制期限或补偿异常",
+      "difficulty": "hard",
+      "text": "离职后3年内不得进入同行业公司，限制范围不限地域。",
+      "expected_risks": [
+        "noncompete_risk"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "overtime_unpaid_01",
+      "split": "development",
+      "family": "overtime_unpaid",
+      "title": "无偿加班或排除加班费",
+      "difficulty": "easy",
+      "text": "公司实行996工作制，员工不得主张加班费。",
+      "expected_risks": [
+        "overtime_unpaid"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "overtime_unpaid_02",
+      "split": "development",
+      "family": "overtime_unpaid",
+      "title": "无偿加班或排除加班费",
+      "difficulty": "easy",
+      "text": "因工作需要延长工作时间，视为员工自愿加班。",
+      "expected_risks": [
+        "overtime_unpaid"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "overtime_unpaid_03",
+      "split": "test",
+      "family": "overtime_unpaid",
+      "title": "无偿加班或排除加班费",
+      "difficulty": "medium",
+      "text": "加班费已包含在基本工资中，不再另行计算。",
+      "expected_risks": [
+        "overtime_unpaid"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "overtime_unpaid_04",
+      "split": "test",
+      "family": "overtime_unpaid",
+      "title": "无偿加班或排除加班费",
+      "difficulty": "hard",
+      "text": "员工自愿放弃加班费，并承诺不因工时问题提出异议。",
+      "expected_risks": [
+        "overtime_unpaid"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "resignation_penalty_01",
+      "split": "development",
+      "family": "resignation_penalty",
+      "title": "辞职违约金与离职限制",
+      "difficulty": "easy",
+      "text": "员工未满一年辞职需支付违约金10000元。",
+      "expected_risks": [
+        "resignation_penalty"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "resignation_penalty_02",
+      "split": "development",
+      "family": "resignation_penalty",
+      "title": "辞职违约金与离职限制",
+      "difficulty": "easy",
+      "text": "离职需提前三个月提出并经公司批准，否则视为违约。",
+      "expected_risks": [
+        "resignation_penalty"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "resignation_penalty_03",
+      "split": "test",
+      "family": "resignation_penalty",
+      "title": "辞职违约金与离职限制",
+      "difficulty": "medium",
+      "text": "员工辞职要交违约金20000元，用于弥补招聘成本。",
+      "expected_risks": [
+        "resignation_penalty"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "resignation_penalty_04",
+      "split": "test",
+      "family": "resignation_penalty",
+      "title": "辞职违约金与离职限制",
+      "difficulty": "hard",
+      "text": "服务期未满三年离职需支付违约金，并扣发剩余工资。",
+      "expected_risks": [
+        "resignation_penalty"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "unilateral_change_01",
+      "split": "development",
+      "family": "unilateral_change",
+      "title": "单方调岗调薪",
+      "difficulty": "easy",
+      "text": "公司可根据经营需要随时调岗调薪，员工应予配合。",
+      "expected_risks": [
+        "unilateral_change"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "unilateral_change_02",
+      "split": "development",
+      "family": "unilateral_change",
+      "title": "单方调岗调薪",
+      "difficulty": "easy",
+      "text": "员工须无条件服从调岗，不得拒绝新的工作安排。",
+      "expected_risks": [
+        "unilateral_change"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "unilateral_change_03",
+      "split": "test",
+      "family": "unilateral_change",
+      "title": "单方调岗调薪",
+      "difficulty": "medium",
+      "text": "公司根据经营需要调整工作地点，无需征得员工同意。",
+      "expected_risks": [
+        "unilateral_change"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "unilateral_change_04",
+      "split": "test",
+      "family": "unilateral_change",
+      "title": "单方调岗调薪",
+      "difficulty": "hard",
+      "text": "公司可随时调整岗位和薪酬，员工无条件服从。",
+      "expected_risks": [
+        "unilateral_change"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "wage_delay_01",
+      "split": "development",
+      "family": "wage_delay",
+      "title": "工资延迟或拖欠",
+      "difficulty": "easy",
+      "text": "公司实行押一个月工资制度，离职时统一结算。",
+      "expected_risks": [
+        "wage_delay"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "wage_delay_02",
+      "split": "development",
+      "family": "wage_delay",
+      "title": "工资延迟或拖欠",
+      "difficulty": "easy",
+      "text": "每月工资于次月30日前发放，遇节假日顺延。",
+      "expected_risks": [
+        "wage_delay"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "wage_delay_03",
+      "split": "test",
+      "family": "wage_delay",
+      "title": "工资延迟或拖欠",
+      "difficulty": "medium",
+      "text": "年度奖金和绩效工资年底统一发放。",
+      "expected_risks": [
+        "wage_delay"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "wage_delay_04",
+      "split": "test",
+      "family": "wage_delay",
+      "title": "工资延迟或拖欠",
+      "difficulty": "hard",
+      "text": "离职后满两个月再结算剩余工资。",
+      "expected_risks": [
+        "wage_delay"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "no_written_contract_01",
+      "split": "development",
+      "family": "no_written_contract",
+      "title": "不签或拖延书面合同",
+      "difficulty": "easy",
+      "text": "公司仅口头约定薪资和工作时间，暂不签订劳动合同。",
+      "expected_risks": [
+        "no_written_contract"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "no_written_contract_02",
+      "split": "development",
+      "family": "no_written_contract",
+      "title": "不签或拖延书面合同",
+      "difficulty": "easy",
+      "text": "试用期不签合同，转正后再签订劳动合同。",
+      "expected_risks": [
+        "no_written_contract"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "no_written_contract_03",
+      "split": "test",
+      "family": "no_written_contract",
+      "title": "不签或拖延书面合同",
+      "difficulty": "medium",
+      "text": "入职后暂不签订劳动合同，待部门确认后再补。",
+      "expected_risks": [
+        "no_written_contract"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "no_written_contract_04",
+      "split": "test",
+      "family": "no_written_contract",
+      "title": "不签或拖延书面合同",
+      "difficulty": "hard",
+      "text": "转正后才签订劳动合同，试用期内不办理书面文件。",
+      "expected_risks": [
+        "no_written_contract"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "social_base_01",
+      "split": "development",
+      "family": "social_base",
+      "title": "社保基数或缴纳方式异常",
+      "difficulty": "easy",
+      "text": "不论实际工资多少，社保按最低基数缴纳。",
+      "expected_risks": [
+        "social_base"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "social_base_02",
+      "split": "development",
+      "family": "social_base",
+      "title": "社保基数或缴纳方式异常",
+      "difficulty": "easy",
+      "text": "工资拆分为基本工资和社保补贴，社保按最低标准缴纳。",
+      "expected_risks": [
+        "social_base"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "social_base_03",
+      "split": "test",
+      "family": "social_base",
+      "title": "社保基数或缴纳方式异常",
+      "difficulty": "medium",
+      "text": "公司统一按最低基数办理社保，不按实际工资申报。",
+      "expected_risks": [
+        "social_base"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "social_base_04",
+      "split": "test",
+      "family": "social_base",
+      "title": "社保基数或缴纳方式异常",
+      "difficulty": "hard",
+      "text": "社保按最低标准缴纳，差额通过现金补贴发放。",
+      "expected_risks": [
+        "social_base"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "discrimination_01",
+      "split": "development",
+      "family": "discrimination",
+      "title": "性别婚育就业歧视",
+      "difficulty": "easy",
+      "text": "招聘简章写明仅限男性，女性不考虑。",
+      "expected_risks": [
+        "discrimination"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "discrimination_02",
+      "split": "development",
+      "family": "discrimination",
+      "title": "性别婚育就业歧视",
+      "difficulty": "easy",
+      "text": "女性入职需承诺三年内不怀孕。",
+      "expected_risks": [
+        "discrimination"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "discrimination_03",
+      "split": "test",
+      "family": "discrimination",
+      "title": "性别婚育就业歧视",
+      "difficulty": "medium",
+      "text": "同等条件下男性优先，已婚未育女性暂不考虑。",
+      "expected_risks": [
+        "discrimination"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "discrimination_04",
+      "split": "test",
+      "family": "discrimination",
+      "title": "性别婚育就业歧视",
+      "difficulty": "hard",
+      "text": "入职需承诺五年内不结婚生育，否则不予录用。",
+      "expected_risks": [
+        "discrimination"
+      ],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "规则命中样例；参加正式测试前需人工复核标签。"
+    },
+    {
+      "id": "safe_01",
+      "split": "development",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "easy",
+      "text": "公司依法为员工缴纳社会保险，不提供社保补贴替代。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "安全对照样例；其中包含否定表达和边界条件。"
+    },
+    {
+      "id": "safe_02",
+      "split": "development",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "easy",
+      "text": "公司不收取任何押金、保证金，也不扣押员工证件。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "安全对照样例；其中包含否定表达和边界条件。"
+    },
+    {
+      "id": "safe_03",
+      "split": "development",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "easy",
+      "text": "公司不要求员工参加培训贷，也不设置任何岗前收费。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "安全对照样例；其中包含否定表达和边界条件。"
+    },
+    {
+      "id": "safe_04",
+      "split": "development",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "easy",
+      "text": "试用期工资为约定工资的85%，且不低于当地最低工资标准。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "安全对照样例；其中包含否定表达和边界条件。"
+    },
+    {
+      "id": "safe_05",
+      "split": "development",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "easy",
+      "text": "合同期限三年，试用期六个月，试用期工资为约定工资的90%。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "安全对照样例；其中包含否定表达和边界条件。"
+    },
+    {
+      "id": "safe_06",
+      "split": "development",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "easy",
+      "text": "竞业限制期限为两年，公司按月支付经济补偿。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "安全对照样例；其中包含否定表达和边界条件。"
+    },
+    {
+      "id": "safe_07",
+      "split": "development",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "easy",
+      "text": "因工作需要安排加班，公司依法支付加班费或安排调休。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "安全对照样例；其中包含否定表达和边界条件。"
+    },
+    {
+      "id": "safe_08",
+      "split": "development",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "easy",
+      "text": "员工提前三十日书面通知即可解除劳动合同，无需支付违约金。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "安全对照样例；其中包含否定表达和边界条件。"
+    },
+    {
+      "id": "safe_09",
+      "split": "test",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "medium",
+      "text": "岗位、薪酬和工作地点调整需双方协商一致并书面确认。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "安全对照样例；其中包含否定表达和边界条件。"
+    },
+    {
+      "id": "safe_10",
+      "split": "test",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "medium",
+      "text": "工资每月十五日前以货币形式足额支付。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "安全对照样例；其中包含否定表达和边界条件。"
+    },
+    {
+      "id": "safe_11",
+      "split": "test",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "medium",
+      "text": "公司自用工之日起一个月内与员工签订书面劳动合同。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "安全对照样例；其中包含否定表达和边界条件。"
+    },
+    {
+      "id": "safe_12",
+      "split": "test",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "medium",
+      "text": "公司按员工实际工资申报社保缴费基数并足额缴纳。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "安全对照样例；其中包含否定表达和边界条件。"
+    },
+    {
+      "id": "safe_13",
+      "split": "test",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "medium",
+      "text": "招聘不限制性别、婚育状况和地域。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "安全对照样例；其中包含否定表达和边界条件。"
+    },
+    {
+      "id": "safe_14",
+      "split": "test",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "medium",
+      "text": "加班可安排调休，不能调休时依法支付加班费。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "安全对照样例；其中包含否定表达和边界条件。"
+    },
+    {
+      "id": "safe_15",
+      "split": "test",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "medium",
+      "text": "劳动合同为无固定期限，试用期不超过六个月。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "安全对照样例；其中包含否定表达和边界条件。"
+    },
+    {
+      "id": "safe_16",
+      "split": "test",
+      "family": "safe_control",
+      "title": "safe_control",
+      "difficulty": "medium",
+      "text": "公司不会以任何名义收取押金、保证金或培训费用。",
+      "expected_risks": [],
+      "expected_abstain": false,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "安全对照样例；其中包含否定表达和边界条件。"
+    },
+    {
+      "id": "review_01",
+      "split": "development",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "hard",
+      "text": "实习生与公司签订实习协议，不建立劳动关系，但工作内容和考勤由部门统一管理。",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "信息不足或关系性质不明，系统应提示人工核实而不是给出确定结论。"
+    },
+    {
+      "id": "review_02",
+      "split": "development",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "hard",
+      "text": "兼职人员按任务结算报酬，不适用全职员工排班制度。",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "信息不足或关系性质不明，系统应提示人工核实而不是给出确定结论。"
+    },
+    {
+      "id": "review_03",
+      "split": "development",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "hard",
+      "text": "双方签订劳务合作协议，期限一年，服务费按月结算。",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "信息不足或关系性质不明，系统应提示人工核实而不是给出确定结论。"
+    },
+    {
+      "id": "review_04",
+      "split": "development",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "hard",
+      "text": "非全日制用工，每日工作四小时，每周工作时间累计不超过二十四小时。",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "信息不足或关系性质不明，系统应提示人工核实而不是给出确定结论。"
+    },
+    {
+      "id": "review_05",
+      "split": "development",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "hard",
+      "text": "劳动合同期限以实际项目周期为准，工资面议。",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "信息不足或关系性质不明，系统应提示人工核实而不是给出确定结论。"
+    },
+    {
+      "id": "review_06",
+      "split": "development",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "hard",
+      "text": "试用期待定，转正后确定薪资，社保另行沟通。",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "信息不足或关系性质不明，系统应提示人工核实而不是给出确定结论。"
+    },
+    {
+      "id": "review_07",
+      "split": "test",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "hard",
+      "text": "社保缴纳方案另行约定，目前尚未写入合同。",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "信息不足或关系性质不明，系统应提示人工核实而不是给出确定结论。"
+    },
+    {
+      "id": "review_08",
+      "split": "test",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "hard",
+      "text": "HR口头表示试用期三个月，但暂未写入合同。",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "信息不足或关系性质不明，系统应提示人工核实而不是给出确定结论。"
+    },
+    {
+      "id": "review_09",
+      "split": "test",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "hard",
+      "text": "公司口头承诺试用期工资不低于正式工资的80%，微信里说，暂未写入合同。",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "信息不足或关系性质不明，系统应提示人工核实而不是给出确定结论。"
+    },
+    {
+      "id": "review_10",
+      "split": "test",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "hard",
+      "text": "工资包含绩效，具体计算以实际为准。",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "信息不足或关系性质不明，系统应提示人工核实而不是给出确定结论。"
+    },
+    {
+      "id": "review_11",
+      "split": "test",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "hard",
+      "text": "实习补贴面议，公司称可转正后签订劳动合同。",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "信息不足或关系性质不明，系统应提示人工核实而不是给出确定结论。"
+    },
+    {
+      "id": "review_12",
+      "split": "test",
+      "family": "review_required",
+      "title": "review_required",
+      "difficulty": "hard",
+      "text": "灵活用工合作协议，报酬面议，社保未明确。",
+      "expected_risks": [],
+      "expected_abstain": true,
+      "source_type": "team_synthetic_from_public_rules",
+      "contains_personal_data": false,
+      "review_status": "pending_legal_sample_review",
+      "notes": "信息不足或关系性质不明，系统应提示人工核实而不是给出确定结论。"
+    }
+  ]
+}

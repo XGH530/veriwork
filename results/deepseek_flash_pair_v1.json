@@ -1,0 +1,1937 @@
+{
+  "model": "deepseek-flash",
+  "dataset_version": "holdout-v2.0.0-frozen",
+  "generated_at": "2026-10-08T16:40:44",
+  "comparison_protocol": "同一次模型输出同时计算 model-only 和规则并集，避免重复采样的不可比问题。",
+  "successful_cases": 40,
+  "failed_cases": 0,
+  "errors": [],
+  "systems": {
+    "model_only": {
+      "system": "LLM model-only",
+      "model": "deepseek-flash",
+      "dataset_version": "holdout-v2.0.0-frozen",
+      "generated_at": "2026-10-08T16:40:44",
+      "successful_cases": 40,
+      "failed_cases": 0,
+      "errors": [],
+      "metrics": {
+        "frozen_holdout": {
+          "cases": 40,
+          "expected_risks": 26,
+          "predicted_risks": 27,
+          "true_positive": 26,
+          "false_positive": 1,
+          "false_negative": 0,
+          "precision": 0.963,
+          "recall": 1.0,
+          "f1": 0.9811,
+          "exact_match_rate": 0.975,
+          "citation_coverage": 0.0,
+          "abstention_recall": 1.0,
+          "confident_error_cases": 0
+        },
+        "all": {
+          "cases": 40,
+          "expected_risks": 26,
+          "predicted_risks": 27,
+          "true_positive": 26,
+          "false_positive": 1,
+          "false_negative": 0,
+          "precision": 0.963,
+          "recall": 1.0,
+          "f1": 0.9811,
+          "exact_match_rate": 0.975,
+          "citation_coverage": 0.0,
+          "abstention_recall": 1.0,
+          "confident_error_cases": 0
+        }
+      },
+      "cases": [
+        {
+          "id": "frozen_001",
+          "split": "frozen_holdout",
+          "family": "no_social_insurance",
+          "difficulty": "medium",
+          "title": "no_social_insurance",
+          "text": "公司提出社保费用由个人全部承担，单位只发现金补贴。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "no_social_insurance"
+          ],
+          "predicted_risks": [
+            "no_social_insurance"
+          ],
+          "true_positive": [
+            "no_social_insurance"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 3170
+        },
+        {
+          "id": "frozen_002",
+          "split": "frozen_holdout",
+          "family": "no_social_insurance",
+          "difficulty": "easy",
+          "title": "no_social_insurance",
+          "text": "约定试用期内员工自行缴纳社会保险，公司不办理参保。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "no_social_insurance"
+          ],
+          "predicted_risks": [
+            "no_social_insurance"
+          ],
+          "true_positive": [
+            "no_social_insurance"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 1970
+        },
+        {
+          "id": "frozen_003",
+          "split": "frozen_holdout",
+          "family": "employment_deposit",
+          "difficulty": "medium",
+          "title": "employment_deposit",
+          "text": "入职材料中要求上交毕业证书原件，由人事统一保管。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "employment_deposit"
+          ],
+          "predicted_risks": [
+            "employment_deposit"
+          ],
+          "true_positive": [
+            "employment_deposit"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 4184
+        },
+        {
+          "id": "frozen_004",
+          "split": "frozen_holdout",
+          "family": "employment_deposit",
+          "difficulty": "easy",
+          "title": "employment_deposit",
+          "text": "转正前需支付1000元工牌和设备保证金。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "employment_deposit"
+          ],
+          "predicted_risks": [
+            "employment_deposit"
+          ],
+          "true_positive": [
+            "employment_deposit"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 1365
+        },
+        {
+          "id": "frozen_005",
+          "split": "frozen_holdout",
+          "family": "training_loan",
+          "difficulty": "medium",
+          "title": "training_loan",
+          "text": "零基础求职者被要求办理两万元技能培训分期。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "training_loan"
+          ],
+          "predicted_risks": [
+            "training_loan"
+          ],
+          "true_positive": [
+            "training_loan"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 2446
+        },
+        {
+          "id": "frozen_006",
+          "split": "frozen_holdout",
+          "family": "training_loan",
+          "difficulty": "hard",
+          "title": "training_loan",
+          "text": "岗前课程收费4800元，费用入职后从工资扣除。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "training_loan"
+          ],
+          "predicted_risks": [
+            "training_loan"
+          ],
+          "true_positive": [
+            "training_loan"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 1265
+        },
+        {
+          "id": "frozen_007",
+          "split": "frozen_holdout",
+          "family": "probation_salary",
+          "difficulty": "hard",
+          "title": "probation_salary",
+          "text": "试岗期只按约定工资的65%支付。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "probation_salary"
+          ],
+          "predicted_risks": [
+            "probation_salary"
+          ],
+          "true_positive": [
+            "probation_salary"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 2259
+        },
+        {
+          "id": "frozen_008",
+          "split": "frozen_holdout",
+          "family": "probation_salary",
+          "difficulty": "medium",
+          "title": "probation_salary",
+          "text": "试用期按合同工资的78%结算。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "probation_salary"
+          ],
+          "predicted_risks": [
+            "probation_salary"
+          ],
+          "true_positive": [
+            "probation_salary"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 1410
+        },
+        {
+          "id": "frozen_009",
+          "split": "frozen_holdout",
+          "family": "probation_duration",
+          "difficulty": "medium",
+          "title": "probation_duration",
+          "text": "一年期合同设置三个月试用期。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "probation_duration"
+          ],
+          "predicted_risks": [
+            "probation_duration"
+          ],
+          "true_positive": [
+            "probation_duration"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 2271
+        },
+        {
+          "id": "frozen_010",
+          "split": "frozen_holdout",
+          "family": "probation_duration",
+          "difficulty": "easy",
+          "title": "probation_duration",
+          "text": "合同写两年，试用期四个月。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "probation_duration"
+          ],
+          "predicted_risks": [
+            "probation_duration"
+          ],
+          "true_positive": [
+            "probation_duration"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 1995
+        },
+        {
+          "id": "frozen_011",
+          "split": "frozen_holdout",
+          "family": "noncompete_risk",
+          "difficulty": "hard",
+          "title": "noncompete_risk",
+          "text": "离职后两年内不得同业，合同没有补偿条款。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "noncompete_risk"
+          ],
+          "predicted_risks": [
+            "noncompete_risk"
+          ],
+          "true_positive": [
+            "noncompete_risk"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 2162
+        },
+        {
+          "id": "frozen_012",
+          "split": "frozen_holdout",
+          "family": "noncompete_risk",
+          "difficulty": "hard",
+          "title": "noncompete_risk",
+          "text": "禁止参与竞业两年，但不给补偿。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "noncompete_risk"
+          ],
+          "predicted_risks": [
+            "noncompete_risk"
+          ],
+          "true_positive": [
+            "noncompete_risk"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 2436
+        },
+        {
+          "id": "frozen_013",
+          "split": "frozen_holdout",
+          "family": "overtime_unpaid",
+          "difficulty": "hard",
+          "title": "overtime_unpaid",
+          "text": "非工作时间处理工作，被认定为不计薪工时。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "overtime_unpaid"
+          ],
+          "predicted_risks": [
+            "overtime_unpaid"
+          ],
+          "true_positive": [
+            "overtime_unpaid"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 1082
+        },
+        {
+          "id": "frozen_014",
+          "split": "frozen_holdout",
+          "family": "overtime_unpaid",
+          "difficulty": "hard",
+          "title": "overtime_unpaid",
+          "text": "法定节假日值班，公司以调休替代全部加班工资。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "overtime_unpaid"
+          ],
+          "predicted_risks": [
+            "overtime_unpaid"
+          ],
+          "true_positive": [
+            "overtime_unpaid"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 1405
+        },
+        {
+          "id": "frozen_015",
+          "split": "frozen_holdout",
+          "family": "resignation_penalty",
+          "difficulty": "medium",
+          "title": "resignation_penalty",
+          "text": "合同期内辞职需要向公司赔偿三个月工资。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "resignation_penalty"
+          ],
+          "predicted_risks": [
+            "resignation_penalty"
+          ],
+          "true_positive": [
+            "resignation_penalty"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 1145
+        },
+        {
+          "id": "frozen_016",
+          "split": "frozen_holdout",
+          "family": "resignation_penalty",
+          "difficulty": "medium",
+          "title": "resignation_penalty",
+          "text": "未到服务期离开，按未履行年限缴纳赔偿金。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "resignation_penalty"
+          ],
+          "predicted_risks": [
+            "resignation_penalty"
+          ],
+          "true_positive": [
+            "resignation_penalty"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 5196
+        },
+        {
+          "id": "frozen_017",
+          "split": "frozen_holdout",
+          "family": "unilateral_change",
+          "difficulty": "medium",
+          "title": "unilateral_change",
+          "text": "公司可按业务需要调整岗位，员工不得提出异议。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "unilateral_change"
+          ],
+          "predicted_risks": [
+            "unilateral_change"
+          ],
+          "true_positive": [
+            "unilateral_change"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 1755
+        },
+        {
+          "id": "frozen_018",
+          "split": "frozen_holdout",
+          "family": "unilateral_change",
+          "difficulty": "hard",
+          "title": "unilateral_change",
+          "text": "办公地点随项目变化，员工须接受安排。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "unilateral_change"
+          ],
+          "predicted_risks": [
+            "unilateral_change"
+          ],
+          "true_positive": [
+            "unilateral_change"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 2299
+        },
+        {
+          "id": "frozen_019",
+          "split": "frozen_holdout",
+          "family": "wage_delay",
+          "difficulty": "medium",
+          "title": "wage_delay",
+          "text": "上月工资延后至下下月发放。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "wage_delay"
+          ],
+          "predicted_risks": [
+            "wage_delay"
+          ],
+          "true_positive": [
+            "wage_delay"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 1882
+        },
+        {
+          "id": "frozen_020",
+          "split": "frozen_holdout",
+          "family": "wage_delay",
+          "difficulty": "hard",
+          "title": "wage_delay",
+          "text": "离职后工资分三期发放。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "wage_delay"
+          ],
+          "predicted_risks": [
+            "wage_delay"
+          ],
+          "true_positive": [
+            "wage_delay"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 2036
+        },
+        {
+          "id": "frozen_021",
+          "split": "frozen_holdout",
+          "family": "no_written_contract",
+          "difficulty": "medium",
+          "title": "no_written_contract",
+          "text": "公司先用试用协议替代书面劳动合同。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "no_written_contract"
+          ],
+          "predicted_risks": [
+            "no_written_contract"
+          ],
+          "true_positive": [
+            "no_written_contract"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 2286
+        },
+        {
+          "id": "frozen_022",
+          "split": "frozen_holdout",
+          "family": "no_written_contract",
+          "difficulty": "hard",
+          "title": "no_written_contract",
+          "text": "入职三个月后补签劳动合同。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "no_written_contract"
+          ],
+          "predicted_risks": [
+            "no_written_contract"
+          ],
+          "true_positive": [
+            "no_written_contract"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 2486
+        },
+        {
+          "id": "frozen_023",
+          "split": "frozen_holdout",
+          "family": "social_base",
+          "difficulty": "easy",
+          "title": "social_base",
+          "text": "社保按最低档缴纳。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "social_base"
+          ],
+          "predicted_risks": [
+            "social_base"
+          ],
+          "true_positive": [
+            "social_base"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 1326
+        },
+        {
+          "id": "frozen_024",
+          "split": "frozen_holdout",
+          "family": "social_base",
+          "difficulty": "hard",
+          "title": "social_base",
+          "text": "社保缴费基数只按底薪计算。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "social_base"
+          ],
+          "predicted_risks": [
+            "social_base"
+          ],
+          "true_positive": [
+            "social_base"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 1296
+        },
+        {
+          "id": "frozen_025",
+          "split": "frozen_holdout",
+          "family": "discrimination",
+          "difficulty": "medium",
+          "title": "discrimination",
+          "text": "招聘要求三年内无生育计划。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "discrimination"
+          ],
+          "predicted_risks": [
+            "discrimination"
+          ],
+          "true_positive": [
+            "discrimination"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 1284
+        },
+        {
+          "id": "frozen_026",
+          "split": "frozen_holdout",
+          "family": "discrimination",
+          "difficulty": "hard",
+          "title": "discrimination",
+          "text": "此岗位更希望招未婚男性。",
+          "system": "LLM model-only",
+          "expected_risks": [
+            "discrimination"
+          ],
+          "predicted_risks": [
+            "discrimination"
+          ],
+          "true_positive": [
+            "discrimination"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 1600
+        },
+        {
+          "id": "frozen_safe_027",
+          "split": "frozen_holdout",
+          "family": "safe_control",
+          "difficulty": "easy",
+          "title": "safe_control",
+          "text": "员工可依法参保，公司不通过现金替代。",
+          "system": "LLM model-only",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 2198
+        },
+        {
+          "id": "frozen_safe_028",
+          "split": "frozen_holdout",
+          "family": "safe_control",
+          "difficulty": "medium",
+          "title": "safe_control",
+          "text": "入职流程不收费，也不扣押任何证件。",
+          "system": "LLM model-only",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 1532
+        },
+        {
+          "id": "frozen_safe_029",
+          "split": "frozen_holdout",
+          "family": "safe_control",
+          "difficulty": "medium",
+          "title": "safe_control",
+          "text": "合同两年，试用期两个月，工资为约定工资的85%。",
+          "system": "LLM model-only",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 12959
+        },
+        {
+          "id": "frozen_safe_030",
+          "split": "frozen_holdout",
+          "family": "safe_control",
+          "difficulty": "medium",
+          "title": "safe_control",
+          "text": "竞业限制一年，按季度支付补偿。",
+          "system": "LLM model-only",
+          "expected_risks": [],
+          "predicted_risks": [
+            "noncompete_risk"
+          ],
+          "true_positive": [],
+          "false_positive": [
+            "noncompete_risk"
+          ],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 0,
+          "processing_ms": 3454
+        },
+        {
+          "id": "frozen_safe_031",
+          "split": "frozen_holdout",
+          "family": "safe_control",
+          "difficulty": "easy",
+          "title": "safe_control",
+          "text": "加班按规定安排调休或者支付加班费。",
+          "system": "LLM model-only",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 5818
+        },
+        {
+          "id": "frozen_safe_032",
+          "split": "frozen_holdout",
+          "family": "safe_control",
+          "difficulty": "easy",
+          "title": "safe_control",
+          "text": "书面劳动合同在入职一个月内签订。",
+          "system": "LLM model-only",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 2827
+        },
+        {
+          "id": "frozen_safe_033",
+          "split": "frozen_holdout",
+          "family": "safe_control",
+          "difficulty": "medium",
+          "title": "safe_control",
+          "text": "岗位调整由双方协商并签署补充协议。",
+          "system": "LLM model-only",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": true,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 1384
+        },
+        {
+          "id": "frozen_safe_034",
+          "split": "frozen_holdout",
+          "family": "safe_control",
+          "difficulty": "medium",
+          "title": "safe_control",
+          "text": "公司按实际工资申报社保缴费基数。",
+          "system": "LLM model-only",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 1507
+        },
+        {
+          "id": "frozen_review_035",
+          "split": "frozen_holdout",
+          "family": "review_required",
+          "difficulty": "hard",
+          "title": "review_required",
+          "text": "平台骑手合作协议，报酬按单结算，是否建立劳动关系未明确。",
+          "system": "LLM model-only",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": true,
+          "predicted_abstain": true,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 8825
+        },
+        {
+          "id": "frozen_review_036",
+          "split": "frozen_holdout",
+          "family": "review_required",
+          "difficulty": "medium",
+          "title": "review_required",
+          "text": "毕业前实习，毕业后视考核决定是否转正。",
+          "system": "LLM model-only",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": true,
+          "predicted_abstain": true,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 10918
+        },
+        {
+          "id": "frozen_review_037",
+          "split": "frozen_holdout",
+          "family": "review_required",
+          "difficulty": "medium",
+          "title": "review_required",
+          "text": "兼职内容审核，每周排班由平台安排。",
+          "system": "LLM model-only",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": true,
+          "predicted_abstain": true,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 4672
+        },
+        {
+          "id": "frozen_review_038",
+          "split": "frozen_holdout",
+          "family": "review_required",
+          "difficulty": "hard",
+          "title": "review_required",
+          "text": "项目制合作，费用和纳税方式尚未确定。",
+          "system": "LLM model-only",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": true,
+          "predicted_abstain": true,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 4961
+        },
+        {
+          "id": "frozen_review_039",
+          "split": "frozen_holdout",
+          "family": "review_required",
+          "difficulty": "hard",
+          "title": "review_required",
+          "text": "公司说工资由基本工资和绩效构成，具体比例待定。",
+          "system": "LLM model-only",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": true,
+          "predicted_abstain": true,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 1748
+        },
+        {
+          "id": "frozen_review_040",
+          "split": "frozen_holdout",
+          "family": "review_required",
+          "difficulty": "medium",
+          "title": "review_required",
+          "text": "口头承诺有年终奖，但合同未写。",
+          "system": "LLM model-only",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": true,
+          "predicted_abstain": true,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 3306
+        }
+      ]
+    },
+    "veriwork_hybrid": {
+      "system": "VeriWork hybrid",
+      "model": "deepseek-flash",
+      "dataset_version": "holdout-v2.0.0-frozen",
+      "generated_at": "2026-10-08T16:40:44",
+      "successful_cases": 40,
+      "failed_cases": 0,
+      "errors": [],
+      "metrics": {
+        "frozen_holdout": {
+          "cases": 40,
+          "expected_risks": 26,
+          "predicted_risks": 27,
+          "true_positive": 26,
+          "false_positive": 1,
+          "false_negative": 0,
+          "precision": 0.963,
+          "recall": 1.0,
+          "f1": 0.9811,
+          "exact_match_rate": 0.975,
+          "citation_coverage": 1.0,
+          "abstention_recall": 1.0,
+          "confident_error_cases": 0
+        },
+        "all": {
+          "cases": 40,
+          "expected_risks": 26,
+          "predicted_risks": 27,
+          "true_positive": 26,
+          "false_positive": 1,
+          "false_negative": 0,
+          "precision": 0.963,
+          "recall": 1.0,
+          "f1": 0.9811,
+          "exact_match_rate": 0.975,
+          "citation_coverage": 1.0,
+          "abstention_recall": 1.0,
+          "confident_error_cases": 0
+        }
+      },
+      "cases": [
+        {
+          "id": "frozen_001",
+          "split": "frozen_holdout",
+          "family": "no_social_insurance",
+          "difficulty": "medium",
+          "title": "no_social_insurance",
+          "text": "公司提出社保费用由个人全部承担，单位只发现金补贴。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "no_social_insurance"
+          ],
+          "predicted_risks": [
+            "no_social_insurance"
+          ],
+          "true_positive": [
+            "no_social_insurance"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 3170
+        },
+        {
+          "id": "frozen_002",
+          "split": "frozen_holdout",
+          "family": "no_social_insurance",
+          "difficulty": "easy",
+          "title": "no_social_insurance",
+          "text": "约定试用期内员工自行缴纳社会保险，公司不办理参保。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "no_social_insurance"
+          ],
+          "predicted_risks": [
+            "no_social_insurance"
+          ],
+          "true_positive": [
+            "no_social_insurance"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 1970
+        },
+        {
+          "id": "frozen_003",
+          "split": "frozen_holdout",
+          "family": "employment_deposit",
+          "difficulty": "medium",
+          "title": "employment_deposit",
+          "text": "入职材料中要求上交毕业证书原件，由人事统一保管。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "employment_deposit"
+          ],
+          "predicted_risks": [
+            "employment_deposit"
+          ],
+          "true_positive": [
+            "employment_deposit"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 4184
+        },
+        {
+          "id": "frozen_004",
+          "split": "frozen_holdout",
+          "family": "employment_deposit",
+          "difficulty": "easy",
+          "title": "employment_deposit",
+          "text": "转正前需支付1000元工牌和设备保证金。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "employment_deposit"
+          ],
+          "predicted_risks": [
+            "employment_deposit"
+          ],
+          "true_positive": [
+            "employment_deposit"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 1365
+        },
+        {
+          "id": "frozen_005",
+          "split": "frozen_holdout",
+          "family": "training_loan",
+          "difficulty": "medium",
+          "title": "training_loan",
+          "text": "零基础求职者被要求办理两万元技能培训分期。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "training_loan"
+          ],
+          "predicted_risks": [
+            "training_loan"
+          ],
+          "true_positive": [
+            "training_loan"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 2446
+        },
+        {
+          "id": "frozen_006",
+          "split": "frozen_holdout",
+          "family": "training_loan",
+          "difficulty": "hard",
+          "title": "training_loan",
+          "text": "岗前课程收费4800元，费用入职后从工资扣除。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "training_loan"
+          ],
+          "predicted_risks": [
+            "training_loan"
+          ],
+          "true_positive": [
+            "training_loan"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 1265
+        },
+        {
+          "id": "frozen_007",
+          "split": "frozen_holdout",
+          "family": "probation_salary",
+          "difficulty": "hard",
+          "title": "probation_salary",
+          "text": "试岗期只按约定工资的65%支付。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "probation_salary"
+          ],
+          "predicted_risks": [
+            "probation_salary"
+          ],
+          "true_positive": [
+            "probation_salary"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 2259
+        },
+        {
+          "id": "frozen_008",
+          "split": "frozen_holdout",
+          "family": "probation_salary",
+          "difficulty": "medium",
+          "title": "probation_salary",
+          "text": "试用期按合同工资的78%结算。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "probation_salary"
+          ],
+          "predicted_risks": [
+            "probation_salary"
+          ],
+          "true_positive": [
+            "probation_salary"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 1410
+        },
+        {
+          "id": "frozen_009",
+          "split": "frozen_holdout",
+          "family": "probation_duration",
+          "difficulty": "medium",
+          "title": "probation_duration",
+          "text": "一年期合同设置三个月试用期。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "probation_duration"
+          ],
+          "predicted_risks": [
+            "probation_duration"
+          ],
+          "true_positive": [
+            "probation_duration"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 2271
+        },
+        {
+          "id": "frozen_010",
+          "split": "frozen_holdout",
+          "family": "probation_duration",
+          "difficulty": "easy",
+          "title": "probation_duration",
+          "text": "合同写两年，试用期四个月。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "probation_duration"
+          ],
+          "predicted_risks": [
+            "probation_duration"
+          ],
+          "true_positive": [
+            "probation_duration"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 1995
+        },
+        {
+          "id": "frozen_011",
+          "split": "frozen_holdout",
+          "family": "noncompete_risk",
+          "difficulty": "hard",
+          "title": "noncompete_risk",
+          "text": "离职后两年内不得同业，合同没有补偿条款。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "noncompete_risk"
+          ],
+          "predicted_risks": [
+            "noncompete_risk"
+          ],
+          "true_positive": [
+            "noncompete_risk"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 2162
+        },
+        {
+          "id": "frozen_012",
+          "split": "frozen_holdout",
+          "family": "noncompete_risk",
+          "difficulty": "hard",
+          "title": "noncompete_risk",
+          "text": "禁止参与竞业两年，但不给补偿。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "noncompete_risk"
+          ],
+          "predicted_risks": [
+            "noncompete_risk"
+          ],
+          "true_positive": [
+            "noncompete_risk"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 2436
+        },
+        {
+          "id": "frozen_013",
+          "split": "frozen_holdout",
+          "family": "overtime_unpaid",
+          "difficulty": "hard",
+          "title": "overtime_unpaid",
+          "text": "非工作时间处理工作，被认定为不计薪工时。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "overtime_unpaid"
+          ],
+          "predicted_risks": [
+            "overtime_unpaid"
+          ],
+          "true_positive": [
+            "overtime_unpaid"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 1082
+        },
+        {
+          "id": "frozen_014",
+          "split": "frozen_holdout",
+          "family": "overtime_unpaid",
+          "difficulty": "hard",
+          "title": "overtime_unpaid",
+          "text": "法定节假日值班，公司以调休替代全部加班工资。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "overtime_unpaid"
+          ],
+          "predicted_risks": [
+            "overtime_unpaid"
+          ],
+          "true_positive": [
+            "overtime_unpaid"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 1405
+        },
+        {
+          "id": "frozen_015",
+          "split": "frozen_holdout",
+          "family": "resignation_penalty",
+          "difficulty": "medium",
+          "title": "resignation_penalty",
+          "text": "合同期内辞职需要向公司赔偿三个月工资。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "resignation_penalty"
+          ],
+          "predicted_risks": [
+            "resignation_penalty"
+          ],
+          "true_positive": [
+            "resignation_penalty"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 1145
+        },
+        {
+          "id": "frozen_016",
+          "split": "frozen_holdout",
+          "family": "resignation_penalty",
+          "difficulty": "medium",
+          "title": "resignation_penalty",
+          "text": "未到服务期离开，按未履行年限缴纳赔偿金。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "resignation_penalty"
+          ],
+          "predicted_risks": [
+            "resignation_penalty"
+          ],
+          "true_positive": [
+            "resignation_penalty"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 5196
+        },
+        {
+          "id": "frozen_017",
+          "split": "frozen_holdout",
+          "family": "unilateral_change",
+          "difficulty": "medium",
+          "title": "unilateral_change",
+          "text": "公司可按业务需要调整岗位，员工不得提出异议。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "unilateral_change"
+          ],
+          "predicted_risks": [
+            "unilateral_change"
+          ],
+          "true_positive": [
+            "unilateral_change"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 1755
+        },
+        {
+          "id": "frozen_018",
+          "split": "frozen_holdout",
+          "family": "unilateral_change",
+          "difficulty": "hard",
+          "title": "unilateral_change",
+          "text": "办公地点随项目变化，员工须接受安排。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "unilateral_change"
+          ],
+          "predicted_risks": [
+            "unilateral_change"
+          ],
+          "true_positive": [
+            "unilateral_change"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 2299
+        },
+        {
+          "id": "frozen_019",
+          "split": "frozen_holdout",
+          "family": "wage_delay",
+          "difficulty": "medium",
+          "title": "wage_delay",
+          "text": "上月工资延后至下下月发放。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "wage_delay"
+          ],
+          "predicted_risks": [
+            "wage_delay"
+          ],
+          "true_positive": [
+            "wage_delay"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 1882
+        },
+        {
+          "id": "frozen_020",
+          "split": "frozen_holdout",
+          "family": "wage_delay",
+          "difficulty": "hard",
+          "title": "wage_delay",
+          "text": "离职后工资分三期发放。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "wage_delay"
+          ],
+          "predicted_risks": [
+            "wage_delay"
+          ],
+          "true_positive": [
+            "wage_delay"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 2036
+        },
+        {
+          "id": "frozen_021",
+          "split": "frozen_holdout",
+          "family": "no_written_contract",
+          "difficulty": "medium",
+          "title": "no_written_contract",
+          "text": "公司先用试用协议替代书面劳动合同。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "no_written_contract"
+          ],
+          "predicted_risks": [
+            "no_written_contract"
+          ],
+          "true_positive": [
+            "no_written_contract"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 2286
+        },
+        {
+          "id": "frozen_022",
+          "split": "frozen_holdout",
+          "family": "no_written_contract",
+          "difficulty": "hard",
+          "title": "no_written_contract",
+          "text": "入职三个月后补签劳动合同。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "no_written_contract"
+          ],
+          "predicted_risks": [
+            "no_written_contract"
+          ],
+          "true_positive": [
+            "no_written_contract"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 2486
+        },
+        {
+          "id": "frozen_023",
+          "split": "frozen_holdout",
+          "family": "social_base",
+          "difficulty": "easy",
+          "title": "social_base",
+          "text": "社保按最低档缴纳。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "social_base"
+          ],
+          "predicted_risks": [
+            "social_base"
+          ],
+          "true_positive": [
+            "social_base"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 1326
+        },
+        {
+          "id": "frozen_024",
+          "split": "frozen_holdout",
+          "family": "social_base",
+          "difficulty": "hard",
+          "title": "social_base",
+          "text": "社保缴费基数只按底薪计算。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "social_base"
+          ],
+          "predicted_risks": [
+            "social_base"
+          ],
+          "true_positive": [
+            "social_base"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 1296
+        },
+        {
+          "id": "frozen_025",
+          "split": "frozen_holdout",
+          "family": "discrimination",
+          "difficulty": "medium",
+          "title": "discrimination",
+          "text": "招聘要求三年内无生育计划。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "discrimination"
+          ],
+          "predicted_risks": [
+            "discrimination"
+          ],
+          "true_positive": [
+            "discrimination"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 1284
+        },
+        {
+          "id": "frozen_026",
+          "split": "frozen_holdout",
+          "family": "discrimination",
+          "difficulty": "hard",
+          "title": "discrimination",
+          "text": "此岗位更希望招未婚男性。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [
+            "discrimination"
+          ],
+          "predicted_risks": [
+            "discrimination"
+          ],
+          "true_positive": [
+            "discrimination"
+          ],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 1600
+        },
+        {
+          "id": "frozen_safe_027",
+          "split": "frozen_holdout",
+          "family": "safe_control",
+          "difficulty": "easy",
+          "title": "safe_control",
+          "text": "员工可依法参保，公司不通过现金替代。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 2198
+        },
+        {
+          "id": "frozen_safe_028",
+          "split": "frozen_holdout",
+          "family": "safe_control",
+          "difficulty": "medium",
+          "title": "safe_control",
+          "text": "入职流程不收费，也不扣押任何证件。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 1532
+        },
+        {
+          "id": "frozen_safe_029",
+          "split": "frozen_holdout",
+          "family": "safe_control",
+          "difficulty": "medium",
+          "title": "safe_control",
+          "text": "合同两年，试用期两个月，工资为约定工资的85%。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 12959
+        },
+        {
+          "id": "frozen_safe_030",
+          "split": "frozen_holdout",
+          "family": "safe_control",
+          "difficulty": "medium",
+          "title": "safe_control",
+          "text": "竞业限制一年，按季度支付补偿。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [],
+          "predicted_risks": [
+            "noncompete_risk"
+          ],
+          "true_positive": [],
+          "false_positive": [
+            "noncompete_risk"
+          ],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 1,
+          "risks_with_citation": 1,
+          "processing_ms": 3454
+        },
+        {
+          "id": "frozen_safe_031",
+          "split": "frozen_holdout",
+          "family": "safe_control",
+          "difficulty": "easy",
+          "title": "safe_control",
+          "text": "加班按规定安排调休或者支付加班费。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 5818
+        },
+        {
+          "id": "frozen_safe_032",
+          "split": "frozen_holdout",
+          "family": "safe_control",
+          "difficulty": "easy",
+          "title": "safe_control",
+          "text": "书面劳动合同在入职一个月内签订。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 2827
+        },
+        {
+          "id": "frozen_safe_033",
+          "split": "frozen_holdout",
+          "family": "safe_control",
+          "difficulty": "medium",
+          "title": "safe_control",
+          "text": "岗位调整由双方协商并签署补充协议。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": true,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 1384
+        },
+        {
+          "id": "frozen_safe_034",
+          "split": "frozen_holdout",
+          "family": "safe_control",
+          "difficulty": "medium",
+          "title": "safe_control",
+          "text": "公司按实际工资申报社保缴费基数。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": false,
+          "predicted_abstain": false,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 1507
+        },
+        {
+          "id": "frozen_review_035",
+          "split": "frozen_holdout",
+          "family": "review_required",
+          "difficulty": "hard",
+          "title": "review_required",
+          "text": "平台骑手合作协议，报酬按单结算，是否建立劳动关系未明确。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": true,
+          "predicted_abstain": true,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 8825
+        },
+        {
+          "id": "frozen_review_036",
+          "split": "frozen_holdout",
+          "family": "review_required",
+          "difficulty": "medium",
+          "title": "review_required",
+          "text": "毕业前实习，毕业后视考核决定是否转正。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": true,
+          "predicted_abstain": true,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 10918
+        },
+        {
+          "id": "frozen_review_037",
+          "split": "frozen_holdout",
+          "family": "review_required",
+          "difficulty": "medium",
+          "title": "review_required",
+          "text": "兼职内容审核，每周排班由平台安排。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": true,
+          "predicted_abstain": true,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 4672
+        },
+        {
+          "id": "frozen_review_038",
+          "split": "frozen_holdout",
+          "family": "review_required",
+          "difficulty": "hard",
+          "title": "review_required",
+          "text": "项目制合作，费用和纳税方式尚未确定。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": true,
+          "predicted_abstain": true,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 4961
+        },
+        {
+          "id": "frozen_review_039",
+          "split": "frozen_holdout",
+          "family": "review_required",
+          "difficulty": "hard",
+          "title": "review_required",
+          "text": "公司说工资由基本工资和绩效构成，具体比例待定。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": true,
+          "predicted_abstain": true,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 1748
+        },
+        {
+          "id": "frozen_review_040",
+          "split": "frozen_holdout",
+          "family": "review_required",
+          "difficulty": "medium",
+          "title": "review_required",
+          "text": "口头承诺有年终奖，但合同未写。",
+          "system": "VeriWork hybrid",
+          "expected_risks": [],
+          "predicted_risks": [],
+          "true_positive": [],
+          "false_positive": [],
+          "false_negative": [],
+          "expected_abstain": true,
+          "predicted_abstain": true,
+          "predicted_risk_count": 0,
+          "risks_with_citation": 0,
+          "processing_ms": 3306
+        }
+      ]
+    }
+  }
+}

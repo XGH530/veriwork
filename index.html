@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="职安盾 VeriWork——面向高校毕业生就业合同的可验证 AI 风险评估与证据链系统">
+  <title>职安盾 VeriWork · 可信就业风险决策</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  
+  
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">职</div>
+        <div>
+          <strong>职安盾</strong>
+          <span>VeriWork</span>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="主导航">
+        <button class="nav-item active" data-page="dashboard">
+          <span class="nav-icon">⌂</span><span>工作台</span>
+        </button>
+        <button class="nav-item" data-page="analysis">
+          <span class="nav-icon">⌕</span><span>合同研判</span>
+        </button>
+        <button class="nav-item" data-page="evidence">
+          <span class="nav-icon">◎</span><span>证据链</span>
+        </button>
+        <button class="nav-item" data-page="evaluation">
+          <span class="nav-icon">⌁</span><span>可信评测</span>
+        </button>
+        <button class="nav-item" data-page="architecture">
+          <span class="nav-icon">◇</span><span>系统说明</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-card">
+        <div class="pulse-dot"></div>
+        <div>
+          <strong>可信链路已就绪</strong>
+          <span id="engineStatus">本地规则 + 法源检索</span>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <span>竞赛原型 v0.9</span>
+        <button id="openSettings" class="link-button">模型设置</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">就业合同风险核查系统</p>
+          <h1 id="pageTitle">合同风险核查工作台</h1>
+        </div>
+        <div class="topbar-actions">
+          <div class="mode-chip" id="modeChip"><span></span>演示模式</div>
+          <button class="secondary-button" id="quickDemo">载入风险样例</button>
+          <button class="primary-button" data-go="analysis">开始研判</button>
+        </div>
+      </header>
+
+      <section class="page active" id="page-dashboard">
+        <div class="hero-panel">
+          <div class="hero-copy">
+            <div class="badge">规则校验 · 法源检索 · 模型辅助 · 人工复核</div>
+            <h2>把合同风险说清楚<br><em>也把下一步写明白</em></h2>
+            <p>职安盾面向高校毕业生和初入职场人群，先核对合同中的高风险条款，再给出原文、依据、证据和后续处理建议。</p>
+            <div class="hero-actions">
+              <button class="primary-button large" data-go="analysis">进入合同研判</button>
+              <button class="ghost-button large" data-go="architecture">查看技术方案</button>
+            </div>
+          </div>
+          <div class="hero-side" aria-label="核查流程概览">
+            <div class="hero-side-head">
+              <span>核查流程</span>
+              <strong>先依据，再结论</strong>
+            </div>
+            <ol>
+              <li><b>01</b><span>拆出合同中的关键条款</span></li>
+              <li><b>02</b><span>先执行确定性风险规则</span></li>
+              <li><b>03</b><span>再用语义模型补充长尾表达</span></li>
+              <li><b>04</b><span>逐条绑定原文与法规来源</span></li>
+              <li><b>05</b><span>信息不足时标记待核实</span></li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="workspace-meta">
+          <div><span>当前工作区</span><strong>劳动合同风险核查</strong></div>
+          <div><span>适用规则</span><strong>全国基础规则包 · 2026-09</strong></div>
+          <div><span>支持材料</span><strong>劳动合同 / 实习协议 / 招聘信息</strong></div>
+          <div><span>数据状态</span><strong class="meta-status">演示数据，不含真实个人信息</strong></div>
+        </div>
+
+        <div class="metric-grid" id="metricGrid"></div>
+
+        <div class="dashboard-grid">
+          <article class="panel case-panel">
+            <div class="panel-heading">
+              <div><span class="section-kicker">待研判案例</span><h3>待研判案例</h3></div>
+              <span class="soft-label">演示样本</span>
+            </div>
+            <div id="caseQueue" class="case-list"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div><span class="section-kicker">运行状态</span><h3>可信运行概览</h3></div>
+              <span class="status-ok">链路正常</span>
+            </div>
+            <div class="risk-bars">
+              <div><span>合同形式与书面文本</span><b>24%</b><i style="width:24%"></i></div>
+              <div><span>试用期与工资</span><b>31%</b><i style="width:31%"></i></div>
+              <div><span>社会保险</span><b>18%</b><i style="width:18%"></i></div>
+              <div><span>加班与休假</span><b>14%</b><i style="width:14%"></i></div>
+              <div><span>竞业与离职限制</span><b>13%</b><i style="width:13%"></i></div>
+            </div>
+            <div class="privacy-note"><span>盾</span><p>用户材料默认不长期保存；所有高风险结论必须保留人工复核入口。</p></div>
+          </article>
+        </div>
+
+        <article class="panel workflow-panel">
+          <div class="panel-heading">
+            <div><span class="section-kicker">核查流程</span><h3>从发现风险到形成行动闭环</h3></div>
+            <span class="soft-label">6 步业务链路</span>
+          </div>
+          <div class="workflow-line">
+            <div><b>01</b><strong>材料上传</strong><span>合同 / Offer / 聊天记录</span></div>
+            <div><b>02</b><strong>条款抽取</strong><span>结构化关键事实</span></div>
+            <div><b>03</b><strong>法源检索</strong><span>定位条文与政策版本</span></div>
+            <div><b>04</b><strong>可信研判</strong><span>规则 + 模型交叉验证</span></div>
+            <div><b>05</b><strong>证据整理</strong><span>时间线与材料清单</span></div>
+            <div><b>06</b><strong>行动生成</strong><span>问题、材料与办理路径</span></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="page" id="page-analysis">
+        <div class="analysis-toolbar panel compact-panel">
+          <label>材料类型
+            <select id="caseType">
+              <option value="劳动合同">劳动合同</option>
+              <option value="实习协议">实习协议</option>
+              <option value="招聘信息">招聘信息</option>
+            </select>
+          </label>
+          <label>适用地区
+            <select id="jurisdiction">
+              <option value="全国规则">全国规则</option>
+              <option value="北京">北京</option>
+              <option value="上海">上海</option>
+              <option value="广东">广东</option>
+            </select>
+          </label>
+          <label class="upload-label">载入文本
+            <input type="file" id="fileInput" accept=".txt,.md,.json,.csv,.pdf,.docx" hidden>
+            <span>选择文件</span>
+          </label>
+          <div class="toolbar-spacer"></div>
+          <span id="analysisModeLabel" class="soft-label">本地可信链路</span>
+        </div>
+
+        <div class="analysis-layout">
+          <article class="panel input-panel">
+            <div class="panel-heading">
+              <div><span class="section-kicker">材料输入</span><h3>待研判文本</h3></div>
+              <button id="loadSampleButton" class="link-button">载入演示合同</button>
+            </div>
+            <textarea id="contractInput" spellcheck="false" placeholder="在这里粘贴劳动合同、Offer、实习协议或招聘信息……"></textarea>
+            <div class="input-footer">
+              <span id="charCount">0 字</span>
+              <div>
+                <button id="clearButton" class="ghost-button">清空</button>
+                <button id="analyzeButton" class="primary-button">运行可信研判</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel result-panel">
+            <div class="panel-heading">
+              <div><span class="section-kicker">核查结果</span><h3>研判结果</h3></div>
+              <span id="resultStatus" class="soft-label">等待分析</span>
+            </div>
+
+            <div id="progressSteps" class="progress-steps">
+              <div data-step="extract"><b>1</b><span>条款抽取</span></div>
+              <div data-step="retrieve"><b>2</b><span>法源检索</span></div>
+              <div data-step="reason"><b>3</b><span>规则研判</span></div>
+              <div data-step="verify"><b>4</b><span>交叉验证</span></div>
+            </div>
+
+            <div id="emptyResult" class="empty-result">
+              <div class="empty-icon">⌕</div>
+              <h3>等待载入材料</h3>
+              <p>系统将输出风险等级、原文片段、法源依据、置信度和行动建议。</p>
+            </div>
+
+            <div id="analysisResult" class="analysis-result hidden">
+              <div class="result-summary">
+                <div class="risk-gauge" id="riskGauge"><strong>--</strong><span>风险分</span></div>
+                <div>
+                  <span id="riskLevel" class="risk-level">待计算</span>
+                  <h3 id="riskHeadline">尚未开始研判</h3>
+                  <p id="riskDescription"></p>
+                </div>
+              </div>
+
+              <div id="reviewNotice" class="review-notice hidden"></div>
+
+              <div class="result-tabs">
+                <button class="tab active" data-result-tab="risks">风险清单</button>
+                <button class="tab" data-result-tab="clauses">条款定位</button>
+                <button class="tab" data-result-tab="trust">可信轨迹</button>
+              </div>
+
+              <div class="result-tab-panel active" id="result-risks"></div>
+              <div class="result-tab-panel" id="result-clauses"></div>
+              <div class="result-tab-panel" id="result-trust"></div>
+
+              <div class="result-actions">
+                <button id="sendToEvidence" class="secondary-button">加入证据链</button>
+                <button id="exportReport" class="primary-button">生成研判报告</button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="page" id="page-evidence">
+        <div class="page-intro">
+          <div><span class="section-kicker">证据工作流</span><h2>证据链与行动材料</h2></div>
+          <p>把风险结论转化为可执行事项：保存什么、何时记录、找谁沟通、通过什么渠道办理。</p>
+        </div>
+
+        <div class="evidence-grid">
+          <article class="panel">
+            <div class="panel-heading">
+              <div><span class="section-kicker">证据清单</span><h3>证据完整度</h3></div>
+              <span id="evidenceScore" class="score-pill">0%</span>
+            </div>
+            <div id="evidenceChecklist" class="checklist"></div>
+            <label class="add-evidence">
+              <input id="newEvidenceInput" type="text" placeholder="补充一项证据，例如：入职通知邮件">
+              <button id="addEvidenceButton" class="secondary-button">添加</button>
+            </label>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div><span class="section-kicker">时间线</span><h3>事件时间线</h3></div>
+              <button id="exportTimeline" class="link-button">导出时间线</button>
+            </div>
+            <div id="timeline" class="timeline"></div>
+          </article>
+        </div>
+
+        <div class="dashboard-grid evidence-bottom">
+          <article class="panel">
+            <div class="panel-heading">
+              <div><span class="section-kicker">沟通问题</span><h3>与用人单位沟通问题</h3></div>
+              <button class="link-button copy-button" data-copy-target="questionsText">复制</button>
+            </div>
+            <div id="questionsText" class="document-preview"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-heading">
+              <div><span class="section-kicker">材料草稿</span><h3>投诉与仲裁材料草稿</h3></div>
+              <button class="link-button copy-button" data-copy-target="complaintText">复制</button>
+            </div>
+            <div id="complaintText" class="document-preview"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="page" id="page-evaluation">
+        <div class="page-intro">
+          <div><span class="section-kicker">评测说明</span><h2>可信评测中心</h2></div>
+          <p>用同一组回归样例对照“通用模型直答”和“规则 + 法源 + 模型 + 校验”的可信链路，避免只展示成功案例。</p>
+        </div>
+
+        <div class="evaluation-hero panel">
+          <div>
+            <span class="badge">开发集回归测试</span>
+            <h3>把“看起来能用”变成“可以被度量”</h3>
+            <p>点击运行后，浏览器执行10条快速回归。下方图表展示80条开发回归集和40条冻结留出集的真实结果；冻结留出集在规则开发后创建，未根据结果继续调规则。</p>
+          </div>
+          <button id="runEvaluation" class="primary-button large">运行回归评测</button>
+        </div>
+
+        <div class="evaluation-grid">
+          <article class="metric-card"><span>80条回归风险召回</span><strong id="recallMetric">--</strong><small>开发回归集，不能作为真实用户准确率</small></article>
+          <article class="metric-card"><span>法源覆盖率</span><strong id="citationMetric">--</strong><small>结论附带可追溯法源的比例</small></article>
+          <article class="metric-card"><span>无依据结论率</span><strong id="groundlessMetric">--</strong><small>开发回归集规则链路结果</small></article>
+          <article class="metric-card"><span>平均处理时间</span><strong id="latencyMetric">--</strong><small>浏览器端规则与语义回退值</small></article>
+        </div>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div><span class="section-kicker">评测对比</span><h3>完整评测结果与泛化边界</h3></div>
+            <span class="soft-label">开发集 / 冻结留出集</span>
+          </div>
+          <div id="comparisonChart" class="comparison-chart"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div><span class="section-kicker">回归用例</span><h3>回归用例明细</h3></div>
+            <span id="evaluationRunTime" class="soft-label">尚未运行</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>用例</th><th>应识别风险</th><th>系统命中</th><th>召回率</th><th>法源覆盖</th><th>状态</th></tr></thead>
+              <tbody id="evaluationTable"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="page" id="page-architecture">
+        <div class="page-intro">
+          <div><span class="section-kicker">系统设计</span><h2>可信 AI 系统架构</h2></div>
+          <p>不是“把合同丢给大模型”，而是让确定性规则、检索法源、语义模型和校验器各自负责擅长的部分。</p>
+        </div>
+
+        <article class="panel architecture-panel">
+          <div class="panel-heading">
+            <div><span class="section-kicker">核查链路</span><h3>六层可信研判链</h3></div>
+            <span class="status-ok">可解释 · 可追溯 · 可复核</span>
+          </div>
+          <div class="architecture-flow">
+            <div><b>01</b><strong>输入层</strong><span>合同、Offer、实习协议、聊天与工资记录</span></div>
+            <i>→</i>
+            <div><b>02</b><strong>抽取层</strong><span>OCR、条款切分、主体与关键事实结构化</span></div>
+            <i>→</i>
+            <div><b>03</b><strong>知识层</strong><span>法律法规、地方政策、版本和权威来源</span></div>
+            <i>→</i>
+            <div><b>04</b><strong>决策层</strong><span>确定性规则 + 大模型语义研判</span></div>
+            <i>→</i>
+            <div><b>05</b><strong>校验层</strong><span>引用核查、冲突检测、拒答与人工复核</span></div>
+            <i>→</i>
+            <div><b>06</b><strong>行动层</strong><span>问题清单、证据计划、投诉与仲裁材料</span></div>
+          </div>
+        </article>
+
+        <div class="dashboard-grid">
+          <article class="panel">
+            <div class="panel-heading"><div><span class="section-kicker">可信原则</span><h3>四条可信原则</h3></div></div>
+            <div class="principle-list">
+              <div><b>依据优先</b><p>没有可靠法源时，系统应拒答或提示人工核实，而不是生成一个看似专业的结论。</p></div>
+              <div><b>规则兜底</b><p>试用期上限、社保、收费、竞业期限等硬约束由确定程序判断。</p></div>
+              <div><b>全程留痕</b><p>记录法源版本、模型版本、规则版本和人工修改过程，保证结果可复核。</p></div>
+              <div><b>隐私最小化</b><p>原始材料默认不长期保存，敏感字段脱敏，用户拥有删除权。</p></div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading"><div><span class="section-kicker">技术路线</span><h3>原型技术路线</h3></div></div>
+            <div class="stack-list">
+              <div><span>前端</span><strong>原生 HTML / CSS / JavaScript PWA</strong></div>
+              <div><span>后端</span><strong>Python 标准库 HTTP 服务</strong></div>
+              <div><span>模型</span><strong>OpenAI-compatible API，可替换国产模型</strong></div>
+              <div><span>知识库</span><strong>公开法律法规与政策版本库</strong></div>
+              <div><span>决策</span><strong>规则引擎 + RAG + LLM + 交叉校验</strong></div>
+              <div><span>安全</span><strong>最小留存、脱敏、审计日志、人工复核</strong></div>
+            </div>
+          </article>
+        </div>
+
+        <article class="panel disclosure-panel">
+          <div class="panel-heading"><div><span class="section-kicker">AI使用说明</span><h3>人工智能使用说明</h3></div></div>
+          <p>本原型可使用大模型完成条款语义理解、风险解释和材料草拟；硬性规则判断、法源检索、引用校验和最终结构调整由确定性程序与团队完成。正式参赛时需记录模型名称、版本、调用日期、提示词策略、人工修改记录及团队原创贡献。</p>
+        </article>
+
+        <article class="panel disclosure-panel">
+          <div class="panel-heading"><div><span class="section-kicker">官方数据来源</span><h3>已抓取并保留原始页面的来源</h3></div></div>
+          <div class="stack-list">
+            <div><span>最低工资汇总</span><strong>人力资源和社会保障部 · 截至2026年10月1日</strong></div>
+            <div><span>广东最低工资调整</span><strong>广东省人民政府 · 2026年9月1日起执行</strong></div>
+            <div><span>劳动法与劳动合同法</span><strong>中国人大网 / 国家市场监督管理总局</strong></div>
+            <div><span>社会保险法与就业促进法</span><strong>中国政府网</strong></div>
+          </div>
+          <p style="margin-top:14px">每个来源均保留URL、发布时间、抓取时间、原始HTML、正文和SHA-256校验值。北京和上海最低工资数值已依据人社部全国汇总记录，地方生效日期仍需补充。</p>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="settingsDialog" class="settings-dialog">
+    <form method="dialog">
+      <div class="dialog-head">
+        <div><span class="section-kicker">系统设置</span><h3>模型与后端设置</h3></div>
+        <button class="icon-button" value="cancel" aria-label="关闭">×</button>
+      </div>
+      <label>后端地址
+        <input id="apiBaseInput" type="url" value="http://127.0.0.1:8000" placeholder="http://127.0.0.1:8000">
+      </label>
+      <label>运行模式
+        <select id="runModeInput">
+          <option value="demo">纯前端演示模式</option>
+          <option value="api">后端 API 模式</option>
+        </select>
+      </label>
+      <p class="dialog-note">API 模式下，后端负责调用大模型；密钥只配置在服务器环境变量中，不进入浏览器。</p>
+      <div class="dialog-actions">
+        <button class="ghost-button" value="cancel">取消</button>
+        <button id="saveSettings" class="primary-button" value="default">保存设置</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
