@@ -749,8 +749,14 @@ async function refreshBackendStatus() {
     const response = await fetch(`${state.settings.apiBase.replace(/\/$/, "")}/api/health`);
     const payload = await response.json();
     state.settings.model = payload.model || "";
+    if ($("#authServiceStatus")) {
+      $("#authServiceStatus").textContent = payload.llmConfigured
+        ? `${payload.model} 已连接`
+        : "本地规则模式，大模型未配置";
+    }
   } catch (error) {
     state.settings.model = "";
+    if ($("#authServiceStatus")) $("#authServiceStatus").textContent = "后端服务暂不可用";
   }
   updateModeUI();
 }
@@ -895,6 +901,12 @@ function bindEvents() {
     }
     if (event.target.closest("#registerButton")) {
       registerAccount($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => toast(`注册失败：${error.message}`));
+    }
+    if (event.target.closest("#guestButton")) {
+      state.settings.runMode = "demo";
+      updateModeUI();
+      $("#authDialog")?.close();
+      toast("已进入本地演示模式，后端研判和文件解析需要登录。");
     }
   });
   ["authUsername", "authPassword"].forEach((id) => {

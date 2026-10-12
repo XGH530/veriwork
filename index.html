@@ -396,20 +396,57 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <dialog id="authDialog" class="settings-dialog auth-dialog">
-    <div class="dialog-head">
-      <div><span class="section-kicker">用户登录</span><h3>登录职安盾</h3></div>
-      <button class="icon-button" id="closeAuth" aria-label="关闭">×</button>
-    </div>
-    <label>用户名<input id="authUsername" type="text" value="demo" autocomplete="username"></label>
-    <label>密码<input id="authPassword" type="password" value="demo123456" autocomplete="current-password"></label>
-    <p class="dialog-note">演示账号已预填：demo / demo123456。注册用户需要至少8位密码。</p>
-    <div class="dialog-actions auth-actions">
-      <button id="registerButton" class="ghost-button">注册</button>
-      <button id="demoLoginButton" class="secondary-button">演示账号登录</button>
-      <button id="loginButton" class="primary-button">登录</button>
-    </div>
-  </dialog>
+  <dialog id="authDialog" class="auth-dialog">
+  <div class="auth-shell">
+    <aside class="auth-brand-panel">
+      <img class="auth-logo" src="assets/logo-full.svg" alt="职安盾 VeriWork">
+      <p class="auth-lead">面向高校毕业生就业合同的风险核查与证据整理系统</p>
+      <ul class="auth-points">
+        <li>规则核查试用期、社保、押金、加班和离职条款</li>
+        <li>每项风险绑定合同原文与法规来源</li>
+        <li>信息不足时标记待核实，不输出确定答案</li>
+        <li>支持PDF、Word和文本材料分析</li>
+      </ul>
+      <div class="auth-service">
+        <span>服务状态</span>
+        <strong id="authServiceStatus">正在检测后端服务...</strong>
+      </div>
+    </aside>
+
+    <section class="auth-form-panel">
+      <div class="auth-title-row">
+        <div>
+          <span class="section-kicker">用户入口</span>
+          <h3>登录职安盾</h3>
+          <p>登录后可使用后端合同研判、文件解析和材料生成功能。</p>
+        </div>
+        <button class="icon-button" id="closeAuth" aria-label="关闭">×</button>
+      </div>
+
+      <div class="auth-field">
+        <label for="authUsername">用户名</label>
+        <input id="authUsername" type="text" value="demo" autocomplete="username" placeholder="请输入用户名">
+      </div>
+      <div class="auth-field">
+        <label for="authPassword">密码</label>
+        <input id="authPassword" type="password" value="demo123456" autocomplete="current-password" placeholder="请输入密码">
+      </div>
+
+      <div class="auth-demo-box">
+        <strong>比赛演示账号</strong>
+        <span>用户名：demo　密码：demo123456</span>
+      </div>
+
+      <div class="auth-button-row">
+        <button id="loginButton" class="primary-button">登录</button>
+        <button id="demoLoginButton" class="secondary-button">演示账号登录</button>
+        <button id="registerButton" class="ghost-button">注册新账号</button>
+      </div>
+      <button id="guestButton" class="link-button auth-guest">暂不登录，进入本地演示</button>
+      <p class="dialog-note">密码至少8位。不会在浏览器中保存DeepSeek密钥，所有后端调用都需要登录令牌。</p>
+    </section>
+  </div>
+</dialog>
 
   <dialog id="settingsDialog" class="settings-dialog">
     <form method="dialog">
