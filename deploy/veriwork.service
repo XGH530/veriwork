@@ -1,0 +1,18 @@
+[Unit]
+Description=VeriWork official employment contract risk service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/veriwork
+EnvironmentFile=/opt/veriwork/.env
+ExecStart=/opt/veriwork/.venv/bin/python /opt/veriwork/server.py
+Restart=always
+RestartSec=3
+User=veriwork
+Group=veriwork
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

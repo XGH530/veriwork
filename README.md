@@ -153,6 +153,12 @@ python tools/validate_policy_pack.py
 
 ## 官方来源与部署
 
+部署配置文件位于 `deploy/`：
+
+- `deploy/veriwork.nginx.conf`：Nginx子路径反向代理；
+- `deploy/veriwork.service`：systemd常驻服务；
+- `deploy/update-from-github.sh`：从GitHub一键拉取更新并重启。
+
 官方法规和最低工资数据保存在 `data/official_sources/`，包含原始HTML、正文、来源URL和SHA-256。公网部署说明见 `docs/公网部署指南.md`，Docker和Render配置已包含在项目根目录。
 ## 重要边界
 
