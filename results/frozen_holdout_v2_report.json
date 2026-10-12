@@ -1,7 +1,7 @@
 {
   "system": "VeriWork rules+lexical-retrieval v1.0",
   "dataset_version": "holdout-v2.0.0-frozen",
-  "generated_at": "2026-10-08T14:52:54",
+  "generated_at": "2026-10-12T20:39:55",
   "metrics": {
     "frozen_holdout": {
       "cases": 40,
@@ -57,7 +57,7 @@
       "risk_level": "低风险",
       "predicted_risk_count": 0,
       "risks_with_citation": 0,
-      "processing_ms": 9
+      "processing_ms": 8
     },
     {
       "id": "frozen_002",

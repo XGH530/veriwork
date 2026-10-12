@@ -1,7 +1,7 @@
 {
   "system": "VeriWork rules+lexical-retrieval v1.0",
   "dataset_version": "1.0.0",
-  "generated_at": "2026-10-08T14:52:54",
+  "generated_at": "2026-10-12T20:39:55",
   "metrics": {
     "development": {
       "cases": 40,
