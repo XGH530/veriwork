@@ -32,6 +32,9 @@
         <button class="nav-item" data-page="evidence">
           <span class="nav-icon">◎</span><span>证据链</span>
         </button>
+        <button class="nav-item" data-page="policy">
+          <span class="nav-icon">◇</span><span>政策服务</span>
+        </button>
         <button class="nav-item" data-page="evaluation">
           <span class="nav-icon">⌁</span><span>可信评测</span>
         </button>
@@ -277,6 +280,64 @@
               <button class="link-button copy-button" data-copy-target="complaintText">复制</button>
             </div>
             <div id="complaintText" class="document-preview"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="page" id="page-policy">
+        <div class="page-intro">
+          <div><span class="section-kicker">政策服务</span><h2>就业扶持政策匹配</h2></div>
+          <p>根据身份、地区和就业需求匹配国家政策框架，并生成材料准备和办理渠道。地方金额、条件和截止时间必须通过属地人社部门核验。</p>
+        </div>
+
+        <div class="policy-layout">
+          <article class="panel policy-form-panel">
+            <div class="panel-heading"><div><span class="section-kicker">条件填写</span><h3>匹配我的政策</h3></div></div>
+            <div class="policy-field">
+              <label>身份状态</label>
+              <select id="policyIdentity">
+                <option>在校生</option>
+                <option>应届毕业生</option>
+                <option>毕业两年内未就业青年</option>
+                <option>灵活就业人员</option>
+                <option>新就业形态劳动者</option>
+                <option>创业者</option>
+                <option>就业困难人员</option>
+              </select>
+            </div>
+            <div class="policy-field">
+              <label>所在地区</label>
+              <select id="policyRegion">
+                <option>全国</option><option>北京</option><option>上海</option><option>广东</option><option>其他地区</option>
+              </select>
+            </div>
+            <div class="policy-field">
+              <label>当前状态</label>
+              <select id="policyEmployment">
+                <option>正在求职</option><option>准备实习或见习</option><option>已经入职</option><option>灵活就业</option><option>准备创业</option><option>发生劳动纠纷</option>
+              </select>
+            </div>
+            <div class="policy-field">
+              <label>希望获得的支持</label>
+              <div class="policy-checkboxes" id="policyNeeds">
+                <label><input type="checkbox" value="求职">岗位推荐和就业指导</label>
+                <label><input type="checkbox" value="见习">就业见习</label>
+                <label><input type="checkbox" value="培训">职业技能培训</label>
+                <label><input type="checkbox" value="社保">社会保险补贴</label>
+                <label><input type="checkbox" value="创业">创业贷款和创业补贴</label>
+                <label><input type="checkbox" value="基层就业">基层就业补偿</label>
+                <label><input type="checkbox" value="困难帮扶">困难帮扶</label>
+                <label><input type="checkbox" value="维权">劳动维权和法律援助</label>
+              </div>
+            </div>
+            <button id="matchPolicyButton" class="primary-button">匹配政策</button>
+          </article>
+
+          <article class="panel policy-results-panel">
+            <div class="panel-heading"><div><span class="section-kicker">匹配结果</span><h3>可用政策方向</h3></div><span id="policyResultCount" class="soft-label">尚未匹配</span></div>
+            <div id="policyResults" class="policy-results">
+              <div class="empty-result"><div class="empty-icon">◇</div><h3>等待填写条件</h3><p>系统将根据身份、地区和需求匹配国家政策框架，并明确地方待核验事项。</p></div>
+            </div>
           </article>
         </div>
       </section>

@@ -221,6 +221,7 @@ function navigate(page) {
     dashboard: "合同风险核查工作台",
     analysis: "合同风险核查",
     evidence: "证据整理与材料",
+    policy: "就业扶持政策匹配",
     evaluation: "评测结果",
     architecture: "系统说明"
   };
@@ -771,6 +772,68 @@ function updateModeUI() {
   if (modelInput) modelInput.value = apiMode ? (state.settings.model || "后端未返回模型名称") : "演示模式未调用模型";
 }
 
+function matchPolicies() {
+  const identity = $("#policyIdentity").value;
+  const region = $("#policyRegion").value;
+  const employment = $("#policyEmployment").value;
+  const needs = $$("#policyNeeds input:checked").map((input) => input.value);
+  const policies = APP_DATA.policyCatalog.map((policy) => {
+    let score = 0;
+    if (policy.targetUsers.includes(identity)) score += 50;
+    if (needs.length === 0) score += 10;
+    score += policy.needs.filter((need) => needs.includes(need)).length * 20;
+    if (policy.status.includes("全国")) score += 2;
+    return { ...policy, score };
+  }).filter((policy) => policy.score > 0)
+    .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title, "zh-CN"));
+  renderPolicyResults(policies, { identity, region, employment, needs });
+}
+
+function renderPolicyResults(policies, profile) {
+  $("#policyResultCount").textContent = `${policies.length} 项`;
+  if (!policies.length) {
+    $("#policyResults").innerHTML = '<div class="empty-result"><div class="empty-icon">◇</div><h3>没有匹配到政策</h3><p>请调整身份、地区或需求后重新匹配。</p></div>';
+    return;
+  }
+  $("#policyResults").innerHTML = policies.map((policy) => `
+    <article class="policy-card">
+      <h4>${escapeHtml(policy.title)}</h4>
+      <div class="policy-meta">
+        <span>${escapeHtml(policy.level)}</span>
+        <span>${escapeHtml(policy.status)}</span>
+        <span>${escapeHtml(policy.authority)}</span>
+      </div>
+      <p><strong>支持内容：</strong>${escapeHtml(policy.support)}</p>
+      <p><strong>初步条件：</strong></p>
+      <ul>${policy.conditions.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+      <p><strong>建议准备：</strong>${policy.materials.map(escapeHtml).join("、")}</p>
+      <p><strong>办理渠道：</strong>${escapeHtml(policy.channel)}</p>
+      <div class="policy-warning">当前匹配依据为${escapeHtml(policy.level)}。${escapeHtml(profile.region)}具体金额、对象和办理时间必须以属地人社部门最新政策为准。</div>
+      <div class="policy-card-footer">
+        <a href="${escapeHtml(policy.sourceUrl)}" target="_blank" rel="noopener">查看官方政策入口</a>
+        <button class="secondary-button add-policy-button" data-policy-id="${policy.id}">加入材料清单</button>
+      </div>
+    </article>
+  `).join("");
+  $$(".add-policy-button").forEach((button) => {
+    button.addEventListener("click", () => addPolicyToChecklist(button.dataset.policyId));
+  });
+}
+
+function addPolicyToChecklist(policyId) {
+  const policy = APP_DATA.policyCatalog.find((item) => item.id === policyId);
+  if (!policy) return;
+  policy.materials.forEach((material, index) => {
+    const label = `【${policy.title}】${material}`;
+    if (!state.checklist.some((item) => item.label === label)) {
+      state.checklist.push({ id: `policy_${policy.id}_${index}`, label, done: false, level: "政策材料" });
+    }
+  });
+  renderEvidence();
+  navigate("evidence");
+  toast(`已将“${policy.title}”材料加入证据清单。`);
+}
+
 function buildReport(result) {
   if (!result) return "尚无研判结果。";
   return [
@@ -883,6 +946,7 @@ function bindEvents() {
     });
   });
 
+  $("#matchPolicyButton").addEventListener("click", matchPolicies);
   $("#runEvaluation").addEventListener("click", runEvaluation);
   $("#openSettings").addEventListener("click", () => $("#settingsDialog").showModal());
   $("#saveSettings").addEventListener("click", async () => {
@@ -939,7 +1003,7 @@ function init() {
 
   const params = new URLSearchParams(window.location.search);
   const requestedPage = params.get("page");
-  if (requestedPage && ["dashboard", "analysis", "evidence", "evaluation", "architecture"].includes(requestedPage)) {
+  if (requestedPage && ["dashboard", "analysis", "evidence", "policy", "evaluation", "architecture"].includes(requestedPage)) {
     navigate(requestedPage);
   }
   if (params.get("demo") === "risk") {
