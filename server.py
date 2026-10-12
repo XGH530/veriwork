@@ -85,6 +85,18 @@ def init_auth_db() -> None:
                 expires_at TEXT NOT NULL,
                 FOREIGN KEY(user_id) REFERENCES users(id)
             );
+            CREATE TABLE IF NOT EXISTS cases (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                case_type TEXT NOT NULL,
+                jurisdiction TEXT NOT NULL,
+                document_language TEXT NOT NULL,
+                risk_score INTEGER NOT NULL,
+                risk_level TEXT NOT NULL,
+                risk_ids TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            );
             """
         )
         existing = connection.execute("SELECT id FROM users WHERE username = ?", ("demo",)).fetchone()
@@ -93,6 +105,15 @@ def init_auth_db() -> None:
             connection.execute(
                 "INSERT INTO users(username, salt, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)",
                 ("demo", salt, digest, "student", datetime.now().isoformat(timespec="seconds")),
+            )
+        admin_username = os.environ.get("ADMIN_USERNAME", "admin")
+        admin_password = os.environ.get("ADMIN_PASSWORD", "admin123456")
+        existing_admin = connection.execute("SELECT id FROM users WHERE username = ?", (admin_username,)).fetchone()
+        if not existing_admin:
+            salt, digest = hash_password(admin_password)
+            connection.execute(
+                "INSERT INTO users(username, salt, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)",
+                (admin_username, salt, digest, "admin", datetime.now().isoformat(timespec="seconds")),
             )
         connection.commit()
 
@@ -162,6 +183,56 @@ def resolve_session(token: str | None) -> dict | None:
             connection.commit()
             return None
     return {"id": row["id"], "username": row["username"], "role": row["role"]}
+
+
+def save_case_record(user: dict, result: dict, case_type: str, jurisdiction: str, language: str) -> None:
+    with auth_db() as connection:
+        connection.execute(
+            """
+            INSERT INTO cases(user_id, case_type, jurisdiction, document_language, risk_score, risk_level, risk_ids, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                user["id"],
+                case_type,
+                jurisdiction,
+                language,
+                int(result.get("riskScore", 0)),
+                str(result.get("riskLevel", "")),
+                ",".join(risk["id"] for risk in result.get("risks", [])),
+                datetime.now().isoformat(timespec="seconds"),
+            ),
+        )
+        connection.commit()
+
+
+def admin_stats() -> dict:
+    with auth_db() as connection:
+        users = connection.execute("SELECT id, username, role, created_at FROM users ORDER BY id DESC").fetchall()
+        cases = connection.execute(
+            """
+            SELECT cases.id, cases.case_type, cases.jurisdiction, cases.document_language,
+                   cases.risk_score, cases.risk_level, cases.risk_ids, cases.created_at,
+                   users.username
+            FROM cases JOIN users ON cases.user_id = users.id
+            ORDER BY cases.id DESC LIMIT 100
+            """
+        ).fetchall()
+    risk_counter = {}
+    for case in cases:
+        for risk_id in filter(None, case["risk_ids"].split(",")):
+            risk_counter[risk_id] = risk_counter.get(risk_id, 0) + 1
+    return {
+        "userCount": len(users),
+        "caseCount": len(cases),
+        "highRiskCount": sum(1 for case in cases if case["risk_score"] >= 70),
+        "users": [dict(row) for row in users],
+        "cases": [dict(row) for row in cases],
+        "topRisks": sorted(risk_counter.items(), key=lambda item: item[1], reverse=True)[:10],
+        "model": os.environ.get("LLM_MODEL", ""),
+        "rules": len(RISKS),
+        "laws": len(LAWS),
+    }
 
 
 def revoke_session(token: str | None) -> None:
@@ -505,7 +576,28 @@ SEMANTIC_PATTERNS = {
 }
 
 
-def extract_document(filename: str, data: bytes) -> dict:
+def parse_page_range(spec: str, total: int) -> list[int]:
+    spec = (spec or "").strip().lower()
+    if not spec or spec in {"all", "全部", "*"}:
+        return list(range(total))
+    selected = []
+    for part in spec.replace("，", ",").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            start_text, end_text = part.split("-", 1)
+            start, end = int(start_text), int(end_text)
+        else:
+            start = end = int(part)
+        start = max(1, start)
+        end = min(total, end)
+        if start <= end:
+            selected.extend(range(start - 1, end))
+    return sorted(dict.fromkeys(selected))
+
+
+def extract_document(filename: str, data: bytes, language: str = "zh", page_range: str = "") -> dict:
     suffix = Path(filename).suffix.lower()
     text = ""
     if suffix == ".pdf":
@@ -514,7 +606,8 @@ def extract_document(filename: str, data: bytes) -> dict:
         except ImportError as exc:
             raise ValueError("服务器未安装 pypdf，无法解析PDF") from exc
         reader = PdfReader(io.BytesIO(data))
-        text = "\n".join((page.extract_text() or "") for page in reader.pages)
+        selected = parse_page_range(page_range, len(reader.pages))
+        text = "\n".join((reader.pages[index].extract_text() or "") for index in selected)
     elif suffix == ".docx":
         try:
             import docx
@@ -535,7 +628,7 @@ def extract_document(filename: str, data: bytes) -> dict:
     text = "\n".join(line.strip() for line in text.splitlines() if line.strip())
     if len(text) < 20:
         raise ValueError("文件中未提取到足够的文本内容")
-    return {"filename": filename, "format": suffix.lstrip("."), "chars": len(text), "text": text}
+    return {"filename": filename, "format": suffix.lstrip("."), "language": language, "pageRange": page_range, "chars": len(text), "text": text}
 
 
 def law_map() -> dict[str, dict]:
@@ -614,7 +707,7 @@ def split_clauses(text: str) -> list[str]:
     return [part.strip() for part in re.split(r"[\n。；]+", text) if len(part.strip()) > 1]
 
 
-def deterministic_analysis(text: str, case_type: str, jurisdiction: str) -> dict:
+def deterministic_analysis(text: str, case_type: str, jurisdiction: str, language: str = "zh") -> dict:
     started_at = time.perf_counter()
     jurisdiction_profile = JURISDICTIONS.get(jurisdiction, JURISDICTIONS["全国规则"])
     clauses = split_clauses(text)
@@ -685,6 +778,7 @@ def deterministic_analysis(text: str, case_type: str, jurisdiction: str) -> dict
 
     return {
         "caseType": case_type,
+        "documentLanguage": language,
         "inputText": text,
         "jurisdiction": jurisdiction,
         "generatedAt": datetime.now().isoformat(timespec="seconds"),
@@ -808,13 +902,15 @@ def enhance_with_llm(result: dict) -> dict:
 
     system_prompt = (
         "你是就业合同候选风险识别器。只能从允许的风险ID中选择，不得创造新ID。"
-        "只有原文明确支持时才提出风险；信息不足时不要猜测。返回严格 JSON："
+        "只有原文明确支持时才提出风险；信息不足时不要猜测。"
+        "文档可能为中文、英文或日文，但解释和行动建议统一用中文。返回严格 JSON："
         '{"items":[{"id":"风险ID","clause":"原文片段","reason":"不超过120字",'
         '"action":"不超过120字","confidence":0.0}]}。'
     )
     user_payload = {
         "allowedRiskIds": allowed_ids,
         "currentRisks": compact_risks,
+        "documentLanguage": result.get("documentLanguage", "zh"),
         "documentText": result.get("inputText", "")[:15000],
     }
     body = {
@@ -959,6 +1055,13 @@ class Handler(BaseHTTPRequestHandler):
             user = self.current_user()
             self.send_json({"authenticated": bool(user), "user": user})
             return
+        if parsed.path == "/api/admin/stats":
+            user = self.current_user()
+            if not user or user.get("role") != "admin":
+                self.send_json({"error": "需要管理员权限"}, 403)
+                return
+            self.send_json(admin_stats())
+            return
         if parsed.path == "/api/health":
             self.send_json({
                 "ok": True,
@@ -980,13 +1083,33 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path.startswith("/api/auth/"):
             self.handle_auth(parsed.path)
             return
+        if parsed.path == "/api/admin/set-role":
+            user = self.current_user()
+            if not user or user.get("role") != "admin":
+                self.send_json({"error": "需要管理员权限"}, 403)
+                return
+            try:
+                content_length = int(self.headers.get("Content-Length", "0"))
+                body = json.loads(self.rfile.read(content_length).decode("utf-8"))
+                target = int(body.get("user_id"))
+                role = str(body.get("role", "student"))
+                if role not in {"student", "admin"}:
+                    raise ValueError("角色只能是 student 或 admin")
+                with auth_db() as connection:
+                    connection.execute("UPDATE users SET role = ? WHERE id = ?", (role, target))
+                    connection.commit()
+                self.send_json({"ok": True})
+            except (ValueError, json.JSONDecodeError) as exc:
+                self.send_json({"error": str(exc)}, 400)
+            return
         if parsed.path == "/api/extract":
             self.handle_extract()
             return
         if parsed.path != "/api/analyze":
             self.send_json({"error": "not_found"}, 404)
             return
-        if not self.require_user():
+        user = self.require_user()
+        if not user:
             return
 
         try:
@@ -997,12 +1120,17 @@ class Handler(BaseHTTPRequestHandler):
             text = str(body.get("text", "")).strip()
             if len(text) < 20:
                 raise ValueError("文本过短")
+            case_type = str(body.get("caseType", "劳动合同"))
+            jurisdiction = str(body.get("jurisdiction", "全国规则"))
+            language = str(body.get("language", "zh"))
             result = deterministic_analysis(
                 text=text,
-                case_type=str(body.get("caseType", "劳动合同")),
-                jurisdiction=str(body.get("jurisdiction", "全国规则")),
+                case_type=case_type,
+                jurisdiction=jurisdiction,
+                language=language,
             )
             result = enhance_with_llm(result)
+            save_case_record(user, result, case_type, jurisdiction, language)
             self.send_json(result)
         except (ValueError, json.JSONDecodeError) as exc:
             self.send_json({"error": str(exc)}, 400)
@@ -1018,11 +1146,13 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("文件为空或超过12MB")
             body = json.loads(self.rfile.read(content_length).decode("utf-8"))
             filename = str(body.get("filename", "document"))
+            language = str(body.get("language", "zh"))
+            page_range = str(body.get("pageRange", ""))
             encoded = str(body.get("content_base64", ""))
             if not encoded:
                 raise ValueError("缺少文件内容")
             data = base64.b64decode(encoded, validate=True)
-            self.send_json(extract_document(filename, data))
+            self.send_json(extract_document(filename, data, language=language, page_range=page_range))
         except (ValueError, json.JSONDecodeError) as exc:
             self.send_json({"error": str(exc)}, 400)
         except Exception as exc:  # noqa: BLE001

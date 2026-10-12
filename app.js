@@ -105,6 +105,8 @@ async function extractDocumentViaApi(file) {
     headers: apiHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({
       filename: file.name,
+      language: $("#documentLanguage")?.value || "zh",
+      pageRange: $("#pageRange")?.value.trim() || "",
       content_base64: arrayBufferToBase64(await file.arrayBuffer())
     })
   });
@@ -198,12 +200,15 @@ function updateUserUI() {
   const chip = $("#userChip");
   if (!chip) return;
   if (state.user) {
-    chip.innerHTML = `<span>用户：<strong>${escapeHtml(state.user.username)}</strong></span><button id="logoutButton" class="link-button">退出</button>`;
+    chip.innerHTML = `<span>用户：<strong>${escapeHtml(state.user.username)}</strong> · ${escapeHtml(state.user.role)}</span><button id="logoutButton" class="link-button">退出</button>`;
     $("#logoutButton")?.addEventListener("click", logoutAccount);
   } else {
     chip.innerHTML = '<span>未登录</span><button id="openAuth" class="link-button">登录</button>';
     $("#openAuth")?.addEventListener("click", () => $("#authDialog")?.showModal());
   }
+  const isAdmin = state.user?.role === "admin";
+  $$('[data-admin-only]').forEach((element) => { element.style.display = isAdmin ? "" : "none"; });
+  if (!isAdmin && state.currentPage === "admin") navigate("dashboard");
 }
 
 function formatDate(date = new Date()) {
@@ -222,10 +227,12 @@ function navigate(page) {
     analysis: "合同风险核查",
     evidence: "证据整理与材料",
     policy: "就业扶持政策匹配",
+    admin: "系统运营与用户管理",
     evaluation: "评测结果",
     architecture: "系统说明"
   };
   $("#pageTitle").textContent = titles[page] || "职安盾";
+  if (page === "admin") refreshAdminPage();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -471,6 +478,8 @@ async function runAnalysis() {
     const options = {
       caseType: $("#caseType").value,
       jurisdiction: $("#jurisdiction").value,
+      language: $("#documentLanguage")?.value || "zh",
+      pageRange: $("#pageRange")?.value.trim() || "",
       caseId: state.currentCase?.id || `manual_${Date.now()}`
     };
     let result;
@@ -795,7 +804,17 @@ function renderPolicyResults(policies, profile) {
     $("#policyResults").innerHTML = '<div class="empty-result"><div class="empty-icon">◇</div><h3>没有匹配到政策</h3><p>请调整身份、地区或需求后重新匹配。</p></div>';
     return;
   }
-  $("#policyResults").innerHTML = policies.map((policy) => `
+  const localProfile = APP_DATA.jurisdictionProfiles.find((item) => item.id === profile.region);
+  const localPortal = APP_DATA.regionalPolicyPortals[profile.region] || APP_DATA.regionalPolicyPortals["全国"];
+  const localHtml = profile.region !== "全国" && localProfile ? `
+    <article class="policy-card" style="border-left-color:#b48b50">
+      <h4>${escapeHtml(profile.region)}地区最低工资与属地政策入口</h4>
+      <div class="policy-meta"><span>地区条件</span><span>${escapeHtml(localProfile.status)}</span><span>${escapeHtml(localPortal.authority)}</span></div>
+      <p>${escapeHtml(localProfile.note)}</p>
+      <div class="policy-warning">补贴金额、适用对象和截止时间必须进入属地人社部门官网或经办窗口核验，系统不会替你猜测。</div>
+      <div class="policy-card-footer"><a href="${escapeHtml(localPortal.url)}" target="_blank" rel="noopener">打开${escapeHtml(profile.region)}人社官方入口</a></div>
+    </article>` : "";
+  $("#policyResults").innerHTML = localHtml + policies.map((policy) => `
     <article class="policy-card">
       <h4>${escapeHtml(policy.title)}</h4>
       <div class="policy-meta">
@@ -810,7 +829,8 @@ function renderPolicyResults(policies, profile) {
       <p><strong>办理渠道：</strong>${escapeHtml(policy.channel)}</p>
       <div class="policy-warning">当前匹配依据为${escapeHtml(policy.level)}。${escapeHtml(profile.region)}具体金额、对象和办理时间必须以属地人社部门最新政策为准。</div>
       <div class="policy-card-footer">
-        <a href="${escapeHtml(policy.sourceUrl)}" target="_blank" rel="noopener">查看官方政策入口</a>
+        <a href="${escapeHtml(policy.sourceUrl)}" target="_blank" rel="noopener">查看国家政策入口</a>
+        ${profile.region !== "全国" ? `<a href="${escapeHtml((APP_DATA.regionalPolicyPortals[profile.region] || APP_DATA.regionalPolicyPortals["全国"]).url)}" target="_blank" rel="noopener">查看属地政策入口</a>` : ""}
         <button class="secondary-button add-policy-button" data-policy-id="${policy.id}">加入材料清单</button>
       </div>
     </article>
@@ -832,6 +852,53 @@ function addPolicyToChecklist(policyId) {
   renderEvidence();
   navigate("evidence");
   toast(`已将“${policy.title}”材料加入证据清单。`);
+}
+
+async function refreshAdminPage() {
+  if (!state.user || state.user.role !== "admin") return;
+  try {
+    const response = await fetch(`${state.settings.apiBase.replace(/\/$/, "")}/api/admin/stats`, { headers: apiHeaders() });
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(data.error || `API ${response.status}`);
+    $("#adminUserCount").textContent = data.userCount;
+    $("#adminCaseCount").textContent = data.caseCount;
+    $("#adminHighRiskCount").textContent = data.highRiskCount;
+    $("#adminModel").textContent = data.model || "未配置";
+    $("#adminRecentCases").innerHTML = data.cases.length
+      ? data.cases.map((item) => `<tr><td>${item.id}</td><td>${escapeHtml(item.username)}</td><td>${escapeHtml(item.case_type)}</td><td>${escapeHtml(item.jurisdiction)}</td><td>${escapeHtml(item.document_language)}</td><td>${item.risk_score}</td><td>${escapeHtml(item.created_at)}</td></tr>`).join("")
+      : '<tr><td colspan="7">暂无研判记录</td></tr>';
+    $("#adminTopRisks").innerHTML = data.topRisks.length
+      ? data.topRisks.map(([id, count]) => `<div class="admin-risk-item"><span>${escapeHtml(getRisk(id)?.title || id)}</span><strong>${count}</strong></div>`).join("")
+      : '<p class="dialog-note">暂无风险统计。</p>';
+    $("#adminUsers").innerHTML = data.users.map((user) => `
+      <tr>
+        <td>${user.id}</td>
+        <td>${escapeHtml(user.username)}</td>
+        <td><select class="admin-role-select" data-user-id="${user.id}"><option value="student" ${user.role === "student" ? "selected" : ""}>student</option><option value="admin" ${user.role === "admin" ? "selected" : ""}>admin</option></select></td>
+        <td>${escapeHtml(user.created_at)}</td>
+        <td><button class="secondary-button admin-save-role" data-user-id="${user.id}">保存</button></td>
+      </tr>`).join("");
+    $$(".admin-save-role").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const userId = button.dataset.userId;
+        const role = $(`.admin-role-select[data-user-id="${userId}"]`).value;
+        const saveResponse = await fetch(`${state.settings.apiBase.replace(/\/$/, "")}/api/admin/set-role`, {
+          method: "POST",
+          headers: apiHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ user_id: Number(userId), role })
+        });
+        const saveData = await saveResponse.json();
+        if (!saveResponse.ok || saveData.error) {
+          toast(`角色更新失败：${saveData.error || saveResponse.status}`);
+          return;
+        }
+        toast("用户角色已更新。");
+        refreshAdminPage();
+      });
+    });
+  } catch (error) {
+    toast(`后台数据加载失败：${error.message}`);
+  }
 }
 
 function buildReport(result) {
@@ -947,6 +1014,7 @@ function bindEvents() {
   });
 
   $("#matchPolicyButton").addEventListener("click", matchPolicies);
+  $("#refreshAdmin").addEventListener("click", refreshAdminPage);
   $("#runEvaluation").addEventListener("click", runEvaluation);
   $("#openSettings").addEventListener("click", () => $("#settingsDialog").showModal());
   $("#saveSettings").addEventListener("click", async () => {
@@ -1003,7 +1071,7 @@ function init() {
 
   const params = new URLSearchParams(window.location.search);
   const requestedPage = params.get("page");
-  if (requestedPage && ["dashboard", "analysis", "evidence", "policy", "evaluation", "architecture"].includes(requestedPage)) {
+  if (requestedPage && ["dashboard", "analysis", "evidence", "policy", "admin", "evaluation", "architecture"].includes(requestedPage)) {
     navigate(requestedPage);
   }
   if (params.get("demo") === "risk") {

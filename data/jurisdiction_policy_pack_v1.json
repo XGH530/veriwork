@@ -76,13 +76,13 @@
           },
           "unit": "CNY/month",
           "effective_from": "截至2026-10-01",
-          "source_name": "人力资源和社会保障部全国汇总",
+          "source_name": "人力资源和社会保障部全国最低工资汇总",
           "source_url": "https://www.mohrss.gov.cn/SYrlzyhshbzb/laodongguanxi_/fwyd/202610/t20261008_585187.html",
           "status": "verified_national_summary",
           "verified_at": "2026-10-12",
           "verified_by": "项目组通过官方公开页面核验",
           "as_of": "2026-10-01",
-          "notes": "数值来源为人社部截至2026-10-01全国汇总；地方通知和生效日期待进一步核验。"
+          "notes": "数值来自人社部全国汇总；地方生效日期和适用档次需继续核验。"
         },
         {
           "policy_id": "social_insurance_base",
@@ -137,13 +137,13 @@
           },
           "unit": "CNY/month",
           "effective_from": "截至2026-10-01",
-          "source_name": "人力资源和社会保障部全国汇总",
+          "source_name": "人力资源和社会保障部全国最低工资汇总",
           "source_url": "https://www.mohrss.gov.cn/SYrlzyhshbzb/laodongguanxi_/fwyd/202610/t20261008_585187.html",
           "status": "verified_national_summary",
           "verified_at": "2026-10-12",
           "verified_by": "项目组通过官方公开页面核验",
           "as_of": "2026-10-01",
-          "notes": "数值来源为人社部截至2026-10-01全国汇总；地方通知和生效日期待进一步核验。"
+          "notes": "数值来自人社部全国汇总；地方生效日期和适用档次需继续核验。"
         },
         {
           "policy_id": "social_insurance_base",
@@ -202,13 +202,13 @@
           },
           "unit": "CNY/month",
           "effective_from": "2026-08-13 17:30",
-          "source_name": "广东省人民政府",
-          "source_url": "https://www.gd.gov.cn/zwgk/gongbao/2026/18/content/post_4942204.html",
-          "status": "verified",
+          "source_name": "人力资源和社会保障部全国最低工资汇总",
+          "source_url": "https://www.mohrss.gov.cn/SYrlzyhshbzb/laodongguanxi_/fwyd/202610/t20261008_585187.html",
+          "status": "verified_national_summary",
           "verified_at": "2026-10-12",
           "verified_by": "项目组通过官方公开页面核验",
-          "as_of": "2026-08-13 17:30",
-          "notes": "官方通知发布时间：2026-08-13 17:30；自2026年9月1日起执行，具体档次对应地区见附件。"
+          "as_of": "2026-10-01",
+          "notes": "数值来自人社部全国汇总；地方生效日期和适用档次需继续核验。"
         },
         {
           "policy_id": "social_insurance_base",
@@ -242,6 +242,274 @@
       "official_sources": [
         "https://www.mohrss.gov.cn/SYrlzyhshbzb/laodongguanxi_/fwyd/202610/t20261008_585187.html",
         "https://www.gd.gov.cn/zwgk/gongbao/2026/18/content/post_4942204.html"
+      ]
+    },
+    {
+      "jurisdiction": "重庆",
+      "title": "重庆地区政策适配包",
+      "coverage": "重庆",
+      "version": "2026-10-12",
+      "last_checked": "2026-10-12",
+      "policies": [
+        {
+          "policy_id": "minimum_wage",
+          "name": "重庆最低工资标准",
+          "value": {
+            "monthly": [
+              "2330",
+              "2200"
+            ],
+            "hourly": [
+              "23",
+              "22"
+            ]
+          },
+          "unit": "CNY/month",
+          "effective_from": "截至2026-10-01",
+          "source_name": "人力资源和社会保障部全国最低工资汇总",
+          "source_url": "https://www.mohrss.gov.cn/SYrlzyhshbzb/laodongguanxi_/fwyd/202610/t20261008_585187.html",
+          "status": "verified_national_summary",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": "2026-10-01",
+          "notes": "数值来自人社部全国汇总；地方生效日期和适用档次需继续核验。"
+        }
+      ]
+    },
+    {
+      "jurisdiction": "四川",
+      "title": "四川地区政策适配包",
+      "coverage": "四川",
+      "version": "2026-10-12",
+      "last_checked": "2026-10-12",
+      "policies": [
+        {
+          "policy_id": "minimum_wage",
+          "name": "四川最低工资标准",
+          "value": {
+            "monthly": [
+              "2330",
+              "2200"
+            ],
+            "hourly": [
+              "23",
+              "22"
+            ]
+          },
+          "unit": "CNY/month",
+          "effective_from": "截至2026-10-01",
+          "source_name": "人力资源和社会保障部全国最低工资汇总",
+          "source_url": "https://www.mohrss.gov.cn/SYrlzyhshbzb/laodongguanxi_/fwyd/202610/t20261008_585187.html",
+          "status": "verified_national_summary",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": "2026-10-01",
+          "notes": "数值来自人社部全国汇总；地方生效日期和适用档次需继续核验。"
+        }
+      ]
+    },
+    {
+      "jurisdiction": "贵州",
+      "title": "贵州地区政策适配包",
+      "coverage": "贵州",
+      "version": "2026-10-12",
+      "last_checked": "2026-10-12",
+      "policies": [
+        {
+          "policy_id": "minimum_wage",
+          "name": "贵州最低工资标准",
+          "value": {
+            "monthly": [
+              "2130",
+              "1980",
+              "1890"
+            ],
+            "hourly": [
+              "22.4",
+              "20.8",
+              "19.8"
+            ]
+          },
+          "unit": "CNY/month",
+          "effective_from": "截至2026-10-01",
+          "source_name": "人力资源和社会保障部全国最低工资汇总",
+          "source_url": "https://www.mohrss.gov.cn/SYrlzyhshbzb/laodongguanxi_/fwyd/202610/t20261008_585187.html",
+          "status": "verified_national_summary",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": "2026-10-01",
+          "notes": "数值来自人社部全国汇总；地方生效日期和适用档次需继续核验。"
+        }
+      ]
+    },
+    {
+      "jurisdiction": "云南",
+      "title": "云南地区政策适配包",
+      "coverage": "云南",
+      "version": "2026-10-12",
+      "last_checked": "2026-10-12",
+      "policies": [
+        {
+          "policy_id": "minimum_wage",
+          "name": "云南最低工资标准",
+          "value": {
+            "monthly": [
+              "2270",
+              "2120",
+              "1970"
+            ],
+            "hourly": [
+              "22",
+              "21",
+              "20"
+            ]
+          },
+          "unit": "CNY/month",
+          "effective_from": "截至2026-10-01",
+          "source_name": "人力资源和社会保障部全国最低工资汇总",
+          "source_url": "https://www.mohrss.gov.cn/SYrlzyhshbzb/laodongguanxi_/fwyd/202610/t20261008_585187.html",
+          "status": "verified_national_summary",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": "2026-10-01",
+          "notes": "数值来自人社部全国汇总；地方生效日期和适用档次需继续核验。"
+        }
+      ]
+    },
+    {
+      "jurisdiction": "陕西",
+      "title": "陕西地区政策适配包",
+      "coverage": "陕西",
+      "version": "2026-10-12",
+      "last_checked": "2026-10-12",
+      "policies": [
+        {
+          "policy_id": "minimum_wage",
+          "name": "陕西最低工资标准",
+          "value": {
+            "monthly": [
+              "2376",
+              "2250",
+              "2140"
+            ],
+            "hourly": [
+              "23",
+              "21.7",
+              "20.7"
+            ]
+          },
+          "unit": "CNY/month",
+          "effective_from": "截至2026-10-01",
+          "source_name": "人力资源和社会保障部全国最低工资汇总",
+          "source_url": "https://www.mohrss.gov.cn/SYrlzyhshbzb/laodongguanxi_/fwyd/202610/t20261008_585187.html",
+          "status": "verified_national_summary",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": "2026-10-01",
+          "notes": "数值来自人社部全国汇总；地方生效日期和适用档次需继续核验。"
+        }
+      ]
+    },
+    {
+      "jurisdiction": "湖北",
+      "title": "湖北地区政策适配包",
+      "coverage": "湖北",
+      "version": "2026-10-12",
+      "last_checked": "2026-10-12",
+      "policies": [
+        {
+          "policy_id": "minimum_wage",
+          "name": "湖北最低工资标准",
+          "value": {
+            "monthly": [
+              "2400",
+              "2130",
+              "1970"
+            ],
+            "hourly": [
+              "24",
+              "21.5",
+              "20"
+            ]
+          },
+          "unit": "CNY/month",
+          "effective_from": "截至2026-10-01",
+          "source_name": "人力资源和社会保障部全国最低工资汇总",
+          "source_url": "https://www.mohrss.gov.cn/SYrlzyhshbzb/laodongguanxi_/fwyd/202610/t20261008_585187.html",
+          "status": "verified_national_summary",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": "2026-10-01",
+          "notes": "数值来自人社部全国汇总；地方生效日期和适用档次需继续核验。"
+        }
+      ]
+    },
+    {
+      "jurisdiction": "湖南",
+      "title": "湖南地区政策适配包",
+      "coverage": "湖南",
+      "version": "2026-10-12",
+      "last_checked": "2026-10-12",
+      "policies": [
+        {
+          "policy_id": "minimum_wage",
+          "name": "湖南最低工资标准",
+          "value": {
+            "monthly": [
+              "2200",
+              "2000",
+              "1800"
+            ],
+            "hourly": [
+              "22",
+              "20",
+              "18"
+            ]
+          },
+          "unit": "CNY/month",
+          "effective_from": "截至2026-10-01",
+          "source_name": "人力资源和社会保障部全国最低工资汇总",
+          "source_url": "https://www.mohrss.gov.cn/SYrlzyhshbzb/laodongguanxi_/fwyd/202610/t20261008_585187.html",
+          "status": "verified_national_summary",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": "2026-10-01",
+          "notes": "数值来自人社部全国汇总；地方生效日期和适用档次需继续核验。"
+        }
+      ]
+    },
+    {
+      "jurisdiction": "广西",
+      "title": "广西地区政策适配包",
+      "coverage": "广西",
+      "version": "2026-10-12",
+      "last_checked": "2026-10-12",
+      "policies": [
+        {
+          "policy_id": "minimum_wage",
+          "name": "广西最低工资标准",
+          "value": {
+            "monthly": [
+              "2200",
+              "2040",
+              "1870"
+            ],
+            "hourly": [
+              "22.4",
+              "20.7",
+              "19"
+            ]
+          },
+          "unit": "CNY/month",
+          "effective_from": "截至2026-10-01",
+          "source_name": "人力资源和社会保障部全国最低工资汇总",
+          "source_url": "https://www.mohrss.gov.cn/SYrlzyhshbzb/laodongguanxi_/fwyd/202610/t20261008_585187.html",
+          "status": "verified_national_summary",
+          "verified_at": "2026-10-12",
+          "verified_by": "项目组通过官方公开页面核验",
+          "as_of": "2026-10-01",
+          "notes": "数值来自人社部全国汇总；地方生效日期和适用档次需继续核验。"
+        }
       ]
     }
   ]

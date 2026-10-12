@@ -35,6 +35,9 @@
         <button class="nav-item" data-page="policy">
           <span class="nav-icon">◇</span><span>政策服务</span>
         </button>
+        <button class="nav-item" data-page="admin" data-admin-only="true" style="display:none">
+          <span class="nav-icon">▤</span><span>管理后台</span>
+        </button>
         <button class="nav-item" data-page="evaluation">
           <span class="nav-icon">⌁</span><span>可信评测</span>
         </button>
@@ -159,10 +162,28 @@
           <label>适用地区
             <select id="jurisdiction">
               <option value="全国规则">全国规则</option>
+              <option value="重庆">重庆</option>
+              <option value="四川">四川</option>
+              <option value="贵州">贵州</option>
+              <option value="云南">云南</option>
+              <option value="陕西">陕西</option>
+              <option value="湖北">湖北</option>
+              <option value="湖南">湖南</option>
+              <option value="广西">广西</option>
               <option value="北京">北京</option>
               <option value="上海">上海</option>
               <option value="广东">广东</option>
             </select>
+          </label>
+          <label>文档语言
+            <select id="documentLanguage">
+              <option value="zh">中文</option>
+              <option value="en">English</option>
+              <option value="ja">日本語</option>
+            </select>
+          </label>
+          <label>PDF页码
+            <input id="pageRange" type="text" placeholder="全部，或 1-3,5">
           </label>
           <label class="upload-label">载入文本
             <input type="file" id="fileInput" accept=".txt,.md,.json,.csv,.pdf,.docx" hidden>
@@ -308,7 +329,7 @@
             <div class="policy-field">
               <label>所在地区</label>
               <select id="policyRegion">
-                <option>全国</option><option>北京</option><option>上海</option><option>广东</option><option>其他地区</option>
+                <option>全国</option><option>重庆</option><option>四川</option><option>贵州</option><option>云南</option><option>陕西</option><option>湖北</option><option>湖南</option><option>广西</option><option>北京</option><option>上海</option><option>广东</option><option>其他地区</option>
               </select>
             </div>
             <div class="policy-field">
@@ -340,6 +361,37 @@
             </div>
           </article>
         </div>
+      </section>
+
+      <section class="page" id="page-admin">
+        <div class="page-intro">
+          <div><span class="section-kicker">管理后台</span><h2>系统运营与用户管理</h2></div>
+          <p>仅管理员可访问。后台展示用户、研判次数、高风险数量、近期案例和角色管理，不显示合同原文和个人敏感信息。</p>
+        </div>
+
+        <div class="admin-metrics">
+          <article><span>注册用户</span><strong id="adminUserCount">--</strong></article>
+          <article><span>累计研判</span><strong id="adminCaseCount">--</strong></article>
+          <article><span>高风险案例</span><strong id="adminHighRiskCount">--</strong></article>
+          <article><span>当前模型</span><strong id="adminModel">--</strong></article>
+        </div>
+
+        <div class="admin-grid">
+          <article class="panel">
+            <div class="panel-heading"><div><span class="section-kicker">近期研判</span><h3>最近案例</h3></div><button id="refreshAdmin" class="secondary-button">刷新</button></div>
+            <div class="table-wrap"><table><thead><tr><th>编号</th><th>用户</th><th>材料</th><th>地区</th><th>语言</th><th>风险分</th><th>时间</th></tr></thead><tbody id="adminRecentCases"></tbody></table></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading"><div><span class="section-kicker">风险分布</span><h3>高频风险项</h3></div></div>
+            <div id="adminTopRisks" class="admin-risk-list"></div>
+          </article>
+        </div>
+
+        <article class="panel admin-users-panel">
+          <div class="panel-heading"><div><span class="section-kicker">用户管理</span><h3>用户与角色</h3></div><span class="soft-label">不展示密码和合同原文</span></div>
+          <div class="table-wrap"><table><thead><tr><th>ID</th><th>用户名</th><th>当前角色</th><th>注册时间</th><th>操作</th></tr></thead><tbody id="adminUsers"></tbody></table></div>
+        </article>
       </section>
 
       <section class="page" id="page-evaluation">
@@ -495,7 +547,8 @@
 
       <div class="auth-demo-box">
         <strong>比赛演示账号</strong>
-        <span>用户名：demo　密码：demo123456</span>
+        <span>学生演示：demo / demo123456</span>
+        <span>管理员演示：admin / admin123456</span>
       </div>
 
       <div class="auth-button-row">
