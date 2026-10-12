@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 72" role="img" aria-label="职安盾 VeriWork">
+  <g transform="translate(4 4)">
+    <path d="M32 4 56 13v17c0 15-10 25-24 31C18 55 8 45 8 30V13L32 4Z" fill="#1f4f86"/>
+    <rect x="20" y="14" width="24" height="29" rx="2" fill="#ffffff"/>
+    <path d="M25 21h14M25 26h14M25 31h9" stroke="#93a9bf" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="m20.5 39.5 7.5 7.5L45 27" fill="none" stroke="#b48b50" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="78" y="34" fill="#172433" font-family="Microsoft YaHei, sans-serif" font-size="24" font-weight="700">职安盾</text>
+  <text x="80" y="56" fill="#667085" font-family="Aptos, Microsoft YaHei, sans-serif" font-size="13" letter-spacing="1.4">VERIWORK</text>
+</svg>

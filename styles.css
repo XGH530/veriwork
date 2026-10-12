@@ -836,3 +836,50 @@ table th { color: #586474; background: #f8f9fa; }
   .workspace-meta > div:nth-child(-n+2) { border-top: 0; }
   .workspace-meta > div:nth-child(odd) { border-left: 0; }
 }
+
+/* 品牌标识与字体修正 */
+.brand-logo {
+  width: 34px;
+  height: 34px;
+  display: block;
+  flex: 0 0 auto;
+}
+
+.section-kicker,
+.panel-heading h3,
+.risk-card h4,
+.trace-step strong,
+.stack-list strong,
+.metric-card span,
+.metric-card small,
+.risk-tags span,
+.clause-item,
+.risk-card p,
+.risk-action,
+.review-notice,
+.result-summary,
+.document-preview {
+  font-family: "Microsoft YaHei UI", "PingFang SC", "Source Han Sans SC", sans-serif;
+}
+
+.risk-tags span {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.clause-item {
+  font-size: 12px;
+  line-height: 1.75;
+}
+
+.risk-card p,
+.risk-action {
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.trace-step strong { font-size: 12px; }
+.trace-step p { font-size: 11px; }
+
+.metric-card span { font-size: 12px; }
+.metric-card small { font-size: 11px; }
