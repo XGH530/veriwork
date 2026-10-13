@@ -55,7 +55,6 @@
       </div>
 
       <div class="sidebar-footer">
-        <span>平台版本 v1.0</span>
         <button id="openSettings" class="link-button">模型设置</button>
       </div>
     </aside>
@@ -67,6 +66,7 @@
           <h1 id="pageTitle">合同风险核查工作台</h1>
         </div>
         <div class="topbar-actions">
+          <div class="platform-version"><strong>平台版本</strong><span>v1.0</span></div>
           <div class="user-chip" id="userChip"><span>未登录</span><button id="openAuth" class="link-button">登录</button></div>
           <div class="mode-chip" id="modeChip"><span></span>演示模式</div>
           <button class="secondary-button" id="quickDemo">载入风险样例</button>
@@ -85,18 +85,52 @@
               <button class="ghost-button large" data-go="architecture">查看技术方案</button>
             </div>
           </div>
-          <div class="hero-side" aria-label="核查流程概览">
-            <div class="hero-side-head">
-              <span>核查流程</span>
-              <strong>先依据，再结论</strong>
+          <div class="hero-carousel" id="heroCarousel" aria-label="平台能力展示">
+            <div class="carousel-track">
+              <article class="carousel-slide active">
+                <div class="carousel-visual contract-visual">
+                  <div class="paper-card paper-back"></div>
+                  <div class="paper-card paper-front">
+                    <span></span><span></span><span class="risk-line"></span><span></span><span class="risk-line short"></span>
+                  </div>
+                  <div class="scan-line"></div>
+                </div>
+                <div class="carousel-copy">
+                  <span>合同风险核查</span>
+                  <h3>高风险条款一眼看清</h3>
+                  <p>自动识别试用期、社保、押金、加班、竞业和离职条款，并绑定合同原文。</p>
+                </div>
+              </article>
+              <article class="carousel-slide">
+                <div class="carousel-visual policy-visual">
+                  <i class="node n1"></i><i class="node n2"></i><i class="node n3"></i><i class="node n4"></i>
+                  <b class="link l1"></b><b class="link l2"></b><b class="link l3"></b>
+                  <div class="policy-center">政策</div>
+                </div>
+                <div class="carousel-copy">
+                  <span>就业政策服务</span>
+                  <h3>政策条件智能匹配</h3>
+                  <p>按身份、地区和需求匹配就业补贴、见习、社保、创业和维权政策方向。</p>
+                </div>
+              </article>
+              <article class="carousel-slide">
+                <div class="carousel-visual evidence-visual">
+                  <div class="timeline-line"></div>
+                  <i class="evidence-dot d1"></i><i class="evidence-dot d2"></i><i class="evidence-dot d3"></i>
+                  <div class="evidence-file">证据</div>
+                </div>
+                <div class="carousel-copy">
+                  <span>可信证据链</span>
+                  <h3>从风险发现到材料闭环</h3>
+                  <p>整理证据、时间线、沟通问题和办理材料，避免问题发现后无下一步。</p>
+                </div>
+              </article>
             </div>
-            <ol>
-              <li><b>01</b><span>拆出合同中的关键条款</span></li>
-              <li><b>02</b><span>先执行确定性风险规则</span></li>
-              <li><b>03</b><span>再用语义模型补充长尾表达</span></li>
-              <li><b>04</b><span>逐条绑定原文与法规来源</span></li>
-              <li><b>05</b><span>信息不足时标记待核实</span></li>
-            </ol>
+            <div class="carousel-dots">
+              <button class="active" data-slide="0" aria-label="第1页"></button>
+              <button data-slide="1" aria-label="第2页"></button>
+              <button data-slide="2" aria-label="第3页"></button>
+            </div>
           </div>
         </div>
 

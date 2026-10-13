@@ -961,6 +961,22 @@ function buildReport(result) {
   ].join("\n\n");
 }
 
+function initCarousel() {
+  const track = $(".carousel-track");
+  const dots = $$(".carousel-dots button");
+  if (!track || !dots.length) return;
+  let index = 0;
+  const show = (next) => {
+    index = (next + dots.length) % dots.length;
+    track.style.transform = `translateX(-${index * 100}%)`;
+    dots.forEach((dot, dotIndex) => dot.classList.toggle("active", dotIndex === index));
+  };
+  dots.forEach((dot) => dot.addEventListener("click", () => show(Number(dot.dataset.slide))));
+  let timer = window.setInterval(() => show(index + 1), 5200);
+  $("#heroCarousel")?.addEventListener("mouseenter", () => window.clearInterval(timer));
+  $("#heroCarousel")?.addEventListener("mouseleave", () => { timer = window.setInterval(() => show(index + 1), 5200); });
+}
+
 function bindEvents() {
   $$(".nav-item").forEach((element) => element.addEventListener("click", () => navigate(element.dataset.page)));
   $$("[data-go]").forEach((element) => element.addEventListener("click", () => navigate(element.dataset.go)));
@@ -1093,6 +1109,7 @@ function init() {
   loadSettings();
   switchAuthMode("student");
   bindEvents();
+  initCarousel();
   (async () => {
     await refreshBackendStatus();
     const authenticated = await loadCurrentUser();
