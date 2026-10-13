@@ -1184,3 +1184,52 @@ table th { color: #586474; background: #f8f9fa; }
   .hero-copy h2 { font-size: 25px; }
   .carousel-slide { grid-template-rows: 150px auto; }
 }
+
+/* 轮播真实图片背景 */
+.carousel-visual { background: #0f2338; }
+.carousel-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: .55;
+  filter: saturate(.72) contrast(1.08);
+}
+.carousel-visual::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, rgba(9, 28, 48, .88), rgba(9, 28, 48, .22));
+  z-index: 0;
+}
+.paper-card, .scan-line, .policy-visual .policy-center, .policy-visual .node,
+.policy-visual .link, .evidence-visual .timeline-line, .evidence-dot, .evidence-file {
+  z-index: 1;
+}
+
+/* 顶部操作区最终排布 */
+.topbar-settings {
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: #ffffff;
+}
+@media (max-width: 768px) {
+  .topbar-actions { grid-template-columns: 1fr 1fr; }
+  .topbar-actions .topbar-settings,
+  .topbar-actions .platform-version,
+  .topbar-actions .user-chip,
+  .topbar-actions .mode-chip { grid-column: auto; }
+}
+@media (max-width: 480px) {
+  .topbar-actions { grid-template-columns: 1fr; }
+}
+
+/* 管理模式下隐藏学生操作按钮 */
+.admin-mode .topbar-actions #quickDemo,
+.admin-mode .topbar-actions [data-go="analysis"],
+.admin-mode .topbar-actions #modeChip {
+  display: none !important;
+}
+.admin-mode .sidebar-card { display: none; }

@@ -99,21 +99,33 @@ def init_auth_db() -> None:
             );
             """
         )
-        existing = connection.execute("SELECT id FROM users WHERE username = ?", ("demo",)).fetchone()
+        demo_username = os.environ.get("DEMO_USERNAME", "demo")
+        demo_password = os.environ.get("DEMO_PASSWORD", "demo123456")
+        existing = connection.execute("SELECT id FROM users WHERE username = ?", (demo_username,)).fetchone()
+        salt, digest = hash_password(demo_password)
         if not existing:
-            salt, digest = hash_password("demo123456")
             connection.execute(
                 "INSERT INTO users(username, salt, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)",
-                ("demo", salt, digest, "student", datetime.now().isoformat(timespec="seconds")),
+                (demo_username, salt, digest, "student", datetime.now().isoformat(timespec="seconds")),
+            )
+        else:
+            connection.execute(
+                "UPDATE users SET salt = ?, password_hash = ?, role = 'student' WHERE username = ?",
+                (salt, digest, demo_username),
             )
         admin_username = os.environ.get("ADMIN_USERNAME", "admin")
         admin_password = os.environ.get("ADMIN_PASSWORD", "admin123456")
         existing_admin = connection.execute("SELECT id FROM users WHERE username = ?", (admin_username,)).fetchone()
+        salt, digest = hash_password(admin_password)
         if not existing_admin:
-            salt, digest = hash_password(admin_password)
             connection.execute(
                 "INSERT INTO users(username, salt, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)",
                 (admin_username, salt, digest, "admin", datetime.now().isoformat(timespec="seconds")),
+            )
+        else:
+            connection.execute(
+                "UPDATE users SET salt = ?, password_hash = ?, role = 'admin' WHERE username = ?",
+                (salt, digest, admin_username),
             )
         connection.commit()
 

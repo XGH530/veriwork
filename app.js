@@ -137,14 +137,8 @@ async function authRequest(path, payload) {
   return data;
 }
 
-async function loginWithCredentials(username, password, expectedMode = state.authMode) {
+async function loginWithCredentials(username, password) {
   const data = await authRequest("/api/auth/login", { username, password });
-  if (expectedMode === "admin" && data.user.role !== "admin") {
-    throw new Error("该账号不是管理员，请使用学生与毕业生入口");
-  }
-  if (expectedMode === "student" && data.user.role === "admin") {
-    throw new Error("管理员请使用管理员入口");
-  }
   state.authToken = data.token;
   state.user = data.user;
   localStorage.setItem("veriwork-token", data.token);
@@ -154,23 +148,6 @@ async function loginWithCredentials(username, password, expectedMode = state.aut
   toast(`已登录：${data.user.username}`);
 }
 
-function switchAuthMode(mode) {
-  state.authMode = mode;
-  $$(".auth-mode-button").forEach((button) => button.classList.toggle("active", button.dataset.authMode === mode));
-  $$(".student-auth-only").forEach((element) => element.classList.toggle("hidden", mode !== "student"));
-  $$(".admin-auth-only").forEach((element) => element.classList.toggle("hidden", mode !== "admin"));
-  $("#authTitle").textContent = mode === "admin" ? "管理员入口" : "学生与毕业生入口";
-  $("#authSubtitle").textContent = mode === "admin"
-    ? "仅管理员可进入用户管理、角色管理和系统运营界面。"
-    : "使用合同研判、文件解析、政策匹配和证据整理功能。";
-  if (mode === "admin") {
-    $("#authUsername").value = "admin";
-    $("#authPassword").value = "admin123456";
-  } else {
-    $("#authUsername").value = "demo";
-    $("#authPassword").value = "demo123456";
-  }
-}
 
 async function registerAccount(username, password) {
   const data = await authRequest("/api/auth/register", { username, password });
@@ -1001,7 +978,7 @@ function bindEvents() {
     if (!file) return;
     if (state.settings.runMode === "api" && !state.user) {
       $("#authDialog")?.showModal();
-      toast("文件解析需要登录，请先登录或使用演示账号。");
+      toast("文件解析需要登录，请先登录或注册账号。");
       event.target.value = "";
       return;
     }
@@ -1072,22 +1049,11 @@ function bindEvents() {
   document.addEventListener("click", (event) => {
     if (event.target.closest("#openAuth")) $("#authDialog")?.showModal();
     if (event.target.closest("#closeAuth")) $("#authDialog")?.close();
-    const authModeButton = event.target.closest(".auth-mode-button");
-    if (authModeButton) switchAuthMode(authModeButton.dataset.authMode);
     if (event.target.closest("#loginButton")) {
       loginWithCredentials($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => toast(`登录失败：${error.message}`));
     }
-    if (event.target.closest("#demoLoginButton")) {
-      loginWithCredentials("demo", "demo123456", "student").catch((error) => toast(`演示登录失败：${error.message}`));
-    }
     if (event.target.closest("#registerButton")) {
       registerAccount($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => toast(`注册失败：${error.message}`));
-    }
-    if (event.target.closest("#guestButton")) {
-      state.settings.runMode = "demo";
-      updateModeUI();
-      $("#authDialog")?.close();
-      toast("已进入本地演示模式，后端研判和文件解析需要登录。");
     }
   });
   ["authUsername", "authPassword"].forEach((id) => {
@@ -1107,7 +1073,6 @@ function init() {
   renderComparison();
   updateEvidenceDocuments(null);
   loadSettings();
-  switchAuthMode("student");
   bindEvents();
   initCarousel();
   (async () => {
