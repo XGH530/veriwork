@@ -1233,3 +1233,23 @@ table th { color: #586474; background: #f8f9fa; }
   display: none !important;
 }
 .admin-mode .sidebar-card { display: none; }
+
+/* 登录错误提示与按钮同行 */
+.auth-error {
+  margin: 2px 0 14px;
+  padding: 10px 12px;
+  color: #9f1d1d;
+  background: #fff1f0;
+  border: 1px solid #f1b5b1;
+  border-left: 3px solid #b42318;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.auth-button-row {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 10px !important;
+}
+.auth-button-row .ghost-button {
+  grid-column: auto !important;
+}

@@ -137,13 +137,29 @@ async function authRequest(path, payload) {
   return data;
 }
 
+function showAuthError(message) {
+  const element = $("#authError");
+  if (!element) return;
+  element.textContent = message;
+  element.classList.remove("hidden");
+}
+
+function clearAuthError() {
+  const element = $("#authError");
+  if (!element) return;
+  element.textContent = "";
+  element.classList.add("hidden");
+}
+
 async function loginWithCredentials(username, password) {
+  clearAuthError();
   const data = await authRequest("/api/auth/login", { username, password });
   state.authToken = data.token;
   state.user = data.user;
   localStorage.setItem("veriwork-token", data.token);
   updateUserUI();
   $("#authDialog")?.close();
+  clearAuthError();
   navigate(data.user.role === "admin" ? "admin" : "dashboard");
   toast(`已登录：${data.user.username}`);
 }
@@ -1047,19 +1063,20 @@ function bindEvents() {
   });
 
   document.addEventListener("click", (event) => {
-    if (event.target.closest("#openAuth")) $("#authDialog")?.showModal();
-    if (event.target.closest("#closeAuth")) $("#authDialog")?.close();
+    if (event.target.closest("#openAuth")) { clearAuthError(); $("#authDialog")?.showModal(); }
+    if (event.target.closest("#closeAuth")) { clearAuthError(); $("#authDialog")?.close(); }
     if (event.target.closest("#loginButton")) {
-      loginWithCredentials($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => toast(`登录失败：${error.message}`));
+      loginWithCredentials($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => showAuthError(error.message || "登录失败，请检查账号和密码"));
     }
     if (event.target.closest("#registerButton")) {
-      registerAccount($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => toast(`注册失败：${error.message}`));
+      registerAccount($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => showAuthError(error.message || "注册失败，请检查输入信息"));
     }
   });
   ["authUsername", "authPassword"].forEach((id) => {
+    $(`#${id}`)?.addEventListener("input", clearAuthError);
     $(`#${id}`)?.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
-        loginWithCredentials($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => toast(`登录失败：${error.message}`));
+        loginWithCredentials($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => showAuthError(error.message || "登录失败，请检查账号和密码"));
       }
     });
   });
@@ -1079,6 +1096,7 @@ function init() {
     await refreshBackendStatus();
     const authenticated = await loadCurrentUser();
     if (state.settings.runMode === "api" && !authenticated) {
+      clearAuthError();
       $("#authDialog")?.showModal();
     }
   })();
