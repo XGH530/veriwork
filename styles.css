@@ -1043,3 +1043,25 @@ table th { color: #586474; background: #f8f9fa; }
 .admin-role-select { padding: 6px 8px; border: 1px solid var(--border); background: #ffffff; border-radius: 2px; }
 .admin-save-role { padding: 6px 9px; }
 @media (max-width: 1080px) { .admin-metrics { grid-template-columns: repeat(2, 1fr); } .admin-grid { grid-template-columns: 1fr; } }
+
+/* 双入口模式 */
+.auth-mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+}
+.auth-mode-button {
+  padding: 10px 12px;
+  color: #667085;
+  background: #f8fafc;
+  border: 0;
+  cursor: pointer;
+  font-size: 12px;
+}
+.auth-mode-button + .auth-mode-button { border-left: 1px solid var(--border); }
+.auth-mode-button.active { color: #ffffff; background: #1f4f86; font-weight: 700; }
+.admin-mode .topbar .eyebrow::after { content: " · 管理控制台"; }
+.admin-mode .student-page,
+.admin-mode [data-student-only] { display: none !important; }

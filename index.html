@@ -23,25 +23,25 @@
       </div>
 
       <nav class="nav" aria-label="主导航">
-        <button class="nav-item active" data-page="dashboard">
+        <button class="nav-item active" data-page="dashboard" data-student-only="true">
           <span class="nav-icon">⌂</span><span>工作台</span>
         </button>
-        <button class="nav-item" data-page="analysis">
+        <button class="nav-item" data-page="analysis" data-student-only="true">
           <span class="nav-icon">⌕</span><span>合同研判</span>
         </button>
-        <button class="nav-item" data-page="evidence">
+        <button class="nav-item" data-page="evidence" data-student-only="true">
           <span class="nav-icon">◎</span><span>证据链</span>
         </button>
-        <button class="nav-item" data-page="policy">
+        <button class="nav-item" data-page="policy" data-student-only="true">
           <span class="nav-icon">◇</span><span>政策服务</span>
         </button>
         <button class="nav-item" data-page="admin" data-admin-only="true" style="display:none">
           <span class="nav-icon">▤</span><span>管理后台</span>
         </button>
-        <button class="nav-item" data-page="evaluation">
+        <button class="nav-item" data-page="evaluation" data-student-only="true">
           <span class="nav-icon">⌁</span><span>可信评测</span>
         </button>
-        <button class="nav-item" data-page="architecture">
+        <button class="nav-item" data-page="architecture" data-student-only="true">
           <span class="nav-icon">◇</span><span>系统说明</span>
         </button>
       </nav>
@@ -55,7 +55,7 @@
       </div>
 
       <div class="sidebar-footer">
-        <span>竞赛原型 v0.9</span>
+        <span>平台版本 v1.0</span>
         <button id="openSettings" class="link-button">模型设置</button>
       </div>
     </aside>
@@ -530,10 +530,15 @@
       <div class="auth-title-row">
         <div>
           <span class="section-kicker">用户入口</span>
-          <h3>登录职安盾</h3>
-          <p>登录后可使用后端合同研判、文件解析和材料生成功能。</p>
+          <h3 id="authTitle">学生与毕业生入口</h3>
+          <p id="authSubtitle">使用合同研判、文件解析、政策匹配和证据整理功能。</p>
         </div>
         <button class="icon-button" id="closeAuth" aria-label="关闭">×</button>
+      </div>
+
+      <div class="auth-mode-tabs">
+        <button class="auth-mode-button active" data-auth-mode="student">学生 / 毕业生入口</button>
+        <button class="auth-mode-button" data-auth-mode="admin">管理员入口</button>
       </div>
 
       <div class="auth-field">
@@ -545,19 +550,22 @@
         <input id="authPassword" type="password" value="demo123456" autocomplete="current-password" placeholder="请输入密码">
       </div>
 
-      <div class="auth-demo-box">
-        <strong>比赛演示账号</strong>
-        <span>学生演示：demo / demo123456</span>
-        <span>管理员演示：admin / admin123456</span>
+      <div class="auth-demo-box student-auth-only">
+        <strong>学生功能演示账号</strong>
+        <span>demo / demo123456</span>
+      </div>
+      <div class="auth-demo-box admin-auth-only hidden">
+        <strong>管理员演示账号</strong>
+        <span>admin / admin123456</span>
       </div>
 
       <div class="auth-button-row">
         <button id="loginButton" class="primary-button">登录</button>
-        <button id="demoLoginButton" class="secondary-button">演示账号登录</button>
-        <button id="registerButton" class="ghost-button">注册新账号</button>
+        <button id="demoLoginButton" class="secondary-button student-auth-only">学生演示登录</button>
+        <button id="registerButton" class="ghost-button student-auth-only">注册新账号</button>
       </div>
-      <button id="guestButton" class="link-button auth-guest">暂不登录，进入本地演示</button>
-      <p class="dialog-note">密码至少8位。不会在浏览器中保存DeepSeek密钥，所有后端调用都需要登录令牌。</p>
+      <button id="guestButton" class="link-button auth-guest student-auth-only">暂不登录，进入本地演示</button>
+      <p class="dialog-note">管理员登录后只显示用户管理与系统运营界面。密钥不会进入浏览器。</p>
     </section>
   </div>
 </dialog>
@@ -565,7 +573,7 @@
   <dialog id="settingsDialog" class="settings-dialog">
     <form method="dialog">
       <div class="dialog-head">
-        <div><span class="section-kicker">系统设置</span><h3>模型与后端设置</h3></div>
+        <div><span class="section-kicker">系统设置</span><h3>大模型接入设置</h3></div>
         <button class="icon-button" value="cancel" aria-label="关闭">×</button>
       </div>
       <label>后端地址
@@ -574,13 +582,13 @@
       <label>运行模式
         <select id="runModeInput">
           <option value="demo">纯前端演示模式</option>
-          <option value="api">后端 API 模式</option>
+          <option value="api">大模型模式</option>
         </select>
       </label>
       <label>当前模型
         <input id="modelStatusInput" type="text" value="未连接后端" readonly>
       </label>
-      <p class="dialog-note">API 模式下，后端负责调用大模型；密钥只配置在服务器环境变量中，不进入浏览器。</p>
+      <p class="dialog-note">大模型模式下由服务器调用模型，密钥只保存在服务器环境变量中，不进入浏览器。</p>
       <div class="dialog-actions">
         <button class="ghost-button" value="cancel">取消</button>
         <button id="saveSettings" class="primary-button" value="default">保存设置</button>

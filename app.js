@@ -13,6 +13,7 @@ const state = {
     model: ""
   },
   user: null,
+  authMode: "student",
   authToken: localStorage.getItem("veriwork-token") || ""
 };
 
@@ -136,14 +137,39 @@ async function authRequest(path, payload) {
   return data;
 }
 
-async function loginWithCredentials(username, password) {
+async function loginWithCredentials(username, password, expectedMode = state.authMode) {
   const data = await authRequest("/api/auth/login", { username, password });
+  if (expectedMode === "admin" && data.user.role !== "admin") {
+    throw new Error("该账号不是管理员，请使用学生与毕业生入口");
+  }
+  if (expectedMode === "student" && data.user.role === "admin") {
+    throw new Error("管理员请使用管理员入口");
+  }
   state.authToken = data.token;
   state.user = data.user;
   localStorage.setItem("veriwork-token", data.token);
   updateUserUI();
   $("#authDialog")?.close();
+  navigate(data.user.role === "admin" ? "admin" : "dashboard");
   toast(`已登录：${data.user.username}`);
+}
+
+function switchAuthMode(mode) {
+  state.authMode = mode;
+  $$(".auth-mode-button").forEach((button) => button.classList.toggle("active", button.dataset.authMode === mode));
+  $$(".student-auth-only").forEach((element) => element.classList.toggle("hidden", mode !== "student"));
+  $$(".admin-auth-only").forEach((element) => element.classList.toggle("hidden", mode !== "admin"));
+  $("#authTitle").textContent = mode === "admin" ? "管理员入口" : "学生与毕业生入口";
+  $("#authSubtitle").textContent = mode === "admin"
+    ? "仅管理员可进入用户管理、角色管理和系统运营界面。"
+    : "使用合同研判、文件解析、政策匹配和证据整理功能。";
+  if (mode === "admin") {
+    $("#authUsername").value = "admin";
+    $("#authPassword").value = "admin123456";
+  } else {
+    $("#authUsername").value = "demo";
+    $("#authPassword").value = "demo123456";
+  }
 }
 
 async function registerAccount(username, password) {
@@ -207,8 +233,11 @@ function updateUserUI() {
     $("#openAuth")?.addEventListener("click", () => $("#authDialog")?.showModal());
   }
   const isAdmin = state.user?.role === "admin";
+  document.body.classList.toggle("admin-mode", isAdmin);
   $$('[data-admin-only]').forEach((element) => { element.style.display = isAdmin ? "" : "none"; });
+  $$('[data-student-only]').forEach((element) => { element.style.display = isAdmin ? "none" : ""; });
   if (!isAdmin && state.currentPage === "admin") navigate("dashboard");
+  if (isAdmin && state.currentPage !== "admin") navigate("admin");
 }
 
 function formatDate(date = new Date()) {
@@ -222,6 +251,8 @@ function navigate(page) {
   state.currentPage = page;
   $$(".page").forEach((element) => element.classList.toggle("active", element.id === `page-${page}`));
   $$(".nav-item").forEach((element) => element.classList.toggle("active", element.dataset.page === page));
+  if (state.user?.role === "admin" && page !== "admin") page = "admin";
+  if (state.user?.role !== "admin" && page === "admin") page = "dashboard";
   const titles = {
     dashboard: "合同风险核查工作台",
     analysis: "合同风险核查",
@@ -690,7 +721,7 @@ async function runEvaluation() {
   renderComparison();
   button.disabled = false;
   button.textContent = "重新运行回归评测";
-  toast("回归评测完成。正式参赛前应替换为多模型盲测集。");
+  toast("回归评测完成。正式上线前应使用真实盲测集复测。");
 }
 
 function renderEvaluationCards() {
@@ -773,10 +804,10 @@ async function refreshBackendStatus() {
 
 function updateModeUI() {
   const apiMode = state.settings.runMode === "api";
-  $("#modeChip").innerHTML = `<span></span>${apiMode ? "后端 API 模式" : "演示模式"}`;
+  $("#modeChip").innerHTML = `<span></span>${apiMode ? "大模型模式" : "本地演示模式"}`;
   const modelLabel = state.settings.model ? `模型：${state.settings.model}` : "模型：未配置";
-  $("#engineStatus").textContent = apiMode ? `后端：${state.settings.apiBase} · ${modelLabel}` : "本地规则 + 法源检索";
-  $("#analysisModeLabel").textContent = apiMode ? `后端可信链路 · ${modelLabel}` : "本地可信链路";
+  $("#engineStatus").textContent = apiMode ? `大模型模式：${state.settings.apiBase} · ${modelLabel}` : "本地规则 + 法源检索";
+  $("#analysisModeLabel").textContent = apiMode ? `大模型模式 · ${modelLabel}` : "本地可信链路";
   const modelInput = $("#modelStatusInput");
   if (modelInput) modelInput.value = apiMode ? (state.settings.model || "后端未返回模型名称") : "演示模式未调用模型";
 }
@@ -1025,11 +1056,13 @@ function bindEvents() {
   document.addEventListener("click", (event) => {
     if (event.target.closest("#openAuth")) $("#authDialog")?.showModal();
     if (event.target.closest("#closeAuth")) $("#authDialog")?.close();
+    const authModeButton = event.target.closest(".auth-mode-button");
+    if (authModeButton) switchAuthMode(authModeButton.dataset.authMode);
     if (event.target.closest("#loginButton")) {
       loginWithCredentials($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => toast(`登录失败：${error.message}`));
     }
     if (event.target.closest("#demoLoginButton")) {
-      loginWithCredentials("demo", "demo123456").catch((error) => toast(`演示登录失败：${error.message}`));
+      loginWithCredentials("demo", "demo123456", "student").catch((error) => toast(`演示登录失败：${error.message}`));
     }
     if (event.target.closest("#registerButton")) {
       registerAccount($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => toast(`注册失败：${error.message}`));
@@ -1058,6 +1091,7 @@ function init() {
   renderComparison();
   updateEvidenceDocuments(null);
   loadSettings();
+  switchAuthMode("student");
   bindEvents();
   (async () => {
     await refreshBackendStatus();

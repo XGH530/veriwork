@@ -3,7 +3,7 @@ const APP_DATA = {
     name: "职安盾 VeriWork",
     version: "0.9.0-demo",
     updated: "2026-10-01",
-    disclaimer: "本系统用于竞赛展示、普法教育和材料整理，不替代律师、仲裁机构或人社部门作出最终法律判断。"
+    disclaimer: "本系统用于就业风险提示、普法教育和材料整理，不替代律师、仲裁机构或人社部门作出最终法律判断。"
   },
 
   lawCorpus: [
