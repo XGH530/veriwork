@@ -1,0 +1,16 @@
+[Unit]
+Description=VeriWork database and evidence backup
+After=network.target
+
+[Service]
+Type=oneshot
+User=veriwork
+Group=veriwork
+ExecStart=/usr/local/sbin/veriwork-backup.sh
+Nice=10
+IOSchedulingClass=idle
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/veriwork-data
+ProtectHome=true

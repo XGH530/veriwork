@@ -6,7 +6,7 @@
   <meta name="description" content="职安盾 VeriWork——面向高校毕业生就业合同的可验证 AI 风险评估与证据链系统">
   <title>职安盾 VeriWork · 可信就业风险决策</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <link rel="stylesheet" href="styles.css?v=20261012b">
+  <link rel="stylesheet" href="styles.css?v=20261018r3">
 </head>
 <body>
   
@@ -29,6 +29,9 @@
         <button class="nav-item" data-page="analysis" data-student-only="true">
           <span class="nav-icon">⌕</span><span>合同研判</span>
         </button>
+        <button class="nav-item" data-page="history" data-student-only="true">
+          <span class="nav-icon">▦</span><span>案例档案</span>
+        </button>
         <button class="nav-item" data-page="evidence" data-student-only="true">
           <span class="nav-icon">◎</span><span>证据链</span>
         </button>
@@ -43,6 +46,9 @@
         </button>
         <button class="nav-item" data-page="architecture" data-student-only="true">
           <span class="nav-icon">◇</span><span>系统说明</span>
+        </button>
+        <button class="nav-item" data-page="account">
+          <span class="nav-icon">◌</span><span>账户中心</span>
         </button>
       </nav>
 
@@ -64,7 +70,7 @@
         </div>
         <div class="topbar-actions">
           <button id="openSettings" class="link-button topbar-settings">模型设置</button>
-          <div class="platform-version"><strong>平台版本</strong><span>v1.0</span></div>
+          <div class="platform-version"><strong>平台版本</strong><span>v1.2</span></div>
           <div class="user-chip" id="userChip"><span>未登录</span><button id="openAuth" class="link-button">登录</button></div>
           <div class="mode-chip" id="modeChip"><span></span>演示模式</div>
           <button class="secondary-button" id="quickDemo">载入风险样例</button>
@@ -285,18 +291,50 @@
               <div class="result-actions">
                 <button id="sendToEvidence" class="secondary-button">加入证据链</button>
                 <button id="exportReport" class="primary-button">生成研判报告</button>
+                <button id="downloadPdfReport" class="secondary-button">下载PDF</button>
               </div>
             </div>
           </article>
         </div>
       </section>
 
+
+      <section class="page" id="page-history">
+        <div class="page-intro">
+          <div><span class="section-kicker">案例档案</span><h2>研判历史与办理进度</h2></div>
+          <p>保存每次研判的脱敏快照、风险结果和办理状态。原始合同文本不会长期保存，敏感字段在入库前自动脱敏。</p>
+        </div>
+        <article class="panel">
+          <div class="panel-heading">
+            <div><span class="section-kicker">我的案例</span><h3>历史研判记录</h3></div>
+            <button id="refreshHistory" class="secondary-button">刷新</button>
+          </div>
+          <div class="table-wrap">
+            <table><thead><tr><th>编号</th><th>材料</th><th>风险</th><th>状态</th><th>时间</th><th>操作</th></tr></thead><tbody id="caseHistoryRows"></tbody></table>
+          </div>
+          <div id="caseHistoryEmpty" class="empty-result"><div class="empty-icon">▦</div><h3>还没有历史案例</h3><p>完成一次登录后的合同研判，结果会自动进入案例档案。</p><button class="primary-button" data-go="analysis">开始研判</button></div>
+        </article>
+      </section>
       <section class="page" id="page-evidence">
         <div class="page-intro">
           <div><span class="section-kicker">证据工作流</span><h2>证据链与行动材料</h2></div>
           <p>把风险结论转化为可执行事项：保存什么、何时记录、找谁沟通、通过什么渠道办理。</p>
         </div>
 
+
+        <article class="panel evidence-files-panel">
+          <div class="panel-heading">
+            <div><span class="section-kicker">证据原件</span><h3>文件哈希与证据包</h3></div>
+            <button id="downloadEvidencePackage" class="link-button">下载证据包</button>
+          </div>
+          <div class="evidence-upload-row">
+            <input id="evidenceFileInput" type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.txt,.eml,.msg">
+            <label class="check-item compact-check"><input id="evidenceAttachCase" type="checkbox" checked><span>关联当前案例</span></label>
+            <button id="uploadEvidenceButton" class="primary-button">上传并计算 SHA-256</button>
+          </div>
+          <p class="dialog-note">支持 PDF、Word、图片、TXT、邮件文件，单个不超过 8MB。文件保存于 Web 目录之外，下载时重新校验原始哈希。</p>
+          <div id="evidenceFileList" class="evidence-file-list"></div>
+        </article>
         <div class="evidence-grid">
           <article class="panel">
             <div class="panel-heading">
@@ -395,6 +433,45 @@
         </div>
       </section>
 
+
+      <section class="page" id="page-account">
+        <div class="page-intro">
+          <div><span class="section-kicker">账户中心</span><h2>安全、数据与登录设备</h2></div>
+          <p>管理密码、查看登录设备、导出个人数据或删除账号。删除账号会同时删除案例、证据文件和会话记录。</p>
+        </div>
+        <div id="accountMessage" class="account-message hidden"></div>
+        <div class="account-grid">
+          <article class="panel">
+            <div class="panel-heading"><div><span class="section-kicker">密码安全</span><h3>修改密码</h3></div></div>
+            <form id="passwordForm" class="stack-form">
+              <label>当前密码<input id="currentPassword" type="password" autocomplete="current-password" placeholder="请输入当前密码"></label>
+              <label>新密码<input id="newPassword" type="password" autocomplete="new-password" placeholder="至少10位"></label>
+              <label>确认新密码<input id="confirmPassword" type="password" autocomplete="new-password" placeholder="再次输入新密码"></label>
+              <button type="submit" class="primary-button">更新密码并退出其他设备</button>
+            </form>
+          </article>
+          <article class="panel">
+            <div class="panel-heading"><div><span class="section-kicker">登录设备</span><h3>当前会话</h3></div><button id="revokeOtherSessions" class="secondary-button">退出其他设备</button></div>
+            <div id="sessionList" class="session-list"></div>
+          </article>
+        </div>
+        <div class="account-grid account-grid-bottom">
+          <article class="panel">
+            <div class="panel-heading"><div><span class="section-kicker">数据权利</span><h3>导出个人数据</h3></div></div>
+            <p class="dialog-note">导出案例、脱敏研判结果和证据元数据。证据原件请通过证据链页面下载证据包。</p>
+            <label>验证密码<input id="exportPassword" type="password" autocomplete="current-password" placeholder="请输入当前密码"></label>
+            <button id="exportAccountData" class="secondary-button">导出 JSON</button>
+            <button id="downloadEvidenceZip" class="secondary-button">下载完整证据包</button>
+          </article>
+          <article class="panel danger-panel">
+            <div class="panel-heading"><div><span class="section-kicker">危险操作</span><h3>删除账号</h3></div></div>
+            <p class="dialog-note">此操作不可恢复。请输入当前用户名和密码确认。</p>
+            <label>用户名<input id="deleteAccountConfirm" type="text" autocomplete="off" placeholder="输入当前用户名"></label>
+            <label>密码<input id="deleteAccountPassword" type="password" autocomplete="current-password" placeholder="请输入当前密码"></label>
+            <button id="deleteAccountButton" class="danger-button">永久删除账号与全部数据</button>
+          </article>
+        </div>
+      </section>
       <section class="page" id="page-admin">
         <div class="page-intro">
           <div><span class="section-kicker">管理后台</span><h2>系统运营与用户管理</h2></div>
@@ -406,12 +483,14 @@
           <article><span>累计研判</span><strong id="adminCaseCount">--</strong></article>
           <article><span>高风险案例</span><strong id="adminHighRiskCount">--</strong></article>
           <article><span>当前模型</span><strong id="adminModel">--</strong></article>
+          <article><span>可用账号</span><strong id="adminActiveUserCount">--</strong></article>
+          <article><span>证据文件</span><strong id="adminEvidenceCount">--</strong></article>
         </div>
 
         <div class="admin-grid">
           <article class="panel">
             <div class="panel-heading"><div><span class="section-kicker">近期研判</span><h3>最近案例</h3></div><button id="refreshAdmin" class="secondary-button">刷新</button></div>
-            <div class="table-wrap"><table><thead><tr><th>编号</th><th>用户</th><th>材料</th><th>地区</th><th>语言</th><th>风险分</th><th>时间</th></tr></thead><tbody id="adminRecentCases"></tbody></table></div>
+            <div class="table-wrap"><table><thead><tr><th>编号</th><th>用户</th><th>材料</th><th>地区</th><th>风险分</th><th>状态</th><th>时间</th></tr></thead><tbody id="adminRecentCases"></tbody></table></div>
           </article>
 
           <article class="panel">
@@ -422,7 +501,12 @@
 
         <article class="panel admin-users-panel">
           <div class="panel-heading"><div><span class="section-kicker">用户管理</span><h3>用户与角色</h3></div><span class="soft-label">不展示密码和合同原文</span></div>
-          <div class="table-wrap"><table><thead><tr><th>ID</th><th>用户名</th><th>当前角色</th><th>注册时间</th><th>操作</th></tr></thead><tbody id="adminUsers"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>ID</th><th>用户名</th><th>角色</th><th>状态</th><th>最后登录</th><th>注册时间</th><th>操作</th></tr></thead><tbody id="adminUsers"></tbody></table></div>
+        </article>
+
+        <article class="panel admin-users-panel">
+          <div class="panel-heading"><div><span class="section-kicker">审计留痕</span><h3>管理员操作日志</h3></div><span class="soft-label">最近100条</span></div>
+          <div class="table-wrap"><table><thead><tr><th>时间</th><th>操作者</th><th>动作</th><th>对象</th><th>说明</th><th>IP</th></tr></thead><tbody id="adminAuditLogs"></tbody></table></div>
         </article>
       </section>
 
@@ -614,7 +698,7 @@
     </form>
   </dialog>
 
-  <script src="data.js?v=20261018sec"></script>
-  <script src="app.js?v=20261018sec"></script>
+  <script src="data.js?v=20261018r3"></script>
+  <script src="app.js?v=20261018r3"></script>
 </body>
 </html>

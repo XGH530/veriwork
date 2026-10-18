@@ -5,6 +5,9 @@ const state = {
   currentPage: "dashboard",
   currentCase: APP_DATA.demoCases[0],
   lastAnalysis: null,
+  lastCaseId: null,
+  history: [],
+  evidenceFiles: [],
   checklist: APP_DATA.evidenceChecklist.map((item) => ({ ...item })),
   timeline: APP_DATA.timeline.map((item) => ({ ...item })),
   settings: {
@@ -142,6 +145,51 @@ async function authRequest(path, payload) {
   return data;
 }
 
+function apiUrl(path = "") {
+  return `${state.settings.apiBase.replace(/\/$/, "")}${path}`;
+}
+
+async function apiRequest(path, options = {}) {
+  const response = await fetch(apiUrl(path), {
+    credentials: "include",
+    ...options,
+    headers: {
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.headers || {})
+    }
+  });
+  const text = await response.text();
+  let payload = {};
+  try {
+    payload = text ? JSON.parse(text) : {};
+  } catch (error) {
+    payload = { error: text || `API ${response.status}` };
+  }
+  if (!response.ok || payload.error) {
+    throw new Error(payload.error || `请求失败 ${response.status}`);
+  }
+  return payload;
+}
+
+function downloadJson(filename, value) {
+  const blob = new Blob([JSON.stringify(value, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+function formatBytes(bytes) {
+  const value = Number(bytes || 0);
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+
 function showAuthError(message) {
   const element = $("#authError");
   if (!element) return;
@@ -203,6 +251,10 @@ async function logoutAccount() {
     console.warn(error);
   }
   state.user = null;
+  state.lastAnalysis = null;
+  state.lastCaseId = null;
+  state.history = [];
+  state.evidenceFiles = [];
   updateUserUI();
   toast("已退出登录。");
 }
@@ -222,7 +274,8 @@ function updateUserUI() {
   $$('[data-admin-only]').forEach((element) => { element.style.display = isAdmin ? "" : "none"; });
   $$('[data-student-only]').forEach((element) => { element.style.display = isAdmin ? "none" : ""; });
   if (!isAdmin && state.currentPage === "admin") navigate("dashboard");
-  if (isAdmin && state.currentPage !== "admin") navigate("admin");
+  if (!state.user && ["account", "history"].includes(state.currentPage)) navigate("dashboard");
+  if (isAdmin && !["admin", "account"].includes(state.currentPage)) navigate("admin");
 }
 
 function formatDate(date = new Date()) {
@@ -233,22 +286,28 @@ function formatDate(date = new Date()) {
 }
 
 function navigate(page) {
+  const isAdmin = state.user?.role === "admin";
+  if (isAdmin && !["admin", "account"].includes(page)) page = "admin";
+  if (!isAdmin && page === "admin") page = "dashboard";
   state.currentPage = page;
   $$(".page").forEach((element) => element.classList.toggle("active", element.id === `page-${page}`));
   $$(".nav-item").forEach((element) => element.classList.toggle("active", element.dataset.page === page));
-  if (state.user?.role === "admin" && page !== "admin") page = "admin";
-  if (state.user?.role !== "admin" && page === "admin") page = "dashboard";
   const titles = {
     dashboard: "合同风险核查工作台",
     analysis: "合同风险核查",
+    history: "案例档案",
     evidence: "证据整理与材料",
     policy: "就业扶持政策匹配",
+    account: "账户中心",
     admin: "系统运营与用户管理",
     evaluation: "评测结果",
     architecture: "系统说明"
   };
   $("#pageTitle").textContent = titles[page] || "职安盾";
   if (page === "admin") refreshAdminPage();
+  if (page === "history") refreshHistory();
+  if (page === "account") refreshAccountCenter();
+  if (page === "evidence") refreshEvidenceFiles();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -513,8 +572,10 @@ async function runAnalysis() {
       result = analyzeContract(text, options);
     }
     state.lastAnalysis = result;
+    state.lastCaseId = result.caseId || null;
     setProgress("", steps);
     renderAnalysis(result);
+    if (result.caseId) refreshHistory();
     updateEvidenceDocuments(result);
     $("#resultStatus").textContent = `${result.processingMs} ms 完成`;
   } catch (error) {
@@ -871,18 +932,305 @@ function addPolicyToChecklist(policyId) {
   toast(`已将“${policy.title}”材料加入证据清单。`);
 }
 
+const CASE_STATUS_LABELS = {
+  active: "进行中",
+  following: "跟进中",
+  resolved: "已处理",
+  archived: "已归档"
+};
+
+function statusBadge(status) {
+  const value = String(status || "active");
+  return `<span class="status-badge status-${escapeHtml(value)}">${escapeHtml(CASE_STATUS_LABELS[value] || value)}</span>`;
+}
+
+async function refreshHistory() {
+  if (!state.user) {
+    state.history = [];
+    renderHistory();
+    return;
+  }
+  try {
+    const payload = await apiRequest("/api/cases");
+    state.history = payload.cases || [];
+    renderHistory();
+  } catch (error) {
+    toast(`案例档案加载失败：${error.message}`);
+  }
+}
+
+function renderHistory() {
+  const rows = $("#caseHistoryRows");
+  const empty = $("#caseHistoryEmpty");
+  if (!rows || !empty) return;
+  if (!state.history.length) {
+    rows.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+  rows.innerHTML = state.history.map((item) => `
+    <tr>
+      <td>VW-${String(item.id).padStart(6, "0")}</td>
+      <td><strong>${escapeHtml(item.title || item.case_type)}</strong><br><small>${escapeHtml(item.jurisdiction)} · ${escapeHtml(item.document_language)}</small></td>
+      <td><b>${item.risk_score}</b> / ${escapeHtml(item.risk_level)}</td>
+      <td>${statusBadge(item.status)}</td>
+      <td>${escapeHtml(item.created_at)}</td>
+      <td>
+        <div class="history-actions">
+          <select class="case-status-select" data-case-id="${item.id}" aria-label="案例状态">
+            ${Object.entries(CASE_STATUS_LABELS).map(([value, label]) => `<option value="${value}" ${item.status === value ? "selected" : ""}>${label}</option>`).join("")}
+          </select>
+          <button class="secondary-button mini-button case-open" data-case-id="${item.id}">打开</button>
+          <button class="secondary-button mini-button case-report" data-case-id="${item.id}">报告</button>
+          <button class="secondary-button mini-button case-pdf" data-case-id="${item.id}">PDF</button>
+          <button class="danger-button mini-button case-delete" data-case-id="${item.id}">删除</button>
+        </div>
+      </td>
+    </tr>
+  `).join("");
+
+  $$(".case-status-select").forEach((element) => {
+    element.addEventListener("change", () => updateCaseStatus(Number(element.dataset.caseId), element.value));
+  });
+  $$(".case-open").forEach((element) => {
+    element.addEventListener("click", () => openHistoryCase(Number(element.dataset.caseId)));
+  });
+  $$(".case-report").forEach((element) => {
+    element.addEventListener("click", () => openCaseReport(Number(element.dataset.caseId)));
+  });
+  $$(".case-pdf").forEach((element) => {
+    element.addEventListener("click", () => downloadCasePdf(Number(element.dataset.caseId)));
+  });
+  $$(".case-delete").forEach((element) => {
+    element.addEventListener("click", () => deleteHistoryCase(Number(element.dataset.caseId)));
+  });
+}
+
+async function openHistoryCase(caseId) {
+  try {
+    const payload = await apiRequest(`/api/cases/${caseId}`);
+    const item = payload.case;
+    if (!item?.result) throw new Error("该历史案例没有可回放的研判快照");
+    state.lastAnalysis = item.result;
+    state.lastCaseId = item.id;
+    state.currentCase = { id: item.id, type: item.case_type, text: "" };
+    renderAnalysis(item.result);
+    updateEvidenceDocuments(item.result);
+    navigate("analysis");
+    $("#resultStatus").textContent = `历史案例 VW-${String(item.id).padStart(6, "0")}`;
+    toast("已载入脱敏后的历史研判快照。");
+  } catch (error) {
+    toast(`案例载入失败：${error.message}`);
+  }
+}
+
+async function updateCaseStatus(caseId, status) {
+  try {
+    await apiRequest("/api/cases/status", {
+      method: "POST",
+      body: JSON.stringify({ case_id: caseId, status })
+    });
+    toast("案例状态已更新。");
+    refreshHistory();
+  } catch (error) {
+    toast(`状态更新失败：${error.message}`);
+  }
+}
+
+async function deleteHistoryCase(caseId) {
+  if (!window.confirm("删除后案例和关联证据文件都将被移除，是否继续？")) return;
+  try {
+    await apiRequest("/api/cases/delete", {
+      method: "POST",
+      body: JSON.stringify({ case_id: caseId })
+    });
+    if (state.lastCaseId === caseId) {
+      state.lastCaseId = null;
+      state.lastAnalysis = null;
+    }
+    toast("案例已删除。");
+    refreshHistory();
+  } catch (error) {
+    toast(`删除失败：${error.message}`);
+  }
+}
+
+function openCaseReport(caseId) {
+  window.open(apiUrl(`/api/cases/${caseId}/report`), "_blank", "noopener");
+}
+
+async function downloadCasePdf(caseId) {
+  try {
+    const response = await fetch(apiUrl(`/api/cases/${caseId}/report.pdf`), { credentials: "include" });
+    if (!response.ok) {
+      let message = `PDF生成失败 ${response.status}`;
+      try {
+        const payload = await response.json();
+        message = payload.error || message;
+      } catch (error) {
+        console.warn(error);
+      }
+      if (response.status === 501) {
+        openCaseReport(caseId);
+        toast("服务器未安装PDF组件，已打开打印版，可另存为PDF。");
+        return;
+      }
+      throw new Error(message);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `职安盾-研判报告-VW-${String(caseId).padStart(6, "0")}.pdf`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    toast("PDF研判报告已下载。");
+  } catch (error) {
+    toast(`PDF下载失败：${error.message}`);
+  }
+}
+
+async function refreshEvidenceFiles() {
+  if (!state.user) {
+    state.evidenceFiles = [];
+    renderEvidenceFiles();
+    return;
+  }
+  try {
+    const payload = await apiRequest("/api/evidence");
+    state.evidenceFiles = payload.evidence || [];
+    renderEvidenceFiles();
+  } catch (error) {
+    toast(`证据文件加载失败：${error.message}`);
+  }
+}
+
+function renderEvidenceFiles() {
+  const container = $("#evidenceFileList");
+  if (!container) return;
+  if (!state.evidenceFiles.length) {
+    container.innerHTML = '<div class="evidence-empty">尚未上传证据原件。上传后会生成 SHA-256 哈希并写入证据包。</div>';
+    return;
+  }
+  container.innerHTML = state.evidenceFiles.map((item) => `
+    <div class="evidence-file-item">
+      <div><strong>${escapeHtml(item.filename)}</strong><br><small>${formatBytes(item.size_bytes)} · ${escapeHtml(item.created_at)}${item.case_id ? ` · 案例 VW-${String(item.case_id).padStart(6, "0")}` : ""}</small></div>
+      <div class="hash-text">SHA-256 ${escapeHtml(item.sha256)}</div>
+      <button class="secondary-button mini-button evidence-download" data-evidence-id="${item.id}">下载</button>
+      <button class="danger-button mini-button evidence-delete" data-evidence-id="${item.id}">删除</button>
+    </div>
+  `).join("");
+  $$(".evidence-download").forEach((button) => {
+    button.addEventListener("click", () => {
+      window.location.href = apiUrl(`/api/evidence/${button.dataset.evidenceId}/download`);
+    });
+  });
+  $$(".evidence-delete").forEach((button) => {
+    button.addEventListener("click", () => deleteEvidenceFile(Number(button.dataset.evidenceId)));
+  });
+}
+
+async function uploadEvidenceFile() {
+  if (!state.user) {
+    $("#authDialog")?.showModal();
+    toast("上传证据文件需要先登录。");
+    return;
+  }
+  const input = $("#evidenceFileInput");
+  const file = input?.files?.[0];
+  if (!file) {
+    toast("请先选择证据文件。");
+    return;
+  }
+  if (file.size > 8 * 1024 * 1024) {
+    toast("证据文件不能超过 8MB。");
+    return;
+  }
+  const button = $("#uploadEvidenceButton");
+  button.disabled = true;
+  button.textContent = "上传并计算哈希中…";
+  try {
+    const attachCase = $("#evidenceAttachCase")?.checked && state.lastCaseId;
+    await apiRequest("/api/evidence/upload", {
+      method: "POST",
+      body: JSON.stringify({
+        filename: file.name,
+        caseId: attachCase ? state.lastCaseId : null,
+        content_base64: arrayBufferToBase64(await file.arrayBuffer())
+      })
+    });
+    input.value = "";
+    toast("证据文件已保存，并生成 SHA-256 哈希。");
+    refreshEvidenceFiles();
+  } catch (error) {
+    toast(`证据上传失败：${error.message}`);
+  } finally {
+    button.disabled = false;
+    button.textContent = "上传并计算 SHA-256";
+  }
+}
+
+async function deleteEvidenceFile(evidenceId) {
+  if (!window.confirm("删除后原件将从服务器移除，是否继续？")) return;
+  try {
+    await apiRequest("/api/evidence/delete", {
+      method: "POST",
+      body: JSON.stringify({ evidence_id: evidenceId })
+    });
+    toast("证据文件已删除。");
+    refreshEvidenceFiles();
+  } catch (error) {
+    toast(`删除失败：${error.message}`);
+  }
+}
+
+async function downloadEvidencePackage() {
+  if (!state.user) {
+    $("#authDialog")?.showModal();
+    return;
+  }
+  try {
+    const response = await fetch(apiUrl("/api/evidence/package"), { credentials: "include" });
+    if (!response.ok) {
+      let message = `下载失败 ${response.status}`;
+      try {
+        const payload = await response.json();
+        message = payload.error || message;
+      } catch (error) {
+        console.warn(error);
+      }
+      throw new Error(message);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `职安盾-证据包-${new Date().toISOString().slice(0, 10)}.zip`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    toast("证据包已生成。");
+  } catch (error) {
+    toast(`证据包下载失败：${error.message}`);
+  }
+}
+
 async function refreshAdminPage() {
   if (!state.user || state.user.role !== "admin") return;
   try {
-    const response = await fetch(`${state.settings.apiBase.replace(/\/$/, "")}/api/admin/stats`, { credentials: "include", headers: apiHeaders() });
-    const data = await response.json();
-    if (!response.ok || data.error) throw new Error(data.error || `API ${response.status}`);
+    const data = await apiRequest("/api/admin/stats");
     $("#adminUserCount").textContent = data.userCount;
     $("#adminCaseCount").textContent = data.caseCount;
     $("#adminHighRiskCount").textContent = data.highRiskCount;
     $("#adminModel").textContent = data.model || "未配置";
+    $("#adminActiveUserCount").textContent = data.activeUserCount;
+    $("#adminEvidenceCount").textContent = data.evidenceCount;
     $("#adminRecentCases").innerHTML = data.cases.length
-      ? data.cases.map((item) => `<tr><td>${item.id}</td><td>${escapeHtml(item.username)}</td><td>${escapeHtml(item.case_type)}</td><td>${escapeHtml(item.jurisdiction)}</td><td>${escapeHtml(item.document_language)}</td><td>${item.risk_score}</td><td>${escapeHtml(item.created_at)}</td></tr>`).join("")
+      ? data.cases.map((item) => `<tr><td>VW-${String(item.id).padStart(6, "0")}</td><td>${escapeHtml(item.username)}</td><td>${escapeHtml(item.title || item.case_type)}</td><td>${escapeHtml(item.jurisdiction)}</td><td>${item.risk_score}</td><td>${statusBadge(item.status)}</td><td>${escapeHtml(item.created_at)}</td></tr>`).join("")
       : '<tr><td colspan="7">暂无研判记录</td></tr>';
     $("#adminTopRisks").innerHTML = data.topRisks.length
       ? data.topRisks.map(([id, count]) => `<div class="admin-risk-item"><span>${escapeHtml(getRisk(id)?.title || id)}</span><strong>${count}</strong></div>`).join("")
@@ -892,30 +1240,189 @@ async function refreshAdminPage() {
         <td>${user.id}</td>
         <td>${escapeHtml(user.username)}</td>
         <td><select class="admin-role-select" data-user-id="${user.id}"><option value="student" ${user.role === "student" ? "selected" : ""}>student</option><option value="admin" ${user.role === "admin" ? "selected" : ""}>admin</option></select></td>
+        <td>${user.status === "active" ? '<span class="status-badge status-active">可用</span>' : '<span class="status-badge status-disabled">已停用</span>'}</td>
+        <td>${escapeHtml(user.last_login_at || "从未登录")}</td>
         <td>${escapeHtml(user.created_at)}</td>
-        <td><button class="secondary-button admin-save-role" data-user-id="${user.id}">保存</button></td>
+        <td><div class="admin-action-group">
+          <button class="secondary-button admin-save-role" data-user-id="${user.id}">保存角色</button>
+          <button class="secondary-button admin-toggle-status" data-user-id="${user.id}" data-status="${user.status === "active" ? "disabled" : "active"}">${user.status === "active" ? "停用" : "启用"}</button>
+          <button class="secondary-button admin-reset-password" data-user-id="${user.id}">重置密码</button>
+          <button class="danger-button admin-delete-user" data-user-id="${user.id}">删除</button>
+        </div></td>
       </tr>`).join("");
+
+    const auditLabels = {
+      login: "登录", register: "注册", logout: "退出", analyze_contract: "合同研判",
+      upload_evidence: "上传证据", download_evidence: "下载证据", delete_evidence: "删除证据",
+      delete_case: "删除案例", update_case_status: "更新案例", change_password: "修改密码",
+      revoke_sessions: "退出设备", export_data: "导出数据", export_evidence_package: "下载证据包",
+      delete_account: "删除账号", admin_set_role: "调整角色", admin_set_status: "调整状态",
+      admin_reset_password: "重置密码", admin_delete_user: "删除用户"
+    };
+    $("#adminAuditLogs").innerHTML = data.auditLogs?.length
+      ? data.auditLogs.map((item) => `<tr><td>${escapeHtml(item.created_at)}</td><td>${escapeHtml(item.actor || "已删除用户")}</td><td><span class="audit-action">${escapeHtml(auditLabels[item.action] || item.action)}</span></td><td>${escapeHtml(item.target_type || "")} ${escapeHtml(item.target_id || "")}</td><td>${escapeHtml(item.detail || "")}</td><td>${escapeHtml(item.client_ip || "")}</td></tr>`).join("")
+      : '<tr><td colspan="6">暂无审计记录</td></tr>';
+
+    const runAdminAction = async (path, payload, successMessage) => {
+      try {
+        const result = await apiRequest(path, { method: "POST", body: JSON.stringify(payload) });
+        if (successMessage) toast(successMessage);
+        refreshAdminPage();
+        return result;
+      } catch (error) {
+        toast(`操作失败：${error.message}`);
+        return null;
+      }
+    };
+
     $$(".admin-save-role").forEach((button) => {
-      button.addEventListener("click", async () => {
+      button.addEventListener("click", () => {
         const userId = button.dataset.userId;
         const role = $(`.admin-role-select[data-user-id="${userId}"]`).value;
-        const saveResponse = await fetch(`${state.settings.apiBase.replace(/\/$/, "")}/api/admin/set-role`, {
-          method: "POST",
-          credentials: "include",
-          headers: apiHeaders({ "Content-Type": "application/json" }),
-          body: JSON.stringify({ user_id: Number(userId), role })
-        });
-        const saveData = await saveResponse.json();
-        if (!saveResponse.ok || saveData.error) {
-          toast(`角色更新失败：${saveData.error || saveResponse.status}`);
-          return;
+        runAdminAction("/api/admin/set-role", { user_id: Number(userId), role }, "用户角色已更新。");
+      });
+    });
+    $$(".admin-toggle-status").forEach((button) => {
+      button.addEventListener("click", () => {
+        const userId = Number(button.dataset.userId);
+        const status = button.dataset.status;
+        if (status === "disabled" && !window.confirm("停用后该用户会立即退出所有设备，是否继续？")) return;
+        runAdminAction("/api/admin/set-status", { user_id: userId, status }, status === "disabled" ? "账号已停用。" : "账号已启用。");
+      });
+    });
+    $$(".admin-reset-password").forEach((button) => {
+      button.addEventListener("click", async () => {
+        if (!window.confirm("重置后该用户所有登录会话会失效，是否继续？")) return;
+        const result = await runAdminAction("/api/admin/reset-password", { user_id: Number(button.dataset.userId) }, "密码已重置。");
+        if (result?.temporaryPassword) {
+          window.prompt("请安全转交临时密码；关闭后无法再次查看：", result.temporaryPassword);
         }
-        toast("用户角色已更新。");
-        refreshAdminPage();
+      });
+    });
+    $$(".admin-delete-user").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (!window.confirm("删除用户会同时删除其案例、证据文件和会话，且不可恢复。是否继续？")) return;
+        runAdminAction("/api/admin/delete-user", { user_id: Number(button.dataset.userId) }, "用户及其数据已删除。");
       });
     });
   } catch (error) {
     toast(`后台数据加载失败：${error.message}`);
+  }
+}
+
+function setAccountMessage(message, isError = false) {
+  const element = $("#accountMessage");
+  if (!element) return;
+  element.textContent = message;
+  element.classList.toggle("error", isError);
+  element.classList.remove("hidden");
+}
+
+async function refreshAccountCenter() {
+  if (!state.user) return;
+  try {
+    const payload = await apiRequest("/api/auth/sessions");
+    renderSessions(payload.sessions || []);
+  } catch (error) {
+    setAccountMessage(`登录设备加载失败：${error.message}`, true);
+  }
+}
+
+function renderSessions(sessions) {
+  const container = $("#sessionList");
+  if (!container) return;
+  if (!sessions.length) {
+    container.innerHTML = '<div class="evidence-empty">暂无有效会话。</div>';
+    return;
+  }
+  container.innerHTML = sessions.map((session) => `
+    <div class="session-item ${session.current ? "session-current" : ""}">
+      <div>
+        <strong>${session.current ? "当前设备" : "其他设备"} · ${escapeHtml(session.client_ip || "未知IP")}</strong>
+        <small>${escapeHtml(session.user_agent || "未知浏览器")} · 登录于 ${escapeHtml(session.created_at)} · 到期 ${escapeHtml(session.expires_at)}</small>
+      </div>
+      ${session.current ? '<span class="status-badge status-active">正在使用</span>' : ""}
+    </div>
+  `).join("");
+}
+
+async function changePassword(event) {
+  event?.preventDefault();
+  const currentPassword = $("#currentPassword")?.value || "";
+  const newPassword = $("#newPassword")?.value || "";
+  const confirmPassword = $("#confirmPassword")?.value || "";
+  if (newPassword.length < 10) {
+    setAccountMessage("新密码至少需要10位。", true);
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    setAccountMessage("两次输入的新密码不一致。", true);
+    return;
+  }
+  try {
+    await apiRequest("/api/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+    ["currentPassword", "newPassword", "confirmPassword"].forEach((id) => { if ($(`#${id}`)) $(`#${id}`).value = ""; });
+    setAccountMessage("密码已更新，其他设备的登录会话已退出。");
+    refreshAccountCenter();
+  } catch (error) {
+    setAccountMessage(`密码更新失败：${error.message}`, true);
+  }
+}
+
+async function revokeOtherSessions() {
+  try {
+    await apiRequest("/api/auth/revoke-sessions", { method: "POST", body: "{}" });
+    setAccountMessage("其他设备的登录会话已全部退出。");
+    refreshAccountCenter();
+  } catch (error) {
+    setAccountMessage(`操作失败：${error.message}`, true);
+  }
+}
+
+async function exportAccountData() {
+  const password = $("#exportPassword")?.value || "";
+  if (!password) {
+    setAccountMessage("请输入当前密码后再导出。", true);
+    return;
+  }
+  try {
+    const data = await apiRequest("/api/auth/export", {
+      method: "POST",
+      body: JSON.stringify({ password })
+    });
+    downloadJson(`职安盾-个人数据-${new Date().toISOString().slice(0, 10)}.json`, data);
+    $("#exportPassword").value = "";
+    setAccountMessage("个人数据已导出。证据原件请使用“下载完整证据包”。");
+  } catch (error) {
+    setAccountMessage(`导出失败：${error.message}`, true);
+  }
+}
+
+async function deleteAccount() {
+  const confirmName = $("#deleteAccountConfirm")?.value.trim() || "";
+  const password = $("#deleteAccountPassword")?.value || "";
+  if (!confirmName || !password) {
+    setAccountMessage("请输入用户名和密码后确认删除。", true);
+    return;
+  }
+  if (!window.confirm("账号、案例和证据文件将被永久删除，是否继续？")) return;
+  try {
+    await apiRequest("/api/auth/delete", {
+      method: "POST",
+      body: JSON.stringify({ confirm: confirmName, password })
+    });
+    state.user = null;
+    state.history = [];
+    state.evidenceFiles = [];
+    setAccountMessage("账号及全部数据已删除。");
+    updateUserUI();
+    navigate("dashboard");
+    $("#authDialog")?.showModal();
+  } catch (error) {
+    setAccountMessage(`删除失败：${error.message}`, true);
   }
 }
 
@@ -1023,9 +1530,29 @@ function bindEvents() {
       toast("请先完成一次研判。");
       return;
     }
+    if (state.lastCaseId && state.settings.runMode === "api") {
+      openCaseReport(state.lastCaseId);
+      return;
+    }
     downloadText("职安盾-研判报告.txt", buildReport(state.lastAnalysis));
     toast("研判报告已生成并下载。");
   });
+  $("#downloadPdfReport")?.addEventListener("click", () => {
+    if (!state.lastCaseId || state.settings.runMode !== "api") {
+      toast("PDF报告需要完成一次登录后的后端研判。");
+      return;
+    }
+    downloadCasePdf(state.lastCaseId);
+  });
+
+  $("#refreshHistory")?.addEventListener("click", refreshHistory);
+  $("#uploadEvidenceButton")?.addEventListener("click", uploadEvidenceFile);
+  $("#downloadEvidencePackage")?.addEventListener("click", downloadEvidencePackage);
+  $("#passwordForm")?.addEventListener("submit", changePassword);
+  $("#revokeOtherSessions")?.addEventListener("click", revokeOtherSessions);
+  $("#exportAccountData")?.addEventListener("click", exportAccountData);
+  $("#downloadEvidenceZip")?.addEventListener("click", downloadEvidencePackage);
+  $("#deleteAccountButton")?.addEventListener("click", deleteAccount);
 
   $("#addEvidenceButton").addEventListener("click", addEvidence);
   $("#newEvidenceInput").addEventListener("keydown", (event) => {
@@ -1089,6 +1616,11 @@ function init() {
   (async () => {
     await refreshBackendStatus();
     const authenticated = await loadCurrentUser();
+    if (authenticated) {
+      if (state.currentPage === "history") refreshHistory();
+      if (state.currentPage === "evidence") refreshEvidenceFiles();
+      if (state.currentPage === "account") refreshAccountCenter();
+    }
     if (state.settings.runMode === "api" && !authenticated) {
       clearAuthError();
       $("#authDialog")?.showModal();
@@ -1099,7 +1631,7 @@ function init() {
 
   const params = new URLSearchParams(window.location.search);
   const requestedPage = params.get("page");
-  if (requestedPage && ["dashboard", "analysis", "evidence", "policy", "admin", "evaluation", "architecture"].includes(requestedPage)) {
+  if (requestedPage && ["dashboard", "analysis", "history", "evidence", "policy", "account", "admin", "evaluation", "architecture"].includes(requestedPage)) {
     navigate(requestedPage);
   }
   if (params.get("demo") === "risk") {

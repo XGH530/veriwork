@@ -6,13 +6,27 @@ After=network.target
 Type=simple
 WorkingDirectory=/opt/veriwork
 EnvironmentFile=/opt/veriwork/.env
+Environment=PYTHONDONTWRITEBYTECODE=1
 ExecStart=/opt/veriwork/.venv/bin/python /opt/veriwork/server.py
 Restart=always
 RestartSec=3
 User=veriwork
 Group=veriwork
+UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ReadWritePaths=/opt/veriwork-data
 
 [Install]
 WantedBy=multi-user.target

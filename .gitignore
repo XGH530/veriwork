@@ -11,3 +11,4 @@ data/official_sources/raw/*.html
 data/competition_history/**/*.pdf
 data/veriwork.db
 data/veriwork.db-*
+data/evidence/

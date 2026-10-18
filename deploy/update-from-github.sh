@@ -16,7 +16,7 @@ ensure_env() {
     fi
 }
 
-mkdir -p "$DATA_DIR/backups"
+mkdir -p "$DATA_DIR/backups" "$DATA_DIR/evidence"
 chown -R veriwork:veriwork "$DATA_DIR"
 
 # Keep the production database outside the web application directory.
@@ -38,6 +38,8 @@ fi
 
 touch "$ENV_FILE"
 ensure_env VERIWORK_DB_PATH "$DATA_DIR/veriwork.db"
+ensure_env VERIWORK_EVIDENCE_DIR "$DATA_DIR/evidence"
+ensure_env MAX_EVIDENCE_BYTES "8388608"
 ensure_env SESSION_COOKIE_PATH "/veriwork/"
 ensure_env SESSION_COOKIE_SECURE "0"
 chown veriwork:veriwork "$ENV_FILE"

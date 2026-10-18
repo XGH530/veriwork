@@ -16,6 +16,11 @@
 - 支持 OpenAI-compatible 模型对照评测。
 - 提供答辩 PPT、三分钟演示脚本、评测方案和提交冲刺清单。
 - 地方政策包已建结构，但数值必须由团队核验官方原文后填入。
+- 支持案例档案、办理状态、登录设备、修改密码、个人数据导出和账号删除。
+- 支持证据原件上传、SHA-256 哈希、单文件下载和 ZIP 证据包。
+- 支持服务端 PDF 研判报告；未安装 PDF 组件时自动退回 A4 打印版另存为 PDF。
+- 管理端支持用户停用、重置密码、删除用户和审计日志。
+- 提供每日数据库/证据备份脚本和 systemd 权限收口配置。
 
 ## 核心能力
 
@@ -23,6 +28,8 @@
 2. **证据闭环**：从风险识别延伸到证据保存、时间线、沟通问题、投诉材料和办理路径。
 3. **量化验证**：记录风险精确率、召回率、F1、法源覆盖率和待核实召回率。
 4. **隐私与合规**：原始材料默认不长期保存；手机号、身份证号、邮箱和银行卡号在大模型调用前自动脱敏，禁止把未经授权的真实合同放入公开材料。
+5. **数据权利**：用户可以查看案例历史、导出个人数据、下载证据包、退出其他设备并永久删除账号。
+6. **运营留痕**：登录、研判、证据上传/下载、数据导出和管理员操作均写入最小化审计日志。
 
 ## 用户登录
 
@@ -173,6 +180,10 @@ python tools/validate_policy_pack.py
    ├─ 三分钟演示脚本.md
    ├─ 评测方案.md
    ├─ 数据与隐私治理.md
+   ├─ 平台后台与数据治理说明.md
+   ├─ HTTPS与生产上线清单.md
+   ├─ 用户测试与法律复核方案.md
+   ├─ 地方政策核验清单.md
    └─ 省赛提交冲刺清单.md
 ```
 
@@ -183,7 +194,10 @@ python tools/validate_policy_pack.py
 - `deploy/veriwork.nginx.conf`：Nginx子路径反向代理，并在代理前直接拒绝数据库、源码、文档和部署文件；
 - `deploy/apply-nginx-guard.sh`：备份当前配置后安装安全规则并执行 `nginx -t`；
 - `deploy/veriwork.service`：systemd常驻服务；
-- `deploy/update-from-github.sh`：备份数据库、迁移至Web目录外、从GitHub拉取更新并重启。
+- `deploy/update-from-github.sh`：备份数据库、迁移至Web目录外、从GitHub拉取更新并重启；
+- `deploy/veriwork-backup.sh`：数据库与证据目录备份；
+- `deploy/install-backup-timer.sh`：安装每日 03:30 自动备份；
+- `deploy/veriwork.service`：带 `ProtectSystem=strict` 和最小权限的 systemd 配置。
 
 生产数据库应通过 `VERIWORK_DB_PATH` 放在 `/opt/veriwork-data/veriwork.db`，不要继续留在应用目录。每次更新脚本会保留最近14天的数据库备份。公网部署必须启用HTTPS，并将 `SESSION_COOKIE_SECURE` 设为 `1`。
 

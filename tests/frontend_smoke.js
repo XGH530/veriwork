@@ -1,4 +1,4 @@
-﻿const fs = require("fs");
+const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 
@@ -11,7 +11,7 @@ global.document = {
   getElementById: () => null
 };
 global.performance = { now: () => Date.now() };
-global.localStorage = { getItem: () => null, setItem: () => {} };
+global.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
 global.location = { protocol: "file:", origin: "file://", search: "" };
 
 vm.runInThisContext(fs.readFileSync(path.join(root, "data.js"), "utf8"), { filename: "data.js" });

@@ -22,11 +22,13 @@ import threading
 import time
 import urllib.error
 import urllib.request
+import zipfile
 from datetime import datetime, timedelta
+from html import escape as html_escape
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import quote, unquote, urlparse
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -51,6 +53,9 @@ MAX_BODY = 12 * 1024 * 1024
 MAX_AUTH_BODY = 64 * 1024
 _db_path = os.environ.get("VERIWORK_DB_PATH", "").strip()
 DB_PATH = Path(_db_path).expanduser().resolve() if _db_path else BASE_DIR / "data" / "veriwork.db"
+_evidence_dir = os.environ.get("VERIWORK_EVIDENCE_DIR", "").strip()
+EVIDENCE_DIR = Path(_evidence_dir).expanduser().resolve() if _evidence_dir else DB_PATH.parent / "evidence"
+MAX_EVIDENCE_BYTES = max(1024, int(os.environ.get("MAX_EVIDENCE_BYTES", str(8 * 1024 * 1024))))
 PBKDF2_ITERATIONS = 200_000
 SESSION_DAYS = 7
 SESSION_COOKIE_NAME = os.environ.get("SESSION_COOKIE_NAME", "veriwork_session").strip() or "veriwork_session"
@@ -61,6 +66,8 @@ LOGIN_FAILURE_LIMIT = max(1, int(os.environ.get("LOGIN_FAILURE_LIMIT", "5")))
 LOGIN_WINDOW_SECONDS = max(60, int(os.environ.get("LOGIN_WINDOW_SECONDS", "600")))
 REGISTER_LIMIT = max(1, int(os.environ.get("REGISTER_LIMIT", "5")))
 REGISTER_WINDOW_SECONDS = max(60, int(os.environ.get("REGISTER_WINDOW_SECONDS", "3600")))
+REPORT_DISCLAIMER = "本报告用于就业风险提示、普法教育和材料整理，不替代律师、仲裁机构或人社部门作出最终法律判断。"
+STARTED_AT = time.time()
 _rate_lock = threading.Lock()
 _login_failures: dict[str, list[float]] = {}
 _register_attempts: dict[str, list[float]] = {}
@@ -68,9 +75,18 @@ _register_attempts: dict[str, list[float]] = {}
 
 def auth_db() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(DB_PATH)
+    EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(DB_PATH, timeout=10)
     connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA foreign_keys = ON")
+    connection.execute("PRAGMA busy_timeout = 5000")
     return connection
+
+
+def ensure_column(connection: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    columns = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})")}
+    if column not in columns:
+        connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def hash_password(password: str, salt: str | None = None) -> tuple[str, str]:
@@ -91,6 +107,9 @@ def init_auth_db() -> None:
                 salt TEXT NOT NULL,
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'student',
+                status TEXT NOT NULL DEFAULT 'active',
+                last_login_at TEXT,
+                updated_at TEXT,
                 created_at TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS sessions (
@@ -98,22 +117,63 @@ def init_auth_db() -> None:
                 user_id INTEGER NOT NULL,
                 created_at TEXT NOT NULL,
                 expires_at TEXT NOT NULL,
+                user_agent TEXT NOT NULL DEFAULT '',
+                client_ip TEXT NOT NULL DEFAULT '',
                 FOREIGN KEY(user_id) REFERENCES users(id)
             );
             CREATE TABLE IF NOT EXISTS cases (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
+                title TEXT NOT NULL DEFAULT '',
                 case_type TEXT NOT NULL,
                 jurisdiction TEXT NOT NULL,
                 document_language TEXT NOT NULL,
                 risk_score INTEGER NOT NULL,
                 risk_level TEXT NOT NULL,
                 risk_ids TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'active',
+                result_json TEXT,
+                updated_at TEXT,
                 created_at TEXT NOT NULL,
                 FOREIGN KEY(user_id) REFERENCES users(id)
             );
+            CREATE TABLE IF NOT EXISTS evidence_files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                case_id INTEGER,
+                filename TEXT NOT NULL,
+                content_type TEXT NOT NULL,
+                size_bytes INTEGER NOT NULL,
+                sha256 TEXT NOT NULL,
+                storage_path TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(id),
+                FOREIGN KEY(case_id) REFERENCES cases(id)
+            );
+            CREATE TABLE IF NOT EXISTS audit_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                actor_user_id INTEGER,
+                action TEXT NOT NULL,
+                target_type TEXT,
+                target_id TEXT,
+                detail TEXT,
+                client_ip TEXT,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_cases_user_created ON cases(user_id, created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_evidence_user_created ON evidence_files(user_id, created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at DESC);
             """
         )
+        ensure_column(connection, "users", "status", "TEXT NOT NULL DEFAULT 'active'")
+        ensure_column(connection, "users", "last_login_at", "TEXT")
+        ensure_column(connection, "users", "updated_at", "TEXT")
+        ensure_column(connection, "sessions", "user_agent", "TEXT NOT NULL DEFAULT ''")
+        ensure_column(connection, "sessions", "client_ip", "TEXT NOT NULL DEFAULT ''")
+        ensure_column(connection, "cases", "title", "TEXT NOT NULL DEFAULT ''")
+        ensure_column(connection, "cases", "status", "TEXT NOT NULL DEFAULT 'active'")
+        ensure_column(connection, "cases", "result_json", "TEXT")
+        ensure_column(connection, "cases", "updated_at", "TEXT")
         def sync_configured_account(username_key: str, password_key: str, default_username: str, role: str, required: bool) -> None:
             username = os.environ.get(username_key, default_username).strip() or default_username
             password = os.environ.get(password_key, "").strip()
@@ -158,7 +218,7 @@ def register_user(username: str, password: str, role: str = "student") -> dict:
                 (username, salt, digest, role, datetime.now().isoformat(timespec="seconds")),
             )
             connection.commit()
-            return {"id": cursor.lastrowid, "username": username, "role": role}
+            return {"id": cursor.lastrowid, "username": username, "role": role, "status": "active"}
     except sqlite3.IntegrityError as exc:
         raise ValueError("用户名已存在") from exc
 
@@ -171,21 +231,28 @@ def authenticate_user(username: str, password: str) -> dict | None:
     _, digest = hash_password(password, row["salt"])
     if not secrets.compare_digest(digest, row["password_hash"]):
         return None
-    return {"id": row["id"], "username": row["username"], "role": row["role"]}
+    return {"id": row["id"], "username": row["username"], "role": row["role"], "status": row["status"]}
 
 
 def hash_session_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-def create_session(user_id: int) -> str:
+def create_session(user_id: int, user_agent: str = "", client_ip: str = "") -> str:
     token = secrets.token_urlsafe(48)
     now = datetime.now()
     expires = now + timedelta(days=SESSION_DAYS)
     with auth_db() as connection:
         connection.execute(
-            "INSERT INTO sessions(token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
-            (hash_session_token(token), user_id, now.isoformat(timespec="seconds"), expires.isoformat(timespec="seconds")),
+            "INSERT INTO sessions(token, user_id, created_at, expires_at, user_agent, client_ip) VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                hash_session_token(token),
+                user_id,
+                now.isoformat(timespec="seconds"),
+                expires.isoformat(timespec="seconds"),
+                user_agent[:300],
+                client_ip[:64],
+            ),
         )
         connection.commit()
     return token
@@ -198,7 +265,7 @@ def resolve_session(token: str | None) -> dict | None:
     with auth_db() as connection:
         row = connection.execute(
             """
-            SELECT users.id, users.username, users.role, sessions.expires_at
+            SELECT users.id, users.username, users.role, users.status, sessions.expires_at
             FROM sessions JOIN users ON sessions.user_id = users.id
             WHERE sessions.token = ?
             """,
@@ -206,44 +273,175 @@ def resolve_session(token: str | None) -> dict | None:
         ).fetchone()
         if not row:
             return None
-        if datetime.fromisoformat(row["expires_at"]) < datetime.now():
+        if datetime.fromisoformat(row["expires_at"]) < datetime.now() or row["status"] != "active":
             connection.execute("DELETE FROM sessions WHERE token = ?", (token_digest,))
             connection.commit()
             return None
-    return {"id": row["id"], "username": row["username"], "role": row["role"]}
+    return {"id": row["id"], "username": row["username"], "role": row["role"], "status": row["status"]}
 
 
-def save_case_record(user: dict, result: dict, case_type: str, jurisdiction: str, language: str) -> None:
+def strip_result_for_storage(result: dict) -> dict:
+    payload = json.loads(json.dumps(result, ensure_ascii=False))
+    payload.pop("inputText", None)
+    for risk in payload.get("risks", []):
+        for key in ("clause", "matchText", "reason", "action", "modelReason", "modelAction"):
+            if risk.get(key):
+                risk[key] = redact_pii(str(risk[key]))
+    if payload.get("complaintDraft"):
+        payload["complaintDraft"] = redact_pii(str(payload["complaintDraft"]))
+    if isinstance(payload.get("questions"), list):
+        payload["questions"] = [redact_pii(str(item)) for item in payload["questions"]]
+    return payload
+
+
+def save_case_record(user: dict, result: dict, case_type: str, jurisdiction: str, language: str) -> int:
+    now = datetime.now().isoformat(timespec="seconds")
+    stored = strip_result_for_storage(result)
+    title = f"{case_type} · {result.get('riskLevel', '风险')}研判"
     with auth_db() as connection:
-        connection.execute(
+        cursor = connection.execute(
             """
-            INSERT INTO cases(user_id, case_type, jurisdiction, document_language, risk_score, risk_level, risk_ids, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO cases(user_id, title, case_type, jurisdiction, document_language, risk_score,
+                              risk_level, risk_ids, status, result_json, updated_at, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)
             """,
             (
                 user["id"],
+                title[:120],
                 case_type,
                 jurisdiction,
                 language,
                 int(result.get("riskScore", 0)),
                 str(result.get("riskLevel", "")),
                 ",".join(risk["id"] for risk in result.get("risks", [])),
-                datetime.now().isoformat(timespec="seconds"),
+                json.dumps(stored, ensure_ascii=False),
+                now,
+                now,
             ),
+        )
+        connection.commit()
+        return int(cursor.lastrowid)
+
+
+def health_payload() -> dict:
+    database_ok = False
+    try:
+        with auth_db() as connection:
+            database_ok = int(connection.execute("SELECT 1").fetchone()[0]) == 1
+    except Exception:  # noqa: BLE001
+        database_ok = False
+    return {
+        "ok": database_ok,
+        "name": "职安盾 VeriWork",
+        "version": "1.1.0",
+        "uptimeSeconds": int(time.time() - STARTED_AT),
+        "databaseOk": database_ok,
+        "evidenceStorageOk": EVIDENCE_DIR.is_dir() and os.access(EVIDENCE_DIR, os.W_OK),
+        "llmConfigured": bool(os.environ.get("LLM_API_URL") and os.environ.get("LLM_API_KEY") and os.environ.get("LLM_MODEL")),
+        "model": os.environ.get("LLM_MODEL", ""),
+        "rules": len(RISKS),
+        "laws": len(LAWS),
+    }
+
+
+def audit_event(actor_user_id: int | None, action: str, target_type: str = "", target_id: str = "", detail: str = "", client_ip: str = "") -> None:
+    with auth_db() as connection:
+        connection.execute(
+            "INSERT INTO audit_logs(actor_user_id, action, target_type, target_id, detail, client_ip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (actor_user_id, action[:80], target_type[:40], str(target_id)[:80], detail[:300], client_ip[:64], datetime.now().isoformat(timespec="seconds")),
         )
         connection.commit()
 
 
+def list_user_cases(user_id: int) -> list[dict]:
+    with auth_db() as connection:
+        rows = connection.execute(
+            """
+            SELECT id, title, case_type, jurisdiction, document_language, risk_score, risk_level,
+                   risk_ids, status, created_at, updated_at
+            FROM cases WHERE user_id = ? ORDER BY id DESC LIMIT 200
+            """,
+            (user_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_case(user_id: int, case_id: int, allow_admin: bool = False) -> dict | None:
+    with auth_db() as connection:
+        row = connection.execute("SELECT * FROM cases WHERE id = ?", (case_id,)).fetchone()
+        if not row:
+            return None
+        if int(row["user_id"]) != int(user_id) and not allow_admin:
+            return None
+    item = dict(row)
+    if item.get("result_json"):
+        try:
+            item["result"] = json.loads(item["result_json"])
+        except json.JSONDecodeError:
+            item["result"] = None
+    item.pop("result_json", None)
+    return item
+
+
+def list_evidence(user_id: int) -> list[dict]:
+    with auth_db() as connection:
+        rows = connection.execute(
+            "SELECT id, case_id, filename, content_type, size_bytes, sha256, created_at FROM evidence_files WHERE user_id = ? ORDER BY id DESC",
+            (user_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def list_sessions(user_id: int, current_token: str | None) -> list[dict]:
+    current_digest = hash_session_token(current_token) if current_token else ""
+    with auth_db() as connection:
+        rows = connection.execute(
+            "SELECT token, created_at, expires_at, user_agent, client_ip FROM sessions WHERE user_id = ? ORDER BY created_at DESC",
+            (user_id,),
+        ).fetchall()
+    return [
+        {
+            "created_at": row["created_at"],
+            "expires_at": row["expires_at"],
+            "user_agent": row["user_agent"],
+            "client_ip": row["client_ip"],
+            "current": secrets.compare_digest(row["token"], current_digest),
+        }
+        for row in rows
+    ]
+
+
+def remove_user_sessions(connection: sqlite3.Connection, user_id: int, keep_token: str | None = None) -> None:
+    keep_digest = hash_session_token(keep_token) if keep_token else ""
+    if keep_digest:
+        connection.execute("DELETE FROM sessions WHERE user_id = ? AND token != ?", (user_id, keep_digest))
+    else:
+        connection.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+
+
 def admin_stats() -> dict:
     with auth_db() as connection:
-        users = connection.execute("SELECT id, username, role, created_at FROM users ORDER BY id DESC").fetchall()
+        users = connection.execute(
+            "SELECT id, username, role, status, last_login_at, created_at FROM users ORDER BY id DESC"
+        ).fetchall()
         cases = connection.execute(
             """
-            SELECT cases.id, cases.case_type, cases.jurisdiction, cases.document_language,
-                   cases.risk_score, cases.risk_level, cases.risk_ids, cases.created_at,
+            SELECT cases.id, cases.title, cases.case_type, cases.jurisdiction, cases.document_language,
+                   cases.risk_score, cases.risk_level, cases.risk_ids, cases.status, cases.created_at,
                    users.username
             FROM cases JOIN users ON cases.user_id = users.id
             ORDER BY cases.id DESC LIMIT 100
+            """
+        ).fetchall()
+        case_count = int(connection.execute("SELECT COUNT(*) FROM cases").fetchone()[0])
+        high_risk_count = int(connection.execute("SELECT COUNT(*) FROM cases WHERE risk_score >= 70").fetchone()[0])
+        evidence_count = int(connection.execute("SELECT COUNT(*) FROM evidence_files").fetchone()[0])
+        audit_logs = connection.execute(
+            """
+            SELECT audit_logs.id, audit_logs.action, audit_logs.target_type, audit_logs.target_id,
+                   audit_logs.detail, audit_logs.client_ip, audit_logs.created_at, users.username AS actor
+            FROM audit_logs LEFT JOIN users ON audit_logs.actor_user_id = users.id
+            ORDER BY audit_logs.id DESC LIMIT 100
             """
         ).fetchall()
     risk_counter = {}
@@ -252,10 +450,14 @@ def admin_stats() -> dict:
             risk_counter[risk_id] = risk_counter.get(risk_id, 0) + 1
     return {
         "userCount": len(users),
-        "caseCount": len(cases),
-        "highRiskCount": sum(1 for case in cases if case["risk_score"] >= 70),
+        "activeUserCount": sum(1 for user in users if user["status"] == "active"),
+        "disabledUserCount": sum(1 for user in users if user["status"] != "active"),
+        "caseCount": case_count,
+        "highRiskCount": high_risk_count,
+        "evidenceCount": evidence_count,
         "users": [dict(row) for row in users],
         "cases": [dict(row) for row in cases],
+        "auditLogs": [dict(row) for row in audit_logs],
         "topRisks": sorted(risk_counter.items(), key=lambda item: item[1], reverse=True)[:10],
         "model": os.environ.get("LLM_MODEL", ""),
         "rules": len(RISKS),
@@ -947,7 +1149,7 @@ def enhance_with_llm(result: dict) -> dict:
     api_url = os.environ.get("LLM_API_URL", "").strip()
     api_key = os.environ.get("LLM_API_KEY", "").strip()
     model = os.environ.get("LLM_MODEL", "").strip()
-    if not api_url or not model:
+    if not api_url or not api_key or not model:
         result["engine"] = "rules+semantic+retrieval"
         return result
 
@@ -1084,6 +1286,277 @@ def clear_login_failures(client_ip: str, username: str) -> None:
         _login_failures.pop(key, None)
 
 
+def get_user_record(user_id: int) -> dict | None:
+    with auth_db() as connection:
+        row = connection.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def verify_user_password(user_id: int, password: str) -> bool:
+    row = get_user_record(user_id)
+    if not row:
+        return False
+    _, digest = hash_password(password, row["salt"])
+    return secrets.compare_digest(digest, row["password_hash"])
+
+
+def set_user_password(user_id: int, password: str) -> None:
+    if len(password) < 10:
+        raise ValueError("密码至少10位")
+    salt, digest = hash_password(password)
+    with auth_db() as connection:
+        connection.execute(
+            "UPDATE users SET salt = ?, password_hash = ?, updated_at = ? WHERE id = ?",
+            (salt, digest, datetime.now().isoformat(timespec="seconds"), user_id),
+        )
+        remove_user_sessions(connection, user_id)
+        connection.commit()
+
+
+def active_admin_count(connection: sqlite3.Connection | None = None) -> int:
+    if connection is not None:
+        return int(connection.execute("SELECT COUNT(*) FROM users WHERE role = 'admin' AND status = 'active'").fetchone()[0])
+    with auth_db() as local:
+        return int(local.execute("SELECT COUNT(*) FROM users WHERE role = 'admin' AND status = 'active'").fetchone()[0])
+
+
+def evidence_rows_for_user(user_id: int) -> list[dict]:
+    with auth_db() as connection:
+        rows = connection.execute(
+            "SELECT * FROM evidence_files WHERE user_id = ? ORDER BY id DESC",
+            (user_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def remove_files(paths: list[str]) -> None:
+    for raw_path in paths:
+        try:
+            Path(raw_path).resolve().unlink(missing_ok=True)
+        except OSError:
+            continue
+
+
+def delete_case_data(user_id: int, case_id: int) -> bool:
+    with auth_db() as connection:
+        row = connection.execute("SELECT id FROM cases WHERE id = ? AND user_id = ?", (case_id, user_id)).fetchone()
+        if not row:
+            return False
+        paths = [item["storage_path"] for item in connection.execute(
+            "SELECT storage_path FROM evidence_files WHERE case_id = ? AND user_id = ?",
+            (case_id, user_id),
+        ).fetchall()]
+        connection.execute("DELETE FROM evidence_files WHERE case_id = ? AND user_id = ?", (case_id, user_id))
+        connection.execute("DELETE FROM cases WHERE id = ? AND user_id = ?", (case_id, user_id))
+        connection.commit()
+    remove_files(paths)
+    return True
+
+
+def delete_user_data(user_id: int) -> list[str]:
+    with auth_db() as connection:
+        paths = [item["storage_path"] for item in connection.execute(
+            "SELECT storage_path FROM evidence_files WHERE user_id = ?",
+            (user_id,),
+        ).fetchall()]
+        connection.execute("DELETE FROM evidence_files WHERE user_id = ?", (user_id,))
+        connection.execute("DELETE FROM cases WHERE user_id = ?", (user_id,))
+        connection.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+        connection.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        connection.commit()
+    return paths
+
+
+def build_user_export(user_id: int) -> dict:
+    user = get_user_record(user_id)
+    if not user:
+        raise ValueError("用户不存在")
+    safe_user = {key: user.get(key) for key in ("id", "username", "role", "status", "created_at", "last_login_at")}
+    cases = []
+    for item in list_user_cases(user_id):
+        detail = get_case(user_id, int(item["id"]))
+        if detail:
+            cases.append(detail)
+    with auth_db() as connection:
+        audit_rows = connection.execute(
+            "SELECT action, target_type, target_id, detail, created_at FROM audit_logs WHERE actor_user_id = ? ORDER BY id DESC LIMIT 500",
+            (user_id,),
+        ).fetchall()
+    return {
+        "exportVersion": "1.0",
+        "generatedAt": datetime.now().isoformat(timespec="seconds"),
+        "user": safe_user,
+        "cases": cases,
+        "evidence": list_evidence(user_id),
+        "sessions": list_sessions(user_id, None),
+        "auditLogs": [dict(row) for row in audit_rows],
+        "notice": "研判原文不长期保存；案例中的敏感字段已脱敏。证据原件请通过证据包下载。",
+    }
+
+
+def build_evidence_package(user_id: int) -> bytes:
+    buffer = io.BytesIO()
+    evidence = evidence_rows_for_user(user_id)
+    user = get_user_record(user_id)
+    manifest = build_user_export(user_id)
+    manifest["evidence"] = [
+        {key: value for key, value in row.items() if key != "storage_path"}
+        for row in evidence
+    ]
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+        for row in evidence:
+            source = Path(row["storage_path"])
+            if not source.is_file():
+                continue
+            safe_name = re.sub(r"[^\w.\-\u4e00-\u9fa5]+", "_", row["filename"])[:120] or "evidence"
+            archive.write(source, f"files/{row['id']:04d}-{safe_name}")
+    return buffer.getvalue()
+
+
+def validate_evidence_content(extension: str, data: bytes) -> None:
+    signatures = {
+        ".pdf": (b"%PDF-",),
+        ".png": (b"\x89PNG\r\n\x1a\n",),
+        ".jpg": (b"\xff\xd8\xff",),
+        ".jpeg": (b"\xff\xd8\xff",),
+        ".webp": (b"RIFF",),
+        ".docx": (b"PK\x03\x04",),
+        ".doc": (b"\xd0\xcf\x11\xe0",),
+    }
+    expected = signatures.get(extension)
+    if expected and not any(data.startswith(item) for item in expected):
+        raise ValueError("文件内容与扩展名不匹配")
+    if extension in {".txt", ".eml", ".msg"} and b"\x00" in data[:4096]:
+        raise ValueError("文本类证据包含二进制内容")
+
+
+def build_report_pdf(user: dict, case: dict, evidence: list[dict]) -> bytes | None:
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+        from reportlab.lib.units import mm
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    except ImportError:
+        return None
+
+    font_name = "STSong-Light"
+    pdfmetrics.registerFont(UnicodeCIDFont(font_name))
+    result = case.get("result") or {}
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=16 * mm,
+        leftMargin=16 * mm,
+        topMargin=16 * mm,
+        bottomMargin=16 * mm,
+        title=f"职安盾研判报告 VW-{int(case['id']):06d}",
+        author="职安盾 VeriWork",
+    )
+    base = getSampleStyleSheet()
+    title_style = ParagraphStyle("CJKTitle", parent=base["Title"], fontName=font_name, fontSize=18, leading=26, alignment=TA_CENTER, textColor=colors.HexColor("#0d5c63"))
+    heading_style = ParagraphStyle("CJKHeading", parent=base["Heading2"], fontName=font_name, fontSize=13, leading=20, textColor=colors.HexColor("#0d5c63"), spaceBefore=10, spaceAfter=6)
+    body_style = ParagraphStyle("CJKBody", parent=base["BodyText"], fontName=font_name, fontSize=9.5, leading=15, alignment=TA_LEFT)
+    small_style = ParagraphStyle("CJKSmall", parent=body_style, fontSize=7.5, leading=11, textColor=colors.HexColor("#475569"), wordWrap="CJK")
+    story = [
+        Paragraph("职安盾 VeriWork 就业合同研判报告", title_style),
+        Paragraph(f"报告编号：VW-{int(case['id']):06d}　生成时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}", body_style),
+        Spacer(1, 8),
+        Paragraph(f"用户：{html_escape(str(user.get('username', '')))}　材料类型：{html_escape(str(case.get('case_type', '')))}", body_style),
+        Paragraph(f"适用地区：{html_escape(str(case.get('jurisdiction', '')))}　文档语言：{html_escape(str(case.get('document_language', '')))}", body_style),
+        Paragraph(f"风险等级：{html_escape(str(case.get('risk_level', '')))}　风险分：{int(case.get('risk_score') or 0)}", body_style),
+        Paragraph("一、风险结论", heading_style),
+    ]
+    risks = result.get("risks") or []
+    if not risks:
+        story.append(Paragraph("本次研判未发现明确高风险条款，仍需核对合同主体、工资、工时、社保和离职条款。", body_style))
+    for index, item in enumerate(risks, 1):
+        story.append(Paragraph(f"{index}. {html_escape(str(item.get('title', '风险项')))}（{html_escape(str(item.get('severity', '')))}）", body_style))
+        story.append(Paragraph(f"原文片段：{html_escape(str(item.get('clause', '')))}", body_style))
+        story.append(Paragraph(f"风险说明：{html_escape(str(item.get('modelReason') or item.get('reason') or ''))}", body_style))
+        story.append(Paragraph(f"行动建议：{html_escape(str(item.get('modelAction') or item.get('action') or ''))}", body_style))
+        story.append(Paragraph("法源依据：" + html_escape("；".join(str(law.get("source", "")) for law in item.get("lawItems", []))), body_style))
+        story.append(Spacer(1, 5))
+    story.append(Paragraph("二、可信研判轨迹", heading_style))
+    for item in result.get("trace") or []:
+        story.append(Paragraph(f"• {html_escape(str(item.get('title', '')))}：{html_escape(str(item.get('detail', '')))}", body_style))
+    story.append(Paragraph("三、证据文件清单", heading_style))
+    table_data = [[
+        Paragraph("文件", small_style), Paragraph("字节", small_style),
+        Paragraph("SHA-256", small_style), Paragraph("上传时间", small_style),
+    ]]
+    for item in evidence:
+        table_data.append([
+            Paragraph(html_escape(str(item["filename"])), small_style),
+            Paragraph(str(int(item["size_bytes"])), small_style),
+            Paragraph(html_escape(str(item["sha256"])), small_style),
+            Paragraph(html_escape(str(item["created_at"])), small_style),
+        ])
+    if len(table_data) == 1:
+        table_data.append([Paragraph("尚未上传证据文件", small_style), "", "", ""])
+    table = Table(table_data, colWidths=[42 * mm, 17 * mm, 78 * mm, 36 * mm], repeatRows=1)
+    table.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#cbd5e1")),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#eef4fb")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.extend([table, Paragraph("四、后续行动", heading_style)])
+    for item in result.get("questions") or []:
+        story.append(Paragraph(f"• {html_escape(str(item))}", body_style))
+    story.extend([
+        Spacer(1, 8),
+        Paragraph(html_escape(REPORT_DISCLAIMER), small_style),
+    ])
+    doc.build(story)
+    return buffer.getvalue()
+
+
+def build_report_html(user: dict, case: dict, evidence: list[dict]) -> str:
+    result = case.get("result") or {}
+    risks = result.get("risks") or []
+    trace = result.get("trace") or []
+    risk_cards = "".join(
+        f"""<section class="risk {html_escape(str(item.get('severity', 'low')))}">
+        <h3>{html_escape(str(item.get('title', '风险项')))} <small>{html_escape(str(item.get('category', '')))}</small></h3>
+        <p><b>原文片段：</b>{html_escape(str(item.get('clause', '')))}</p>
+        <p><b>风险说明：</b>{html_escape(str(item.get('modelReason') or item.get('reason') or ''))}</p>
+        <p><b>行动建议：</b>{html_escape(str(item.get('modelAction') or item.get('action') or ''))}</p>
+        <p><b>法源依据：</b>{html_escape('；'.join(str(law.get('source', '')) for law in item.get('lawItems', [])))}</p>
+        </section>"""
+        for item in risks
+    ) or "<p>本次研判未发现明确高风险条款，仍需核对合同主体、工资、工时、社保和离职条款。</p>"
+    trace_rows = "".join(
+        f"<li><b>{html_escape(str(item.get('title', '')))}</b>：{html_escape(str(item.get('detail', '')))}</li>"
+        for item in trace
+    )
+    evidence_rows = "".join(
+        f"<tr><td>{html_escape(str(item['filename']))}</td><td>{int(item['size_bytes'])}</td><td class=hash>{html_escape(str(item['sha256']))}</td><td>{html_escape(str(item['created_at']))}</td></tr>"
+        for item in evidence
+    ) or "<tr><td colspan=4>尚未上传证据文件</td></tr>"
+    disclaimer = html_escape(REPORT_DISCLAIMER)
+    return f"""<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>职安盾研判报告 VW-{int(case['id']):06d}</title>
+<style>
+@page{{size:A4;margin:16mm}}*{{box-sizing:border-box}}body{{font-family:"Noto Serif CJK SC","Songti SC",serif;color:#172033;line-height:1.65;margin:0;background:#f4f6f8}}
+main{{max-width:940px;margin:24px auto;background:white;padding:42px 48px;box-shadow:0 8px 30px #0f172a18}}header{{border-bottom:3px solid #0d5c63;padding-bottom:18px;margin-bottom:24px}}h1{{font-size:28px;margin:0 0 8px}}h2{{font-size:19px;color:#0d5c63;margin-top:28px;border-left:4px solid #0d5c63;padding-left:10px}}h3{{font-size:16px;margin:0 0 10px}}small{{font-weight:400;color:#667085}}.meta{{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 24px;font-size:14px}}.score{{font-size:38px;font-weight:700;color:#a3342b}}.risk{{border:1px solid #d9dee7;border-radius:8px;padding:14px 16px;margin:12px 0;break-inside:avoid}}.risk.high{{border-left:5px solid #b42318}}.risk.medium{{border-left:5px solid #d97706}}.risk.low{{border-left:5px solid #15803d}}.risk p{{margin:6px 0;font-size:14px}}table{{width:100%;border-collapse:collapse;font-size:12px}}th,td{{border:1px solid #d9dee7;padding:8px;text-align:left;vertical-align:top}}.hash{{font-family:monospace;word-break:break-all}}ul{{font-size:14px}}.disclaimer{{margin-top:26px;padding:14px;background:#fff8e7;border:1px solid #f2d38c;font-size:13px}}.toolbar{{position:fixed;right:24px;top:20px}}button{{background:#0d5c63;color:white;border:0;border-radius:6px;padding:10px 16px;cursor:pointer}}@media print{{body{{background:white}}main{{margin:0;box-shadow:none;padding:0;max-width:none}}.toolbar{{display:none}}.risk{{break-inside:avoid}}}}
+</style></head><body><div class="toolbar"><button onclick="window.print()">打印 / 另存为 PDF</button></div>
+<main><header><h1>职安盾 VeriWork 就业合同研判报告</h1><div>报告编号：VW-{int(case['id']):06d}　生成时间：{html_escape(datetime.now().strftime('%Y-%m-%d %H:%M'))}</div></header>
+<section class="meta"><div>用户：{html_escape(str(user.get('username', '')))}</div><div>材料类型：{html_escape(str(case.get('case_type', '')))}</div><div>适用地区：{html_escape(str(case.get('jurisdiction', '')))}</div><div>文档语言：{html_escape(str(case.get('document_language', '')))}</div><div>风险等级：{html_escape(str(case.get('risk_level', '')))}</div><div>风险分：<span class="score">{int(case.get('risk_score') or 0)}</span></div></section>
+<h2>一、风险结论</h2>{risk_cards}
+<h2>二、可信研判轨迹</h2><ul>{trace_rows or '<li>该历史案例未保存完整轨迹。</li>'}</ul>
+<h2>三、证据文件清单</h2><table><thead><tr><th>文件</th><th>字节</th><th>SHA-256</th><th>上传时间</th></tr></thead><tbody>{evidence_rows}</tbody></table>
+<h2>四、后续行动</h2><ol>{''.join(f'<li>{html_escape(str(item))}</li>' for item in (result.get('questions') or [])) or '<li>请结合人工复核意见补充事实与证据。</li>'}</ol>
+<div class="disclaimer">{disclaimer}</div></main></body></html>"""
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "VeriWork"
     sys_version = ""
@@ -1172,19 +1645,63 @@ class Handler(BaseHTTPRequestHandler):
             return None
         return user
 
+    def read_json_body(self, max_body: int = MAX_BODY) -> dict:
+        content_length = int(self.headers.get("Content-Length", "0"))
+        if content_length <= 0 or content_length > max_body:
+            raise ValueError("请求体为空或过大")
+        body = json.loads(self.rfile.read(content_length).decode("utf-8"))
+        if not isinstance(body, dict):
+            raise ValueError("请求体必须是JSON对象")
+        return body
+
+    def require_admin(self) -> dict | None:
+        user = self.current_user()
+        if not user or user.get("role") != "admin" or user.get("status") != "active":
+            self.send_json({"error": "需要管理员权限"}, 403)
+            return None
+        return user
+
+    def send_bytes(
+        self,
+        data: bytes,
+        content_type: str,
+        status: int = 200,
+        filename: str = "",
+        inline: bool = False,
+        extra_headers: dict[str, str] | None = None,
+    ) -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        if filename:
+            disposition = "inline" if inline else "attachment"
+            self.send_header("Content-Disposition", f"{disposition}; filename*=UTF-8''{quote(filename)}")
+        self.common_headers()
+        for name, value in (extra_headers or {}).items():
+            self.send_header(name, value)
+        self.end_headers()
+        self.wfile.write(data)
+
     def handle_auth(self, path: str) -> None:
         try:
-            content_length = int(self.headers.get("Content-Length", "0"))
-            if content_length <= 0 or content_length > MAX_AUTH_BODY:
-                raise ValueError("请求体为空或过大")
-            body = json.loads(self.rfile.read(content_length).decode("utf-8"))
             client_ip = self.client_ip()
+            if path == "/api/auth/logout":
+                user = self.current_user()
+                revoke_session(self.session_token())
+                if user:
+                    audit_event(user["id"], "logout", "user", user["id"], "用户退出登录", client_ip)
+                self.send_json({"ok": True}, extra_headers={"Set-Cookie": self.session_cookie(None, clear=True)})
+                return
+
+            body = self.read_json_body(MAX_AUTH_BODY)
             if path == "/api/auth/register":
                 if register_rate_limited(client_ip):
                     self.send_json({"error": "注册过于频繁，请稍后再试"}, 429)
                     return
                 user = register_user(str(body.get("username", "")), str(body.get("password", "")))
-                token = create_session(user["id"])
+                token = create_session(user["id"], self.headers.get("User-Agent", ""), client_ip)
+                audit_event(user["id"], "register", "user", user["id"], "用户注册", client_ip)
                 self.send_json({"user": user}, extra_headers={"Set-Cookie": self.session_cookie(token)})
                 return
             if path == "/api/auth/login":
@@ -1197,13 +1714,70 @@ class Handler(BaseHTTPRequestHandler):
                     record_login_failure(client_ip, username)
                     self.send_json({"error": "用户名或密码错误"}, 401)
                     return
+                if user.get("status") != "active":
+                    self.send_json({"error": "账号已停用，请联系管理员"}, 403)
+                    return
                 clear_login_failures(client_ip, username)
-                token = create_session(user["id"])
+                now = datetime.now().isoformat(timespec="seconds")
+                with auth_db() as connection:
+                    connection.execute("UPDATE users SET last_login_at = ?, updated_at = ? WHERE id = ?", (now, now, user["id"]))
+                    connection.commit()
+                token = create_session(user["id"], self.headers.get("User-Agent", ""), client_ip)
+                audit_event(user["id"], "login", "user", user["id"], "用户登录", client_ip)
                 self.send_json({"user": user}, extra_headers={"Set-Cookie": self.session_cookie(token)})
                 return
-            if path == "/api/auth/logout":
-                revoke_session(self.session_token())
-                self.send_json({"ok": True}, extra_headers={"Set-Cookie": self.session_cookie(None, clear=True)})
+            if path == "/api/auth/change-password":
+                user = self.require_user()
+                if not user:
+                    return
+                current_password = str(body.get("currentPassword", ""))
+                new_password = str(body.get("newPassword", ""))
+                if not verify_user_password(user["id"], current_password):
+                    self.send_json({"error": "当前密码不正确"}, 400)
+                    return
+                set_user_password(user["id"], new_password)
+                token = create_session(user["id"], self.headers.get("User-Agent", ""), client_ip)
+                audit_event(user["id"], "change_password", "user", user["id"], "修改密码并退出其他设备", client_ip)
+                self.send_json({"ok": True}, extra_headers={"Set-Cookie": self.session_cookie(token)})
+                return
+            if path == "/api/auth/revoke-sessions":
+                user = self.require_user()
+                if not user:
+                    return
+                token = self.session_token()
+                with auth_db() as connection:
+                    remove_user_sessions(connection, user["id"], keep_token=token)
+                    connection.commit()
+                audit_event(user["id"], "revoke_sessions", "user", user["id"], "退出其他登录设备", client_ip)
+                self.send_json({"ok": True})
+                return
+            if path == "/api/auth/export":
+                user = self.require_user()
+                if not user:
+                    return
+                if not verify_user_password(user["id"], str(body.get("password", ""))):
+                    self.send_json({"error": "密码不正确，无法导出个人数据"}, 400)
+                    return
+                audit_event(user["id"], "export_data", "user", user["id"], "导出个人数据", client_ip)
+                self.send_json(build_user_export(user["id"]))
+                return
+            if path == "/api/auth/delete":
+                user = self.require_user()
+                if not user:
+                    return
+                if str(body.get("confirm", "")) != user["username"]:
+                    self.send_json({"error": "请输入当前用户名以确认删除"}, 400)
+                    return
+                if not verify_user_password(user["id"], str(body.get("password", ""))):
+                    self.send_json({"error": "密码不正确，无法删除账号"}, 400)
+                    return
+                audit_event(user["id"], "delete_account", "user", user["id"], "用户删除账号及全部数据", client_ip)
+                paths = delete_user_data(user["id"])
+                remove_files(paths)
+                self.send_json(
+                    {"ok": True},
+                    extra_headers={"Set-Cookie": self.session_cookie(None, clear=True)},
+                )
                 return
             self.send_json({"error": "not_found"}, 404)
         except (ValueError, json.JSONDecodeError) as exc:
@@ -1217,68 +1791,289 @@ class Handler(BaseHTTPRequestHandler):
             user = self.current_user()
             self.send_json({"authenticated": bool(user), "user": user})
             return
-        if parsed.path == "/api/admin/stats":
-            user = self.current_user()
-            if not user or user.get("role") != "admin":
-                self.send_json({"error": "需要管理员权限"}, 403)
-                return
-            self.send_json(admin_stats())
-            return
         if parsed.path == "/api/health":
-            self.send_json({
-                "ok": True,
-                "name": "职安盾 VeriWork",
-                "llmConfigured": bool(os.environ.get("LLM_API_URL") and os.environ.get("LLM_MODEL")),
-                "model": os.environ.get("LLM_MODEL", ""),
-                "apiUrlConfigured": bool(os.environ.get("LLM_API_URL")),
-                "rules": len(RISKS),
-                "laws": len(LAWS),
-            })
+            self.send_json(health_payload())
             return
         if parsed.path == "/api/laws":
             self.send_json({"laws": LAWS})
             return
-        self.serve_static(parsed.path)
+        if not parsed.path.startswith("/api/"):
+            self.serve_static(parsed.path)
+            return
+
+        user = self.require_user()
+        if not user:
+            return
+
+        if parsed.path == "/api/auth/sessions":
+            self.send_json({"sessions": list_sessions(user["id"], self.session_token())})
+            return
+        if parsed.path == "/api/admin/stats":
+            if user.get("role") != "admin":
+                self.send_json({"error": "需要管理员权限"}, 403)
+                return
+            self.send_json(admin_stats())
+            return
+        if parsed.path == "/api/cases":
+            self.send_json({"cases": list_user_cases(user["id"])})
+            return
+        case_match = re.fullmatch(r"/api/cases/(\d+)", parsed.path)
+        if case_match:
+            case = get_case(user["id"], int(case_match.group(1)), allow_admin=user.get("role") == "admin")
+            if not case:
+                self.send_json({"error": "案例不存在"}, 404)
+                return
+            self.send_json({"case": case})
+            return
+        pdf_match = re.fullmatch(r"/api/cases/(\d+)/report\.pdf", parsed.path)
+        if pdf_match:
+            case = get_case(user["id"], int(pdf_match.group(1)), allow_admin=user.get("role") == "admin")
+            if not case:
+                self.send_json({"error": "案例不存在"}, 404)
+                return
+            evidence = [item for item in list_evidence(int(case["user_id"])) if item.get("case_id") == case["id"]]
+            target_user = get_user_record(int(case["user_id"])) or user
+            pdf = build_report_pdf(target_user, case, evidence)
+            if not pdf:
+                self.send_json({"error": "PDF组件未安装，请使用打印版另存为PDF"}, 501)
+                return
+            audit_event(user["id"], "download_report_pdf", "case", case["id"], "下载PDF研判报告", self.client_ip())
+            self.send_bytes(pdf, "application/pdf", filename=f"职安盾-研判报告-VW-{int(case['id']):06d}.pdf")
+            return
+        report_match = re.fullmatch(r"/api/cases/(\d+)/report", parsed.path)
+        if report_match:
+            case = get_case(user["id"], int(report_match.group(1)), allow_admin=user.get("role") == "admin")
+            if not case:
+                self.send_json({"error": "案例不存在"}, 404)
+                return
+            evidence = [item for item in list_evidence(int(case["user_id"])) if item.get("case_id") == case["id"]]
+            target_user = get_user_record(int(case["user_id"])) or user
+            html = build_report_html(target_user, case, evidence)
+            self.send_bytes(
+                html.encode("utf-8"),
+                "text/html; charset=utf-8",
+                filename=f"职安盾-研判报告-VW-{int(case['id']):06d}.html",
+                inline=True,
+                extra_headers={
+                    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'",
+                },
+            )
+            return
+        if parsed.path == "/api/evidence":
+            self.send_json({"evidence": list_evidence(user["id"])})
+            return
+        if parsed.path == "/api/evidence/package":
+            package = build_evidence_package(user["id"])
+            audit_event(user["id"], "export_evidence_package", "user", user["id"], "下载证据包", self.client_ip())
+            self.send_bytes(
+                package,
+                "application/zip",
+                filename=f"职安盾-证据包-{datetime.now().strftime('%Y%m%d')}.zip",
+            )
+            return
+        evidence_match = re.fullmatch(r"/api/evidence/(\d+)/download", parsed.path)
+        if evidence_match:
+            evidence_id = int(evidence_match.group(1))
+            row = next((item for item in evidence_rows_for_user(user["id"]) if int(item["id"]) == evidence_id), None)
+            if not row:
+                self.send_json({"error": "证据文件不存在"}, 404)
+                return
+            source = Path(row["storage_path"])
+            if not source.is_file():
+                self.send_json({"error": "证据原件已丢失，请重新上传"}, 404)
+                return
+            audit_event(user["id"], "download_evidence", "evidence", evidence_id, row["filename"], self.client_ip())
+            self.send_bytes(source.read_bytes(), row["content_type"], filename=row["filename"])
+            return
+        self.send_json({"error": "not_found"}, 404)
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
         if parsed.path.startswith("/api/auth/"):
             self.handle_auth(parsed.path)
             return
-        if parsed.path == "/api/admin/set-role":
-            user = self.current_user()
-            if not user or user.get("role") != "admin":
-                self.send_json({"error": "需要管理员权限"}, 403)
-                return
-            try:
-                content_length = int(self.headers.get("Content-Length", "0"))
-                body = json.loads(self.rfile.read(content_length).decode("utf-8"))
-                target = int(body.get("user_id"))
-                role = str(body.get("role", "student"))
-                if role not in {"student", "admin"}:
-                    raise ValueError("角色只能是 student 或 admin")
-                with auth_db() as connection:
-                    connection.execute("UPDATE users SET role = ? WHERE id = ?", (role, target))
-                    connection.commit()
-                self.send_json({"ok": True})
-            except (ValueError, json.JSONDecodeError) as exc:
-                self.send_json({"error": str(exc)}, 400)
-            return
         if parsed.path == "/api/extract":
             self.handle_extract()
             return
-        if parsed.path != "/api/analyze":
-            self.send_json({"error": "not_found"}, 404)
+
+        if parsed.path.startswith("/api/admin/"):
+            admin = self.require_admin()
+            if not admin:
+                return
+            try:
+                body = self.read_json_body(MAX_AUTH_BODY)
+                if parsed.path == "/api/admin/set-role":
+                    target = int(body.get("user_id"))
+                    role = str(body.get("role", "student"))
+                    if role not in {"student", "admin"}:
+                        raise ValueError("角色只能是 student 或 admin")
+                    with auth_db() as connection:
+                        row = connection.execute("SELECT * FROM users WHERE id = ?", (target,)).fetchone()
+                        if not row:
+                            raise ValueError("用户不存在")
+                        if target == admin["id"] and role != "admin":
+                            raise ValueError("不能取消自己的管理员角色")
+                        if row["role"] == "admin" and role != "admin" and active_admin_count(connection) <= 1:
+                            raise ValueError("必须保留至少一名可用管理员")
+                        now = datetime.now().isoformat(timespec="seconds")
+                        connection.execute("UPDATE users SET role = ?, updated_at = ? WHERE id = ?", (role, now, target))
+                        connection.commit()
+                    audit_event(admin["id"], "admin_set_role", "user", target, f"角色调整为 {role}", self.client_ip())
+                    self.send_json({"ok": True})
+                    return
+                if parsed.path == "/api/admin/set-status":
+                    target = int(body.get("user_id"))
+                    status = str(body.get("status", "active"))
+                    if status not in {"active", "disabled"}:
+                        raise ValueError("账号状态只能是 active 或 disabled")
+                    if target == admin["id"] and status == "disabled":
+                        raise ValueError("不能停用自己的管理员账号")
+                    with auth_db() as connection:
+                        row = connection.execute("SELECT * FROM users WHERE id = ?", (target,)).fetchone()
+                        if not row:
+                            raise ValueError("用户不存在")
+                        if row["role"] == "admin" and row["status"] == "active" and status == "disabled" and active_admin_count(connection) <= 1:
+                            raise ValueError("必须保留至少一名可用管理员")
+                        now = datetime.now().isoformat(timespec="seconds")
+                        connection.execute("UPDATE users SET status = ?, updated_at = ? WHERE id = ?", (status, now, target))
+                        if status == "disabled":
+                            remove_user_sessions(connection, target)
+                        connection.commit()
+                    audit_event(admin["id"], "admin_set_status", "user", target, f"账号状态调整为 {status}", self.client_ip())
+                    self.send_json({"ok": True})
+                    return
+                if parsed.path == "/api/admin/reset-password":
+                    target = int(body.get("user_id"))
+                    if not get_user_record(target):
+                        raise ValueError("用户不存在")
+                    temporary_password = secrets.token_urlsafe(12)
+                    set_user_password(target, temporary_password)
+                    audit_event(admin["id"], "admin_reset_password", "user", target, "管理员重置密码并注销该用户全部会话", self.client_ip())
+                    self.send_json({"ok": True, "temporaryPassword": temporary_password})
+                    return
+                if parsed.path == "/api/admin/delete-user":
+                    target = int(body.get("user_id"))
+                    if target == admin["id"]:
+                        raise ValueError("不能删除自己的管理员账号")
+                    with auth_db() as connection:
+                        row = connection.execute("SELECT * FROM users WHERE id = ?", (target,)).fetchone()
+                        if not row:
+                            raise ValueError("用户不存在")
+                        if row["role"] == "admin" and row["status"] == "active" and active_admin_count(connection) <= 1:
+                            raise ValueError("必须保留至少一名可用管理员")
+                    audit_event(admin["id"], "admin_delete_user", "user", target, f"删除用户 {row['username']}", self.client_ip())
+                    paths = delete_user_data(target)
+                    remove_files(paths)
+                    self.send_json({"ok": True})
+                    return
+                self.send_json({"error": "not_found"}, 404)
+            except (ValueError, json.JSONDecodeError) as exc:
+                self.send_json({"error": str(exc)}, 400)
+            except Exception as exc:  # noqa: BLE001
+                self.send_json({"error": f"管理员操作失败：{type(exc).__name__}"}, 500)
             return
+
         user = self.require_user()
         if not user:
             return
 
         try:
-            content_length = int(self.headers.get("Content-Length", "0"))
-            if content_length <= 0 or content_length > MAX_BODY:
-                raise ValueError("请求体为空或过大")
-            body = json.loads(self.rfile.read(content_length).decode("utf-8"))
+            if parsed.path == "/api/cases/status":
+                body = self.read_json_body(MAX_AUTH_BODY)
+                case_id = int(body.get("case_id"))
+                status = str(body.get("status", "active"))
+                if status not in {"active", "following", "resolved", "archived"}:
+                    raise ValueError("案例状态无效")
+                with auth_db() as connection:
+                    cursor = connection.execute(
+                        "UPDATE cases SET status = ?, updated_at = ? WHERE id = ? AND user_id = ?",
+                        (status, datetime.now().isoformat(timespec="seconds"), case_id, user["id"]),
+                    )
+                    connection.commit()
+                if cursor.rowcount != 1:
+                    self.send_json({"error": "案例不存在"}, 404)
+                    return
+                audit_event(user["id"], "update_case_status", "case", case_id, status, self.client_ip())
+                self.send_json({"ok": True})
+                return
+            if parsed.path == "/api/cases/delete":
+                body = self.read_json_body(MAX_AUTH_BODY)
+                case_id = int(body.get("case_id"))
+                if not delete_case_data(user["id"], case_id):
+                    self.send_json({"error": "案例不存在"}, 404)
+                    return
+                audit_event(user["id"], "delete_case", "case", case_id, "删除案例及关联证据", self.client_ip())
+                self.send_json({"ok": True})
+                return
+            if parsed.path == "/api/evidence/upload":
+                body = self.read_json_body(MAX_BODY)
+                filename = Path(str(body.get("filename", ""))).name
+                if not filename or len(filename) > 180:
+                    raise ValueError("文件名无效")
+                extension = Path(filename).suffix.lower()
+                allowed = {".pdf", ".doc", ".docx", ".png", ".jpg", ".jpeg", ".webp", ".txt", ".eml", ".msg"}
+                if extension not in allowed:
+                    raise ValueError("仅支持PDF、Word、图片、TXT和邮件文件")
+                encoded = str(body.get("content_base64", ""))
+                if not encoded:
+                    raise ValueError("缺少文件内容")
+                data = base64.b64decode(encoded, validate=True)
+                if not data or len(data) > MAX_EVIDENCE_BYTES:
+                    raise ValueError(f"证据文件需小于{MAX_EVIDENCE_BYTES // 1024 // 1024}MB")
+                validate_evidence_content(extension, data)
+                case_id = body.get("caseId")
+                if case_id:
+                    case_id = int(case_id)
+                    if not get_case(user["id"], case_id):
+                        raise ValueError("关联案例不存在")
+                else:
+                    case_id = None
+                digest = hashlib.sha256(data).hexdigest()
+                storage_name = f"u{user['id']}-{secrets.token_hex(16)}{extension}"
+                storage_path = EVIDENCE_DIR / storage_name
+                storage_path.write_bytes(data)
+                content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+                try:
+                    with auth_db() as connection:
+                        cursor = connection.execute(
+                            """
+                            INSERT INTO evidence_files(user_id, case_id, filename, content_type, size_bytes, sha256, storage_path, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (user["id"], case_id, filename, content_type, len(data), digest, str(storage_path), datetime.now().isoformat(timespec="seconds")),
+                        )
+                        connection.commit()
+                        evidence_id = int(cursor.lastrowid)
+                except Exception:
+                    storage_path.unlink(missing_ok=True)
+                    raise
+                created_at = datetime.now().isoformat(timespec="seconds")
+                audit_event(user["id"], "upload_evidence", "evidence", evidence_id, filename, self.client_ip())
+                self.send_json({"ok": True, "evidence": {
+                    "id": evidence_id, "case_id": case_id, "filename": filename,
+                    "content_type": content_type, "size_bytes": len(data),
+                    "sha256": digest, "created_at": created_at,
+                }})
+                return
+            if parsed.path == "/api/evidence/delete":
+                body = self.read_json_body(MAX_AUTH_BODY)
+                evidence_id = int(body.get("evidence_id"))
+                with auth_db() as connection:
+                    row = connection.execute("SELECT * FROM evidence_files WHERE id = ? AND user_id = ?", (evidence_id, user["id"])).fetchone()
+                    if not row:
+                        self.send_json({"error": "证据文件不存在"}, 404)
+                        return
+                    connection.execute("DELETE FROM evidence_files WHERE id = ? AND user_id = ?", (evidence_id, user["id"]))
+                    connection.commit()
+                remove_files([row["storage_path"]])
+                audit_event(user["id"], "delete_evidence", "evidence", evidence_id, row["filename"], self.client_ip())
+                self.send_json({"ok": True})
+                return
+            if parsed.path != "/api/analyze":
+                self.send_json({"error": "not_found"}, 404)
+                return
+
+            body = self.read_json_body(MAX_BODY)
             text = str(body.get("text", "")).strip()
             if len(text) < 20:
                 raise ValueError("文本过短")
@@ -1292,7 +2087,9 @@ class Handler(BaseHTTPRequestHandler):
                 language=language,
             )
             result = enhance_with_llm(result)
-            save_case_record(user, result, case_type, jurisdiction, language)
+            case_id = save_case_record(user, result, case_type, jurisdiction, language)
+            result["caseId"] = case_id
+            audit_event(user["id"], "analyze_contract", "case", case_id, f"{case_type} / {jurisdiction}", self.client_ip())
             self.send_json(result)
         except (ValueError, json.JSONDecodeError) as exc:
             self.send_json({"error": str(exc)}, 400)
@@ -1364,7 +2161,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     server = ThreadingHTTPServer((HOST, PORT), Handler)
-    llm_state = "已配置" if os.environ.get("LLM_API_URL") and os.environ.get("LLM_MODEL") else "未配置，使用本地规则链路"
+    llm_state = "已配置" if os.environ.get("LLM_API_URL") and os.environ.get("LLM_API_KEY") and os.environ.get("LLM_MODEL") else "未配置，使用本地规则链路"
     print("职安盾 VeriWork 已启动")
     print(f"地址: http://{HOST}:{PORT}")
     print(f"大模型: {llm_state}")
