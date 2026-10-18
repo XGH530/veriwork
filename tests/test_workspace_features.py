@@ -138,9 +138,16 @@ class WorkspaceFeatureTests(unittest.TestCase):
         with self.request(user, "/api/evidence") as response:
             evidence_list = json.loads(response.read())["evidence"]
         self.assertEqual(1, len(evidence_list))
+        self.assertTrue(evidence_list[0]["record_hash"])
+
+        with self.request(user, "/api/evidence/verify") as response:
+            chain = json.loads(response.read())
+        self.assertTrue(chain["valid"])
+        self.assertEqual(1, len(chain["items"]))
 
         with self.request(user, f"/api/evidence/{evidence_id}/download") as response:
             self.assertEqual(evidence_bytes, response.read())
+            self.assertEqual(evidence["sha256"], response.headers.get("X-Evidence-SHA256"))
 
         with self.request(user, "/api/evidence/package") as response:
             package = response.read()

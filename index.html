@@ -6,7 +6,7 @@
   <meta name="description" content="职安盾 VeriWork——面向高校毕业生就业合同的可验证 AI 风险评估与证据链系统">
   <title>职安盾 VeriWork · 可信就业风险决策</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <link rel="stylesheet" href="styles.css?v=20261018r3">
+  <link rel="stylesheet" href="styles.css?v=20261018r4">
 </head>
 <body>
   
@@ -70,7 +70,7 @@
         </div>
         <div class="topbar-actions">
           <button id="openSettings" class="link-button topbar-settings">模型设置</button>
-          <div class="platform-version"><strong>平台版本</strong><span>v1.2</span></div>
+          <div class="platform-version"><strong>平台版本</strong><span>v1.3</span></div>
           <div class="user-chip" id="userChip"><span>未登录</span><button id="openAuth" class="link-button">登录</button></div>
           <div class="mode-chip" id="modeChip"><span></span>演示模式</div>
           <button class="secondary-button" id="quickDemo">载入风险样例</button>
@@ -325,7 +325,7 @@
         <article class="panel evidence-files-panel">
           <div class="panel-heading">
             <div><span class="section-kicker">证据原件</span><h3>文件哈希与证据包</h3></div>
-            <button id="downloadEvidencePackage" class="link-button">下载证据包</button>
+            <div class="history-actions"><button id="verifyEvidenceChain" class="link-button">校验完整性</button><button id="downloadEvidencePackage" class="link-button">下载证据包</button></div>
           </div>
           <div class="evidence-upload-row">
             <input id="evidenceFileInput" type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.txt,.eml,.msg">
@@ -334,6 +334,7 @@
           </div>
           <p class="dialog-note">支持 PDF、Word、图片、TXT、邮件文件，单个不超过 8MB。文件保存于 Web 目录之外，下载时重新校验原始哈希。</p>
           <div id="evidenceFileList" class="evidence-file-list"></div>
+          <div id="evidenceChainStatus" class="dialog-note"></div>
         </article>
         <div class="evidence-grid">
           <article class="panel">
@@ -440,6 +441,18 @@
           <p>管理密码、查看登录设备、导出个人数据或删除账号。删除账号会同时删除案例、证据文件和会话记录。</p>
         </div>
         <div id="accountMessage" class="account-message hidden"></div>
+        <article class="panel email-binding-panel">
+          <div class="panel-heading"><div><span class="section-kicker">邮箱验证</span><h3>绑定登录与安全通知邮箱</h3></div><span id="emailBindingStatus" class="status-badge status-archived">未绑定</span></div>
+          <p class="dialog-note">绑定邮箱后可用于找回密码、登录提醒和管理员二次验证。验证码通过 SMTP 邮件发送。</p>
+          <div class="email-binding-row">
+            <label>邮箱地址<input id="accountEmail" type="email" autocomplete="email" placeholder="name@example.com"></label>
+            <button id="requestEmailCode" class="secondary-button">发送验证码</button>
+          </div>
+          <div id="emailVerifyRow" class="email-binding-row hidden">
+            <label>邮箱验证码<input id="emailVerifyCode" type="text" inputmode="numeric" maxlength="6" placeholder="6位验证码"></label>
+            <button id="verifyEmailButton" class="primary-button">完成邮箱验证</button>
+          </div>
+        </article>
         <div class="account-grid">
           <article class="panel">
             <div class="panel-heading"><div><span class="section-kicker">密码安全</span><h3>修改密码</h3></div></div>
@@ -501,7 +514,7 @@
 
         <article class="panel admin-users-panel">
           <div class="panel-heading"><div><span class="section-kicker">用户管理</span><h3>用户与角色</h3></div><span class="soft-label">不展示密码和合同原文</span></div>
-          <div class="table-wrap"><table><thead><tr><th>ID</th><th>用户名</th><th>角色</th><th>状态</th><th>最后登录</th><th>注册时间</th><th>操作</th></tr></thead><tbody id="adminUsers"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>ID</th><th>用户名</th><th>邮箱</th><th>角色</th><th>状态</th><th>最后登录</th><th>注册时间</th><th>操作</th></tr></thead><tbody id="adminUsers"></tbody></table></div>
         </article>
 
         <article class="panel admin-users-panel">
@@ -660,6 +673,15 @@
         <label for="authPassword">密码</label>
         <input id="authPassword" type="password" value="" autocomplete="current-password" placeholder="请输入密码">
       </div>
+      <div class="auth-field">
+        <label for="authEmail">邮箱（注册时填写）</label>
+        <input id="authEmail" type="email" value="" autocomplete="email" placeholder="用于找回密码和安全验证">
+      </div>
+      <div id="twoFactorPanel" class="auth-field hidden">
+        <label for="auth2faCode">管理员邮箱验证码</label>
+        <input id="auth2faCode" type="text" inputmode="numeric" maxlength="6" placeholder="6位验证码">
+        <button id="verify2faButton" class="primary-button">完成二次验证</button>
+      </div>
 
       <div id="authError" class="auth-error hidden" role="alert"></div>
 
@@ -667,10 +689,22 @@
         <button id="loginButton" class="primary-button">登录</button>
         <button id="registerButton" class="ghost-button">注册新账号</button>
       </div>
+      <div class="auth-link-row"><button id="forgotPasswordButton" class="link-button">忘记密码？</button><span>管理员账号启用邮箱二次验证后需填写验证码。</span></div>
       <p class="dialog-note">平台账号由本人注册或运营方开通。密钥和权限信息不会进入浏览器。</p>
     </section>
   </div>
 </dialog>
+
+  <dialog id="resetDialog" class="settings-dialog">
+    <form method="dialog" class="dialog-card">
+      <div class="dialog-heading"><div><span class="section-kicker">账号恢复</span><h3>通过邮箱重置密码</h3></div><button class="icon-button" id="closeReset" aria-label="关闭">×</button></div>
+      <div class="auth-field"><label for="resetIdentifier">用户名或已绑定邮箱</label><input id="resetIdentifier" type="text" autocomplete="username" placeholder="用户名或邮箱"></div>
+      <div class="auth-field"><label for="resetCode">邮箱验证码</label><input id="resetCode" type="text" inputmode="numeric" maxlength="6" placeholder="6位验证码"></div>
+      <div class="auth-field"><label for="resetNewPassword">新密码</label><input id="resetNewPassword" type="password" autocomplete="new-password" placeholder="至少10位"></div>
+      <div class="dialog-actions"><button type="button" id="requestResetCode" class="secondary-button">发送验证码</button><button type="button" id="confirmResetPassword" class="primary-button">重置密码</button></div>
+      <p id="resetMessage" class="dialog-note"></p>
+    </form>
+  </dialog>
 
   <dialog id="settingsDialog" class="settings-dialog">
     <form method="dialog">
@@ -698,7 +732,7 @@
     </form>
   </dialog>
 
-  <script src="data.js?v=20261018r3"></script>
-  <script src="app.js?v=20261018r3"></script>
+  <script src="data.js?v=20261018r4"></script>
+  <script src="app.js?v=20261018r4"></script>
 </body>
 </html>

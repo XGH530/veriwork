@@ -16,7 +16,9 @@ const state = {
     model: ""
   },
   user: null,
-  authMode: "student"
+  authMode: "student",
+  pending2fa: null,
+  emailChallengeId: null
 };
 
 try {
@@ -207,21 +209,85 @@ function clearAuthError() {
 async function loginWithCredentials(username, password) {
   clearAuthError();
   const data = await authRequest("/api/auth/login", { username, password });
-  state.user = data.user;
+  if (data.requires2fa) {
+    state.pending2fa = data;
+    $("#twoFactorPanel")?.classList.remove("hidden");
+    $("#auth2faCode")?.focus();
+    showAuthError(`验证码已发送到 ${data.emailHint || "绑定邮箱"}，请输入6位验证码。`);
+    return;
+  }
+  completeLogin(data.user);
+}
+
+function completeLogin(user) {
+  state.user = user;
+  state.pending2fa = null;
+  $("#twoFactorPanel")?.classList.add("hidden");
+  $("#auth2faCode").value = "";
   updateUserUI();
   $("#authDialog")?.close();
   clearAuthError();
-  navigate(data.user.role === "admin" ? "admin" : "dashboard");
-  toast(`已登录：${data.user.username}`);
+  navigate(user.role === "admin" ? "admin" : "dashboard");
+  toast(`已登录：${user.username}`);
 }
 
+async function verifyAdmin2fa() {
+  if (!state.pending2fa?.challengeId) {
+    showAuthError("请先使用管理员账号和密码登录。");
+    return;
+  }
+  try {
+    const data = await authRequest("/api/auth/verify-2fa", {
+      challengeId: state.pending2fa.challengeId,
+      code: $("#auth2faCode").value.trim()
+    });
+    completeLogin(data.user);
+  } catch (error) {
+    showAuthError(error.message || "二次验证失败");
+  }
+}
 
 async function registerAccount(username, password) {
-  const data = await authRequest("/api/auth/register", { username, password });
+  const email = $("#authEmail")?.value.trim() || "";
+  const data = await authRequest("/api/auth/register", { username, password, email });
   state.user = data.user;
   updateUserUI();
   $("#authDialog")?.close();
-  toast(`注册成功：${data.user.username}`);
+  toast(`注册成功：${data.user.username}${email ? "，请到账户中心完成邮箱验证。" : ""}`);
+}
+
+async function requestPasswordResetCode() {
+  const identifier = $("#resetIdentifier")?.value.trim();
+  if (!identifier) {
+    $("#resetMessage").textContent = "请输入用户名或邮箱。";
+    return;
+  }
+  try {
+    const data = await authRequest("/api/auth/request-password-reset", { identifier });
+    $("#resetMessage").textContent = data.message || "如果账号存在且已绑定邮箱，验证码将发送到该邮箱。";
+    if (!data.deliveryAvailable) {
+      $("#resetMessage").textContent = "邮件服务尚未配置，或该账号没有已验证邮箱。请联系管理员。";
+    }
+  } catch (error) {
+    $("#resetMessage").textContent = error.message || "验证码发送失败。";
+  }
+}
+
+async function confirmPasswordReset() {
+  const identifier = $("#resetIdentifier")?.value.trim();
+  const code = $("#resetCode")?.value.trim();
+  const newPassword = $("#resetNewPassword")?.value || "";
+  if (newPassword.length < 10) {
+    $("#resetMessage").textContent = "新密码至少需要10位。";
+    return;
+  }
+  try {
+    await authRequest("/api/auth/reset-password", { identifier, code, newPassword });
+    $("#resetMessage").textContent = "密码已重置，请返回登录。";
+    toast("密码已重置。");
+  } catch (error) {
+    $("#resetMessage").textContent = error.message || "密码重置失败。";
+  }
 }
 
 async function loadCurrentUser() {
@@ -1118,7 +1184,7 @@ function renderEvidenceFiles() {
   container.innerHTML = state.evidenceFiles.map((item) => `
     <div class="evidence-file-item">
       <div><strong>${escapeHtml(item.filename)}</strong><br><small>${formatBytes(item.size_bytes)} · ${escapeHtml(item.created_at)}${item.case_id ? ` · 案例 VW-${String(item.case_id).padStart(6, "0")}` : ""}</small></div>
-      <div class="hash-text">SHA-256 ${escapeHtml(item.sha256)}</div>
+      <div class="hash-text">文件 SHA-256 ${escapeHtml(item.sha256)}<br>链记录 ${escapeHtml(item.record_hash || "待校验")}</div>
       <button class="secondary-button mini-button evidence-download" data-evidence-id="${item.id}">下载</button>
       <button class="danger-button mini-button evidence-delete" data-evidence-id="${item.id}">删除</button>
     </div>
@@ -1184,6 +1250,29 @@ async function deleteEvidenceFile(evidenceId) {
     refreshEvidenceFiles();
   } catch (error) {
     toast(`删除失败：${error.message}`);
+  }
+}
+
+async function verifyEvidenceChain() {
+  if (!state.user) {
+    $("#authDialog")?.showModal();
+    return;
+  }
+  const status = $("#evidenceChainStatus");
+  if (status) status.textContent = "正在重新计算文件哈希和链式记录…";
+  try {
+    const data = await apiRequest("/api/evidence/verify");
+    if (data.valid) {
+      if (status) status.textContent = `完整性校验通过：${data.items.length} 个文件，链头 ${data.head.slice(0, 16)}…`;
+      toast("证据链完整性校验通过。");
+    } else {
+      const bad = (data.items || []).filter((item) => !item.valid).map((item) => item.filename).join("、");
+      if (status) status.textContent = `完整性校验失败：${bad || "存在异常记录"}`;
+      toast("证据链校验失败，请检查异常文件。");
+    }
+  } catch (error) {
+    if (status) status.textContent = `完整性校验失败：${error.message}`;
+    toast(`证据链校验失败：${error.message}`);
   }
 }
 
@@ -1321,10 +1410,72 @@ function setAccountMessage(message, isError = false) {
 async function refreshAccountCenter() {
   if (!state.user) return;
   try {
+    const me = await apiRequest("/api/auth/me");
+    if (me.authenticated) state.user = me.user;
+    renderAccountEmail();
     const payload = await apiRequest("/api/auth/sessions");
     renderSessions(payload.sessions || []);
   } catch (error) {
-    setAccountMessage(`登录设备加载失败：${error.message}`, true);
+    setAccountMessage(`账户信息加载失败：${error.message}`, true);
+  }
+}
+
+function renderAccountEmail() {
+  const status = $("#emailBindingStatus");
+  const input = $("#accountEmail");
+  if (!status || !input) return;
+  const email = state.user?.email || "";
+  const verified = Boolean(state.user?.emailVerified);
+  if (email) input.value = email;
+  status.textContent = verified ? `已验证：${email}` : email ? `待验证：${email}` : "未绑定";
+  status.className = `status-badge ${verified ? "status-active" : "status-archived"}`;
+}
+
+async function requestEmailBindingCode() {
+  const email = $("#accountEmail")?.value.trim();
+  if (!email) {
+    setAccountMessage("请输入要绑定的邮箱地址。", true);
+    return;
+  }
+  try {
+    const data = await apiRequest("/api/auth/set-email", {
+      method: "POST",
+      body: JSON.stringify({ email })
+    });
+    state.emailChallengeId = data.challengeId;
+    $("#emailVerifyRow")?.classList.remove("hidden");
+    $("#emailVerifyCode")?.focus();
+    setAccountMessage(`验证码已发送到 ${data.emailHint || email}。`);
+    if (state.user) {
+      state.user.email = email;
+      state.user.emailVerified = false;
+    }
+    renderAccountEmail();
+  } catch (error) {
+    setAccountMessage(`验证码发送失败：${error.message}`, true);
+  }
+}
+
+async function verifyEmailBinding() {
+  if (!state.emailChallengeId) {
+    setAccountMessage("请先发送邮箱验证码。", true);
+    return;
+  }
+  try {
+    await apiRequest("/api/auth/verify-email", {
+      method: "POST",
+      body: JSON.stringify({
+        challengeId: state.emailChallengeId,
+        code: $("#emailVerifyCode")?.value.trim() || ""
+      })
+    });
+    state.emailChallengeId = null;
+    $("#emailVerifyRow")?.classList.add("hidden");
+    $("#emailVerifyCode").value = "";
+    setAccountMessage("邮箱已验证，可用于找回密码和管理员二次验证。");
+    await refreshAccountCenter();
+  } catch (error) {
+    setAccountMessage(`邮箱验证失败：${error.message}`, true);
   }
 }
 
@@ -1547,12 +1698,24 @@ function bindEvents() {
 
   $("#refreshHistory")?.addEventListener("click", refreshHistory);
   $("#uploadEvidenceButton")?.addEventListener("click", uploadEvidenceFile);
+  $("#verifyEvidenceChain")?.addEventListener("click", verifyEvidenceChain);
   $("#downloadEvidencePackage")?.addEventListener("click", downloadEvidencePackage);
   $("#passwordForm")?.addEventListener("submit", changePassword);
   $("#revokeOtherSessions")?.addEventListener("click", revokeOtherSessions);
   $("#exportAccountData")?.addEventListener("click", exportAccountData);
   $("#downloadEvidenceZip")?.addEventListener("click", downloadEvidencePackage);
   $("#deleteAccountButton")?.addEventListener("click", deleteAccount);
+  $("#requestEmailCode")?.addEventListener("click", requestEmailBindingCode);
+  $("#verifyEmailButton")?.addEventListener("click", verifyEmailBinding);
+  $("#verify2faButton")?.addEventListener("click", verifyAdmin2fa);
+  $("#forgotPasswordButton")?.addEventListener("click", () => {
+    $("#authDialog")?.close();
+    $("#resetMessage").textContent = "请输入用户名或已绑定邮箱，然后获取验证码。";
+    $("#resetDialog")?.showModal();
+  });
+  $("#closeReset")?.addEventListener("click", () => $("#resetDialog")?.close());
+  $("#requestResetCode")?.addEventListener("click", requestPasswordResetCode);
+  $("#confirmResetPassword")?.addEventListener("click", confirmPasswordReset);
 
   $("#addEvidenceButton").addEventListener("click", addEvidence);
   $("#newEvidenceInput").addEventListener("keydown", (event) => {
@@ -1584,7 +1747,12 @@ function bindEvents() {
   });
 
   document.addEventListener("click", (event) => {
-    if (event.target.closest("#openAuth")) { clearAuthError(); $("#authDialog")?.showModal(); }
+    if (event.target.closest("#openAuth")) {
+      clearAuthError();
+      state.pending2fa = null;
+      $("#twoFactorPanel")?.classList.add("hidden");
+      $("#authDialog")?.showModal();
+    }
     if (event.target.closest("#closeAuth")) { clearAuthError(); $("#authDialog")?.close(); }
     if (event.target.closest("#loginButton")) {
       loginWithCredentials($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => showAuthError(error.message || "登录失败，请检查账号和密码"));
@@ -1593,11 +1761,12 @@ function bindEvents() {
       registerAccount($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => showAuthError(error.message || "注册失败，请检查输入信息"));
     }
   });
-  ["authUsername", "authPassword"].forEach((id) => {
+  ["authUsername", "authPassword", "authEmail", "auth2faCode"].forEach((id) => {
     $(`#${id}`)?.addEventListener("input", clearAuthError);
     $(`#${id}`)?.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
-        loginWithCredentials($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => showAuthError(error.message || "登录失败，请检查账号和密码"));
+        if (id === "auth2faCode") verifyAdmin2fa();
+        else loginWithCredentials($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => showAuthError(error.message || "登录失败，请检查账号和密码"));
       }
     });
   });

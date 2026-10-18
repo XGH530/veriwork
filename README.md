@@ -17,7 +17,8 @@
 - 提供答辩 PPT、三分钟演示脚本、评测方案和提交冲刺清单。
 - 地方政策包已建结构，但数值必须由团队核验官方原文后填入。
 - 支持案例档案、办理状态、登录设备、修改密码、个人数据导出和账号删除。
-- 支持证据原件上传、SHA-256 哈希、单文件下载和 ZIP 证据包。
+- 支持邮箱绑定、邮箱找回密码、管理员邮箱二次验证（SMTP 配置后启用）。
+- 支持证据原件上传、SHA-256 哈希、HMAC 哈希链、保管事件、完整性校验、单文件下载和 ZIP 证据包。
 - 支持服务端 PDF 研判报告；未安装 PDF 组件时自动退回 A4 打印版另存为 PDF。
 - 管理端支持用户停用、重置密码、删除用户和审计日志。
 - 提供每日数据库/证据备份脚本和 systemd 权限收口配置。
@@ -184,6 +185,7 @@ python tools/validate_policy_pack.py
    ├─ HTTPS与生产上线清单.md
    ├─ 用户测试与法律复核方案.md
    ├─ 地方政策核验清单.md
+   ├─ 异地备份启用说明.md
    └─ 省赛提交冲刺清单.md
 ```
 
@@ -197,6 +199,8 @@ python tools/validate_policy_pack.py
 - `deploy/update-from-github.sh`：备份数据库、迁移至Web目录外、从GitHub拉取更新并重启；
 - `deploy/veriwork-backup.sh`：数据库与证据目录备份；
 - `deploy/install-backup-timer.sh`：安装每日 03:30 自动备份；
+- `deploy/offsite-backup-pull.ps1`：从服务器拉取备份到本机；
+- `deploy/install-offsite-backup-task.ps1`：安装每天 04:30 的 Windows 异机备份任务；
 - `deploy/veriwork.service`：带 `ProtectSystem=strict` 和最小权限的 systemd 配置。
 
 生产数据库应通过 `VERIWORK_DB_PATH` 放在 `/opt/veriwork-data/veriwork.db`，不要继续留在应用目录。每次更新脚本会保留最近14天的数据库备份。公网部署必须启用HTTPS，并将 `SESSION_COOKIE_SECURE` 设为 `1`。

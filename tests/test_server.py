@@ -129,6 +129,15 @@ class RuleEngineTests(unittest.TestCase):
         self.assertNotIn("13800138000", deposit.get("modelReason", ""))
         self.assertNotIn("test@example.com", deposit.get("modelAction", ""))
 
+    def test_email_challenge_round_trip(self):
+        username = f"emailtest_{os.getpid()}"
+        user = server.register_user(username, "EmailTest!2345", email="tester@example.com")
+        self.assertEqual("tester@example.com", user["email"])
+        challenge_id, code = server.create_email_challenge(user["id"], "verify_email")
+        self.assertEqual(user["id"], server.verify_email_challenge(challenge_id, code, "verify_email"))
+        with self.assertRaises(ValueError):
+            server.verify_email_challenge(challenge_id, code, "verify_email")
+
     def test_each_defined_risk_has_legal_basis(self):
         for risk in server.RISKS:
             self.assertTrue(risk["lawIds"], risk["id"])

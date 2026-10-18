@@ -10,13 +10,17 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import hmac
 import io
 import json
 import mimetypes
 import os
 import re
 import secrets
+import smtplib
 import sqlite3
+import subprocess
+import ssl
 import sys
 import threading
 import time
@@ -24,6 +28,7 @@ import urllib.error
 import urllib.request
 import zipfile
 from datetime import datetime, timedelta
+from email.message import EmailMessage
 from html import escape as html_escape
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -68,6 +73,20 @@ REGISTER_LIMIT = max(1, int(os.environ.get("REGISTER_LIMIT", "5")))
 REGISTER_WINDOW_SECONDS = max(60, int(os.environ.get("REGISTER_WINDOW_SECONDS", "3600")))
 REPORT_DISCLAIMER = "本报告用于就业风险提示、普法教育和材料整理，不替代律师、仲裁机构或人社部门作出最终法律判断。"
 STARTED_AT = time.time()
+APP_SECRET = os.environ.get("APP_SECRET", "").strip() or hashlib.sha256(f"veriwork-local:{DB_PATH}".encode("utf-8")).hexdigest()
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "").strip()
+ADMIN_2FA_ENABLED = os.environ.get("ADMIN_2FA_ENABLED", "").lower() in {"1", "true", "yes"}
+SMTP_HOST = os.environ.get("SMTP_HOST", "").strip()
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "465"))
+SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "").strip()
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "").strip()
+SMTP_FROM = os.environ.get("SMTP_FROM", SMTP_USERNAME).strip()
+SMTP_USE_SSL = os.environ.get("SMTP_USE_SSL", "true").lower() in {"1", "true", "yes"}
+SMTP_USE_STARTTLS = os.environ.get("SMTP_USE_STARTTLS", "false").lower() in {"1", "true", "yes"}
+EMAIL_DELIVERY_MODE = os.environ.get("EMAIL_DELIVERY_MODE", "smtp").strip().lower()
+EMAIL_CODE_TTL_SECONDS = max(120, int(os.environ.get("EMAIL_CODE_TTL_SECONDS", "600")))
+EMAIL_CODE_RESEND_SECONDS = max(30, int(os.environ.get("EMAIL_CODE_RESEND_SECONDS", "60")))
+EMAIL_CODE_MAX_ATTEMPTS = max(3, int(os.environ.get("EMAIL_CODE_MAX_ATTEMPTS", "5")))
 _rate_lock = threading.Lock()
 _login_failures: dict[str, list[float]] = {}
 _register_attempts: dict[str, list[float]] = {}
@@ -108,6 +127,8 @@ def init_auth_db() -> None:
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'student',
                 status TEXT NOT NULL DEFAULT 'active',
+                email TEXT,
+                email_verified_at TEXT,
                 last_login_at TEXT,
                 updated_at TEXT,
                 created_at TEXT NOT NULL
@@ -160,12 +181,38 @@ def init_auth_db() -> None:
                 client_ip TEXT,
                 created_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS email_challenges (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                purpose TEXT NOT NULL,
+                code_hash TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                consumed_at TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            );
+            CREATE TABLE IF NOT EXISTS custody_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                evidence_id INTEGER,
+                action TEXT NOT NULL,
+                file_sha256 TEXT,
+                record_hash TEXT,
+                detail TEXT,
+                created_at TEXT NOT NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users(lower(email)) WHERE email IS NOT NULL AND email <> '';
+            CREATE INDEX IF NOT EXISTS idx_email_challenges_user ON email_challenges(user_id, purpose, created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_custody_evidence ON custody_events(evidence_id, created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_cases_user_created ON cases(user_id, created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_evidence_user_created ON evidence_files(user_id, created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at DESC);
             """
         )
         ensure_column(connection, "users", "status", "TEXT NOT NULL DEFAULT 'active'")
+        ensure_column(connection, "users", "email", "TEXT")
+        ensure_column(connection, "users", "email_verified_at", "TEXT")
         ensure_column(connection, "users", "last_login_at", "TEXT")
         ensure_column(connection, "users", "updated_at", "TEXT")
         ensure_column(connection, "sessions", "user_agent", "TEXT NOT NULL DEFAULT ''")
@@ -174,6 +221,8 @@ def init_auth_db() -> None:
         ensure_column(connection, "cases", "status", "TEXT NOT NULL DEFAULT 'active'")
         ensure_column(connection, "cases", "result_json", "TEXT")
         ensure_column(connection, "cases", "updated_at", "TEXT")
+        ensure_column(connection, "evidence_files", "previous_hash", "TEXT")
+        ensure_column(connection, "evidence_files", "record_hash", "TEXT")
         def sync_configured_account(username_key: str, password_key: str, default_username: str, role: str, required: bool) -> None:
             username = os.environ.get(username_key, default_username).strip() or default_username
             password = os.environ.get(password_key, "").strip()
@@ -198,29 +247,44 @@ def init_auth_db() -> None:
 
         sync_configured_account("DEMO_USERNAME", "DEMO_PASSWORD", "demo", "student", required=False)
         sync_configured_account("ADMIN_USERNAME", "ADMIN_PASSWORD", "admin", "admin", required=True)
+        if ADMIN_EMAIL:
+            admin_username = os.environ.get("ADMIN_USERNAME", "admin").strip() or "admin"
+            now = datetime.now().isoformat(timespec="seconds")
+            connection.execute(
+                "UPDATE users SET email = ?, email_verified_at = ?, updated_at = ? WHERE username = ?",
+                (ADMIN_EMAIL, now, now, admin_username),
+            )
         connection.commit()
 
 
 init_auth_db()
 
 
-def register_user(username: str, password: str, role: str = "student") -> dict:
+def register_user(username: str, password: str, role: str = "student", email: str = "") -> dict:
     username = username.strip()
     if not (3 <= len(username) <= 32):
         raise ValueError("用户名长度应为3至32位")
     if len(password) < 8:
         raise ValueError("密码至少8位")
+    email = normalize_email(email) if str(email or "").strip() else None
     salt, digest = hash_password(password)
     try:
         with auth_db() as connection:
             cursor = connection.execute(
-                "INSERT INTO users(username, salt, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)",
-                (username, salt, digest, role, datetime.now().isoformat(timespec="seconds")),
+                "INSERT INTO users(username, salt, password_hash, role, email, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (username, salt, digest, role, email, datetime.now().isoformat(timespec="seconds")),
             )
             connection.commit()
-            return {"id": cursor.lastrowid, "username": username, "role": role, "status": "active"}
+            return {
+                "id": cursor.lastrowid,
+                "username": username,
+                "role": role,
+                "status": "active",
+                "email": email,
+                "emailVerified": False,
+            }
     except sqlite3.IntegrityError as exc:
-        raise ValueError("用户名已存在") from exc
+        raise ValueError("用户名或邮箱已存在") from exc
 
 
 def authenticate_user(username: str, password: str) -> dict | None:
@@ -231,7 +295,14 @@ def authenticate_user(username: str, password: str) -> dict | None:
     _, digest = hash_password(password, row["salt"])
     if not secrets.compare_digest(digest, row["password_hash"]):
         return None
-    return {"id": row["id"], "username": row["username"], "role": row["role"], "status": row["status"]}
+    return {
+        "id": row["id"],
+        "username": row["username"],
+        "role": row["role"],
+        "status": row["status"],
+        "email": row["email"] if "email" in row.keys() else None,
+        "emailVerified": bool(row["email_verified_at"]) if "email_verified_at" in row.keys() else False,
+    }
 
 
 def hash_session_token(token: str) -> str:
@@ -265,7 +336,8 @@ def resolve_session(token: str | None) -> dict | None:
     with auth_db() as connection:
         row = connection.execute(
             """
-            SELECT users.id, users.username, users.role, users.status, sessions.expires_at
+            SELECT users.id, users.username, users.role, users.status, users.email,
+                   users.email_verified_at, sessions.expires_at
             FROM sessions JOIN users ON sessions.user_id = users.id
             WHERE sessions.token = ?
             """,
@@ -277,7 +349,14 @@ def resolve_session(token: str | None) -> dict | None:
             connection.execute("DELETE FROM sessions WHERE token = ?", (token_digest,))
             connection.commit()
             return None
-    return {"id": row["id"], "username": row["username"], "role": row["role"], "status": row["status"]}
+    return {
+        "id": row["id"],
+        "username": row["username"],
+        "role": row["role"],
+        "status": row["status"],
+        "email": row["email"],
+        "emailVerified": bool(row["email_verified_at"]),
+    }
 
 
 def strip_result_for_storage(result: dict) -> dict:
@@ -333,15 +412,209 @@ def health_payload() -> dict:
     return {
         "ok": database_ok,
         "name": "职安盾 VeriWork",
-        "version": "1.2.0",
+        "version": "1.3.0",
         "uptimeSeconds": int(time.time() - STARTED_AT),
         "databaseOk": database_ok,
         "evidenceStorageOk": EVIDENCE_DIR.is_dir() and os.access(EVIDENCE_DIR, os.W_OK),
         "llmConfigured": bool(os.environ.get("LLM_API_URL") and os.environ.get("LLM_API_KEY") and os.environ.get("LLM_MODEL")),
+        "emailConfigured": smtp_configured(),
+        "admin2faEnabled": ADMIN_2FA_ENABLED and bool(ADMIN_EMAIL) and smtp_configured(),
         "model": os.environ.get("LLM_MODEL", ""),
         "rules": len(RISKS),
         "laws": len(LAWS),
     }
+
+
+EMAIL_RE = re.compile(r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$")
+
+
+def normalize_email(value: str) -> str:
+    email = str(value or "").strip().lower()
+    if len(email) > 254 or not EMAIL_RE.fullmatch(email):
+        raise ValueError("邮箱格式不正确")
+    return email
+
+
+def mask_email(value: str) -> str:
+    email = str(value or "")
+    if "@" not in email:
+        return ""
+    local, domain = email.split("@", 1)
+    visible = local[:2] if len(local) >= 2 else local[:1]
+    return f"{visible}***@{domain}"
+
+
+def smtp_configured() -> bool:
+    return EMAIL_DELIVERY_MODE == "test" or bool(SMTP_HOST and SMTP_USERNAME and SMTP_PASSWORD and SMTP_FROM)
+
+
+def send_email_message(to_email: str, subject: str, body: str) -> None:
+    to_email = normalize_email(to_email)
+    if EMAIL_DELIVERY_MODE == "test":
+        print(f"[VERIWORK_EMAIL_TEST] to={to_email} subject={subject} body={body}", flush=True)
+        return
+    if not smtp_configured():
+        raise ValueError("邮件服务尚未配置")
+    message = EmailMessage()
+    message["From"] = SMTP_FROM
+    message["To"] = to_email
+    message["Subject"] = subject
+    message.set_content(body)
+    context = ssl.create_default_context()
+    if SMTP_USE_SSL:
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=20) as client:
+            client.login(SMTP_USERNAME, SMTP_PASSWORD)
+            client.send_message(message)
+    else:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as client:
+            client.ehlo()
+            if SMTP_USE_STARTTLS:
+                client.starttls(context=context)
+                client.ehlo()
+            client.login(SMTP_USERNAME, SMTP_PASSWORD)
+            client.send_message(message)
+
+
+def email_code_hash(user_id: int, purpose: str, code: str) -> str:
+    return hmac.new(APP_SECRET.encode("utf-8"), f"{user_id}|{purpose}|{code}".encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def create_email_challenge(user_id: int, purpose: str) -> tuple[int, str]:
+    now = datetime.now()
+    with auth_db() as connection:
+        recent = connection.execute(
+            "SELECT created_at FROM email_challenges WHERE user_id = ? AND purpose = ? ORDER BY id DESC LIMIT 1",
+            (user_id, purpose),
+        ).fetchone()
+        if recent and (now - datetime.fromisoformat(recent["created_at"])).total_seconds() < EMAIL_CODE_RESEND_SECONDS:
+            raise ValueError("验证码发送过于频繁，请稍后再试")
+        code = f"{secrets.randbelow(1_000_000):06d}"
+        cursor = connection.execute(
+            "INSERT INTO email_challenges(user_id, purpose, code_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)",
+            (
+                user_id,
+                purpose,
+                email_code_hash(user_id, purpose, code),
+                (now + timedelta(seconds=EMAIL_CODE_TTL_SECONDS)).isoformat(timespec="seconds"),
+                now.isoformat(timespec="seconds"),
+            ),
+        )
+        connection.commit()
+        return int(cursor.lastrowid), code
+
+
+def verify_email_challenge(challenge_id: int, code: str, purpose: str, user_id: int | None = None) -> int:
+    code = re.sub(r"\D", "", str(code or ""))
+    if len(code) != 6:
+        raise ValueError("请输入6位邮箱验证码")
+    with auth_db() as connection:
+        row = connection.execute("SELECT * FROM email_challenges WHERE id = ? AND purpose = ?", (challenge_id, purpose)).fetchone()
+        if not row or (user_id is not None and int(row["user_id"]) != int(user_id)):
+            raise ValueError("验证码无效或已过期")
+        if row["consumed_at"]:
+            raise ValueError("验证码已使用")
+        if datetime.fromisoformat(row["expires_at"]) < datetime.now():
+            raise ValueError("验证码已过期")
+        if int(row["attempts"]) >= EMAIL_CODE_MAX_ATTEMPTS:
+            raise ValueError("验证码尝试次数过多，请重新获取")
+        expected = email_code_hash(int(row["user_id"]), purpose, code)
+        if not secrets.compare_digest(expected, str(row["code_hash"])):
+            connection.execute("UPDATE email_challenges SET attempts = attempts + 1 WHERE id = ?", (challenge_id,))
+            connection.commit()
+            raise ValueError("验证码不正确")
+        connection.execute("UPDATE email_challenges SET consumed_at = ? WHERE id = ?", (datetime.now().isoformat(timespec="seconds"), challenge_id))
+        connection.commit()
+        return int(row["user_id"])
+
+
+def latest_email_challenge(user_id: int, purpose: str) -> dict | None:
+    with auth_db() as connection:
+        row = connection.execute(
+            "SELECT * FROM email_challenges WHERE user_id = ? AND purpose = ? ORDER BY id DESC LIMIT 1",
+            (user_id, purpose),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def send_auth_code(user: dict, purpose: str, email: str) -> tuple[int, str]:
+    challenge_id, code = create_email_challenge(int(user["id"]), purpose)
+    labels = {
+        "admin_2fa": "管理员登录验证码",
+        "reset_password": "密码重置验证码",
+        "verify_email": "邮箱绑定验证码",
+    }
+    label = labels.get(purpose, "身份验证码")
+    send_email_message(
+        email,
+        f"职安盾 VeriWork {label}",
+        f"你的{label}是：{code}\n\n验证码{EMAIL_CODE_TTL_SECONDS // 60}分钟内有效。如非本人操作，请忽略本邮件。",
+    )
+    return challenge_id, code
+
+
+EVIDENCE_CHAIN_SECRET = os.environ.get("EVIDENCE_CHAIN_SECRET", "").strip() or hashlib.sha256(f"veriwork-evidence:{DB_PATH}".encode("utf-8")).hexdigest()
+
+
+def evidence_record_hash(previous_hash: str, user_id: int, file_sha256: str, size_bytes: int, filename: str, created_at: str) -> str:
+    payload = "|".join([previous_hash, str(user_id), file_sha256, str(size_bytes), filename, created_at])
+    return hmac.new(EVIDENCE_CHAIN_SECRET.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def add_custody_event(user_id: int, evidence_id: int | None, action: str, file_sha256: str = "", record_hash: str = "", detail: str = "") -> None:
+    with auth_db() as connection:
+        connection.execute(
+            "INSERT INTO custody_events(user_id, evidence_id, action, file_sha256, record_hash, detail, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (user_id, evidence_id, action[:60], file_sha256, record_hash, detail[:200], datetime.now().isoformat(timespec="seconds")),
+        )
+        connection.commit()
+
+
+def backfill_evidence_chain() -> None:
+    with auth_db() as connection:
+        rows = connection.execute("SELECT * FROM evidence_files ORDER BY id").fetchall()
+        previous_by_user: dict[int, str] = {}
+        for row in rows:
+            if row["record_hash"]:
+                previous_by_user[int(row["user_id"])] = row["record_hash"]
+                continue
+            previous = previous_by_user.get(int(row["user_id"]), "")
+            record_hash = evidence_record_hash(previous, int(row["user_id"]), row["sha256"], int(row["size_bytes"]), row["filename"], row["created_at"])
+            connection.execute("UPDATE evidence_files SET previous_hash = ?, record_hash = ? WHERE id = ?", (previous, record_hash, row["id"]))
+            previous_by_user[int(row["user_id"])] = record_hash
+        connection.commit()
+
+
+def verify_evidence_chain(user_id: int) -> dict:
+    with auth_db() as connection:
+        rows = connection.execute("SELECT * FROM evidence_files WHERE user_id = ? ORDER BY id", (user_id,)).fetchall()
+    previous = ""
+    items = []
+    valid = True
+    for row in rows:
+        path = Path(row["storage_path"])
+        actual_sha = hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else ""
+        expected_record = evidence_record_hash(previous, int(row["user_id"]), row["sha256"], int(row["size_bytes"]), row["filename"], row["created_at"])
+        item_valid = bool(actual_sha and actual_sha == row["sha256"] and row["previous_hash"] == previous and expected_record == row["record_hash"])
+        valid = valid and item_valid
+        items.append({
+            "id": row["id"], "filename": row["filename"], "valid": item_valid,
+            "file_sha256": row["sha256"], "actual_sha256": actual_sha,
+            "previous_hash": row["previous_hash"], "record_hash": row["record_hash"],
+            "expected_record_hash": expected_record,
+        })
+        previous = row["record_hash"]
+    return {"valid": valid, "items": items, "head": previous}
+
+
+def scan_evidence_file(path: Path) -> None:
+    scanner = os.environ.get("CLAMSCAN_BIN", "").strip()
+    if not scanner:
+        return
+    result = subprocess.run([scanner, "--no-summary", str(path)], capture_output=True, text=True, timeout=60)
+    if result.returncode == 1:
+        raise ValueError("证据文件病毒扫描未通过")
+    if result.returncode not in (0, 1):
+        raise ValueError("证据文件病毒扫描失败")
 
 
 def audit_event(actor_user_id: int | None, action: str, target_type: str = "", target_id: str = "", detail: str = "", client_ip: str = "") -> None:
@@ -386,7 +659,7 @@ def get_case(user_id: int, case_id: int, allow_admin: bool = False) -> dict | No
 def list_evidence(user_id: int) -> list[dict]:
     with auth_db() as connection:
         rows = connection.execute(
-            "SELECT id, case_id, filename, content_type, size_bytes, sha256, created_at FROM evidence_files WHERE user_id = ? ORDER BY id DESC",
+            "SELECT id, case_id, filename, content_type, size_bytes, sha256, previous_hash, record_hash, created_at FROM evidence_files WHERE user_id = ? ORDER BY id DESC",
             (user_id,),
         ).fetchall()
     return [dict(row) for row in rows]
@@ -422,7 +695,7 @@ def remove_user_sessions(connection: sqlite3.Connection, user_id: int, keep_toke
 def admin_stats() -> dict:
     with auth_db() as connection:
         users = connection.execute(
-            "SELECT id, username, role, status, last_login_at, created_at FROM users ORDER BY id DESC"
+            "SELECT id, username, role, status, email, email_verified_at, last_login_at, created_at FROM users ORDER BY id DESC"
         ).fetchall()
         cases = connection.execute(
             """
@@ -1371,7 +1644,7 @@ def build_user_export(user_id: int) -> dict:
     user = get_user_record(user_id)
     if not user:
         raise ValueError("用户不存在")
-    safe_user = {key: user.get(key) for key in ("id", "username", "role", "status", "created_at", "last_login_at")}
+    safe_user = {key: user.get(key) for key in ("id", "username", "role", "status", "email", "email_verified_at", "created_at", "last_login_at")}
     cases = []
     for item in list_user_cases(user_id):
         detail = get_case(user_id, int(item["id"]))
@@ -1403,6 +1676,7 @@ def build_evidence_package(user_id: int) -> bytes:
         {key: value for key, value in row.items() if key != "storage_path"}
         for row in evidence
     ]
+    manifest["evidenceChain"] = verify_evidence_chain(user_id)
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
         for row in evidence:
@@ -1699,7 +1973,11 @@ class Handler(BaseHTTPRequestHandler):
                 if register_rate_limited(client_ip):
                     self.send_json({"error": "注册过于频繁，请稍后再试"}, 429)
                     return
-                user = register_user(str(body.get("username", "")), str(body.get("password", "")))
+                user = register_user(
+                    str(body.get("username", "")),
+                    str(body.get("password", "")),
+                    email=str(body.get("email", "")),
+                )
                 token = create_session(user["id"], self.headers.get("User-Agent", ""), client_ip)
                 audit_event(user["id"], "register", "user", user["id"], "用户注册", client_ip)
                 self.send_json({"user": user}, extra_headers={"Set-Cookie": self.session_cookie(token)})
@@ -1717,6 +1995,19 @@ class Handler(BaseHTTPRequestHandler):
                 if user.get("status") != "active":
                     self.send_json({"error": "账号已停用，请联系管理员"}, 403)
                     return
+                if user.get("role") == "admin" and ADMIN_2FA_ENABLED and user.get("emailVerified") and smtp_configured():
+                    try:
+                        challenge_id, _ = send_auth_code(user, "admin_2fa", str(user.get("email", "")))
+                    except Exception:
+                        self.send_json({"error": "管理员验证码发送失败，请检查邮件服务"}, 503)
+                        return
+                    audit_event(user["id"], "admin_2fa_requested", "user", user["id"], "管理员登录验证码已发送", client_ip)
+                    self.send_json({
+                        "requires2fa": True,
+                        "challengeId": challenge_id,
+                        "emailHint": mask_email(str(user.get("email", ""))),
+                    })
+                    return
                 clear_login_failures(client_ip, username)
                 now = datetime.now().isoformat(timespec="seconds")
                 with auth_db() as connection:
@@ -1725,6 +2016,96 @@ class Handler(BaseHTTPRequestHandler):
                 token = create_session(user["id"], self.headers.get("User-Agent", ""), client_ip)
                 audit_event(user["id"], "login", "user", user["id"], "用户登录", client_ip)
                 self.send_json({"user": user}, extra_headers={"Set-Cookie": self.session_cookie(token)})
+                return
+            if path == "/api/auth/verify-2fa":
+                challenge_id = int(body.get("challengeId"))
+                code = str(body.get("code", ""))
+                user_id = verify_email_challenge(challenge_id, code, "admin_2fa")
+                user = get_user_record(user_id)
+                if not user or user.get("status") != "active":
+                    self.send_json({"error": "账号不可用"}, 403)
+                    return
+                clear_login_failures(client_ip, user["username"])
+                now = datetime.now().isoformat(timespec="seconds")
+                with auth_db() as connection:
+                    connection.execute("UPDATE users SET last_login_at = ?, updated_at = ? WHERE id = ?", (now, now, user_id))
+                    connection.commit()
+                token = create_session(user_id, self.headers.get("User-Agent", ""), client_ip)
+                audit_event(user_id, "admin_2fa_verified", "user", user_id, "管理员二次验证通过", client_ip)
+                self.send_json({"user": user}, extra_headers={"Set-Cookie": self.session_cookie(token)})
+                return
+            if path == "/api/auth/request-password-reset":
+                identifier = str(body.get("identifier", "")).strip()
+                delivery = False
+                with auth_db() as connection:
+                    row = connection.execute(
+                        "SELECT * FROM users WHERE (username = ? OR lower(email) = lower(?)) AND status = 'active' LIMIT 1",
+                        (identifier, identifier),
+                    ).fetchone()
+                if row and row["email"] and row["email_verified_at"] and smtp_configured():
+                    try:
+                        send_auth_code(dict(row), "reset_password", str(row["email"]))
+                        delivery = True
+                    except Exception:
+                        delivery = False
+                self.send_json({"ok": True, "deliveryAvailable": delivery, "message": "如果账号存在且已绑定邮箱，验证码将发送到该邮箱。"})
+                return
+            if path == "/api/auth/reset-password":
+                identifier = str(body.get("identifier", "")).strip()
+                code = str(body.get("code", ""))
+                new_password = str(body.get("newPassword", ""))
+                with auth_db() as connection:
+                    row = connection.execute(
+                        "SELECT * FROM users WHERE (username = ? OR lower(email) = lower(?)) AND status = 'active' LIMIT 1",
+                        (identifier, identifier),
+                    ).fetchone()
+                if not row or not row["email_verified_at"]:
+                    raise ValueError("账号不存在或未绑定已验证邮箱")
+                challenge = latest_email_challenge(int(row["id"]), "reset_password")
+                if not challenge:
+                    raise ValueError("请先获取密码重置验证码")
+                verify_email_challenge(int(challenge["id"]), code, "reset_password", int(row["id"]))
+                set_user_password(int(row["id"]), new_password)
+                audit_event(int(row["id"]), "reset_password", "user", int(row["id"]), "通过邮箱验证码重置密码", client_ip)
+                self.send_json({"ok": True})
+                return
+            if path == "/api/auth/set-email":
+                user = self.require_user()
+                if not user:
+                    return
+                email = normalize_email(str(body.get("email", "")))
+                with auth_db() as connection:
+                    duplicate = connection.execute(
+                        "SELECT id FROM users WHERE lower(email) = lower(?) AND id != ? LIMIT 1",
+                        (email, user["id"]),
+                    ).fetchone()
+                    if duplicate:
+                        raise ValueError("该邮箱已被其他账号使用")
+                    connection.execute("UPDATE users SET email = ?, email_verified_at = NULL, updated_at = ? WHERE id = ?", (email, datetime.now().isoformat(timespec="seconds"), user["id"]))
+                    connection.commit()
+                try:
+                    challenge_id, _ = send_auth_code(user, "verify_email", email)
+                except Exception:
+                    with auth_db() as connection:
+                        connection.execute("UPDATE users SET email = NULL, email_verified_at = NULL WHERE id = ?", (user["id"],))
+                        connection.commit()
+                    self.send_json({"error": "验证码发送失败，请检查邮件服务"}, 503)
+                    return
+                audit_event(user["id"], "email_binding_requested", "user", user["id"], mask_email(email), client_ip)
+                self.send_json({"ok": True, "challengeId": challenge_id, "emailHint": mask_email(email)})
+                return
+            if path == "/api/auth/verify-email":
+                user = self.require_user()
+                if not user:
+                    return
+                challenge_id = int(body.get("challengeId"))
+                verify_email_challenge(challenge_id, str(body.get("code", "")), "verify_email", int(user["id"]))
+                now = datetime.now().isoformat(timespec="seconds")
+                with auth_db() as connection:
+                    connection.execute("UPDATE users SET email_verified_at = ?, updated_at = ? WHERE id = ?", (now, now, user["id"]))
+                    connection.commit()
+                audit_event(user["id"], "email_verified", "user", user["id"], "邮箱验证完成", client_ip)
+                self.send_json({"ok": True})
                 return
             if path == "/api/auth/change-password":
                 user = self.require_user()
@@ -1862,6 +2243,11 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/evidence":
             self.send_json({"evidence": list_evidence(user["id"])})
             return
+        if parsed.path == "/api/evidence/verify":
+            result = verify_evidence_chain(user["id"])
+            audit_event(user["id"], "verify_evidence_chain", "user", user["id"], f"valid={result['valid']}", self.client_ip())
+            self.send_json(result)
+            return
         if parsed.path == "/api/evidence/package":
             package = build_evidence_package(user["id"])
             audit_event(user["id"], "export_evidence_package", "user", user["id"], "下载证据包", self.client_ip())
@@ -1882,8 +2268,22 @@ class Handler(BaseHTTPRequestHandler):
             if not source.is_file():
                 self.send_json({"error": "证据原件已丢失，请重新上传"}, 404)
                 return
+            content = source.read_bytes()
+            actual_sha = hashlib.sha256(content).hexdigest()
+            expected_record = evidence_record_hash(
+                row["previous_hash"] or "",
+                int(row["user_id"]),
+                row["sha256"],
+                int(row["size_bytes"]),
+                row["filename"],
+                row["created_at"],
+            )
+            if actual_sha != row["sha256"] or expected_record != row["record_hash"]:
+                self.send_json({"error": "证据完整性校验失败，文件可能被篡改"}, 409)
+                return
+            add_custody_event(user["id"], evidence_id, "downloaded", actual_sha, row["record_hash"], row["filename"])
             audit_event(user["id"], "download_evidence", "evidence", evidence_id, row["filename"], self.client_ip())
-            self.send_bytes(source.read_bytes(), row["content_type"], filename=row["filename"])
+            self.send_bytes(content, row["content_type"], filename=row["filename"], extra_headers={"X-Evidence-SHA256": actual_sha})
             return
         self.send_json({"error": "not_found"}, 404)
 
@@ -2032,22 +2432,31 @@ class Handler(BaseHTTPRequestHandler):
                 storage_name = f"u{user['id']}-{secrets.token_hex(16)}{extension}"
                 storage_path = EVIDENCE_DIR / storage_name
                 storage_path.write_bytes(data)
-                content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
                 try:
+                    scan_evidence_file(storage_path)
+                    content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+                    created_at = datetime.now().isoformat(timespec="seconds")
                     with auth_db() as connection:
+                        previous_row = connection.execute(
+                            "SELECT record_hash FROM evidence_files WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+                            (user["id"],),
+                        ).fetchone()
+                        previous_hash = previous_row["record_hash"] if previous_row and previous_row["record_hash"] else ""
+                        record_hash = evidence_record_hash(previous_hash, int(user["id"]), digest, len(data), filename, created_at)
                         cursor = connection.execute(
                             """
-                            INSERT INTO evidence_files(user_id, case_id, filename, content_type, size_bytes, sha256, storage_path, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            INSERT INTO evidence_files(user_id, case_id, filename, content_type, size_bytes, sha256,
+                                                       storage_path, previous_hash, record_hash, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             """,
-                            (user["id"], case_id, filename, content_type, len(data), digest, str(storage_path), datetime.now().isoformat(timespec="seconds")),
+                            (user["id"], case_id, filename, content_type, len(data), digest, str(storage_path), previous_hash, record_hash, created_at),
                         )
                         connection.commit()
                         evidence_id = int(cursor.lastrowid)
                 except Exception:
                     storage_path.unlink(missing_ok=True)
                     raise
-                created_at = datetime.now().isoformat(timespec="seconds")
+                add_custody_event(user["id"], evidence_id, "uploaded", digest, record_hash, filename)
                 audit_event(user["id"], "upload_evidence", "evidence", evidence_id, filename, self.client_ip())
                 self.send_json({"ok": True, "evidence": {
                     "id": evidence_id, "case_id": case_id, "filename": filename,
@@ -2065,6 +2474,7 @@ class Handler(BaseHTTPRequestHandler):
                         return
                     connection.execute("DELETE FROM evidence_files WHERE id = ? AND user_id = ?", (evidence_id, user["id"]))
                     connection.commit()
+                add_custody_event(user["id"], evidence_id, "deleted", row["sha256"], row["record_hash"], row["filename"])
                 remove_files([row["storage_path"]])
                 audit_event(user["id"], "delete_evidence", "evidence", evidence_id, row["filename"], self.client_ip())
                 self.send_json({"ok": True})
@@ -2160,6 +2570,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
+    backfill_evidence_chain()
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     llm_state = "已配置" if os.environ.get("LLM_API_URL") and os.environ.get("LLM_API_KEY") and os.environ.get("LLM_MODEL") else "未配置，使用本地规则链路"
     print("职安盾 VeriWork 已启动")
