@@ -1,12 +1,19 @@
 import json
 import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
+TEST_DB = Path(tempfile.gettempdir()) / f"veriwork-unit-{os.getpid()}.db"
+os.environ.setdefault("ADMIN_PASSWORD", "TestAdmin!2345")
+os.environ.setdefault("DEMO_PASSWORD", "TestDemo!2345")
+os.environ.setdefault("VERIWORK_DB_PATH", str(TEST_DB))
+os.environ.setdefault("VERIWORK_EVIDENCE_DIR", str(TEST_DB.parent / f"veriwork-unit-evidence-{os.getpid()}"))
 
 import server  # noqa: E402
 
