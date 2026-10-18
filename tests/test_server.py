@@ -80,6 +80,48 @@ class RuleEngineTests(unittest.TestCase):
         self.assertEqual("rules+semantic+retrieval+llm", enhanced["engine"])
         self.assertTrue(enhanced["requiresHumanReview"] is False)
 
+    def test_llm_payload_redacts_personal_data_and_restores_source_clause(self):
+        text = "联系人手机13800138000，邮箱test@example.com，身份证110101199001011234，公司要求上交毕业证原件。"
+        result = server.deterministic_analysis(text, "劳动合同", "全国规则")
+        candidate = "联系人手机[手机号]，邮箱[邮箱]，身份证[身份证号]，公司要求上交毕业证原件"
+        self.assertEqual(candidate.replace("[手机号]", "13800138000").replace("[邮箱]", "test@example.com").replace("[身份证号]", "110101199001011234"), server.ground_model_clause(candidate, text))
+
+        captured = {}
+        model_content = json.dumps({
+            "items": [{
+                "id": "employment_deposit",
+                "clause": candidate,
+                "reason": "联系人13800138000要求扣押证件",
+                "action": "联系test@example.com并保留证据",
+                "confidence": 0.9,
+            }]
+        }, ensure_ascii=False)
+        response_payload = json.dumps({"choices": [{"message": {"content": model_content}}]}, ensure_ascii=False).encode("utf-8")
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return response_payload
+
+        def fake_urlopen(request, timeout=0):
+            captured["payload"] = request.data.decode("utf-8")
+            return FakeResponse()
+
+        with patch.dict(os.environ, {"LLM_API_URL": "https://example.test/v1/chat/completions", "LLM_API_KEY": "test", "LLM_MODEL": "mock-model"}, clear=False), patch("urllib.request.urlopen", side_effect=fake_urlopen):
+            enhanced = server.enhance_with_llm(result)
+
+        self.assertNotIn("13800138000", captured["payload"])
+        self.assertNotIn("test@example.com", captured["payload"])
+        self.assertNotIn("110101199001011234", captured["payload"])
+        deposit = next(item for item in enhanced["risks"] if item["id"] == "employment_deposit")
+        self.assertNotIn("13800138000", deposit.get("modelReason", ""))
+        self.assertNotIn("test@example.com", deposit.get("modelAction", ""))
+
     def test_each_defined_risk_has_legal_basis(self):
         for risk in server.RISKS:
             self.assertTrue(risk["lawIds"], risk["id"])

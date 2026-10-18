@@ -911,6 +911,38 @@ def recompute_after_enhancement(result: dict) -> None:
     })
 
 
+_PII_RULES = [
+    (re.compile(r"1[3-9]\d{9}"), "[手机号]"),
+    (re.compile(r"(?<!\d)\d{17}[\dXx](?!\d)"), "[身份证号]"),
+    (re.compile(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+"), "[邮箱]"),
+    (re.compile(r"(?<!\d)\d{16,19}(?!\d)"), "[银行卡号]"),
+]
+_PII_PLACEHOLDERS = {placeholder: pattern.pattern for pattern, placeholder in _PII_RULES}
+
+
+def redact_pii(text: str) -> str:
+    redacted = str(text or "")
+    for pattern, placeholder in _PII_RULES:
+        redacted = pattern.sub(placeholder, redacted)
+    return redacted
+
+
+def ground_model_clause(candidate: str, source_text: str) -> str | None:
+    """Use the model's redacted clause to recover the exact source fragment."""
+    candidate = str(candidate or "").strip()
+    if not candidate:
+        return None
+    if candidate in source_text:
+        return candidate
+    parts = re.split(r"(\[手机号\]|\[身份证号\]|\[邮箱\]|\[银行卡号\])", candidate)
+    regex = "".join(
+        f"(?:{_PII_PLACEHOLDERS[part]})" if part in _PII_PLACEHOLDERS else re.escape(part)
+        for part in parts
+    )
+    matched = re.search(regex, source_text)
+    return matched.group(0) if matched else None
+
+
 def enhance_with_llm(result: dict) -> dict:
     api_url = os.environ.get("LLM_API_URL", "").strip()
     api_key = os.environ.get("LLM_API_KEY", "").strip()
@@ -924,7 +956,7 @@ def enhance_with_llm(result: dict) -> dict:
     for item in result["risks"]:
         compact_risks.append({
             "id": item["id"],
-            "clause": item["clause"],
+            "clause": redact_pii(item["clause"]),
             "lawItems": [{"source": law["source"], "summary": law["summary"]} for law in item["lawItems"]],
         })
 
@@ -939,7 +971,7 @@ def enhance_with_llm(result: dict) -> dict:
         "allowedRiskIds": allowed_ids,
         "currentRisks": compact_risks,
         "documentLanguage": result.get("documentLanguage", "zh"),
-        "documentText": result.get("inputText", "")[:15000],
+        "documentText": redact_pii(result.get("inputText", "")[:15000]),
     }
     body = {
         "model": model,
@@ -971,8 +1003,8 @@ def enhance_with_llm(result: dict) -> dict:
 
         for update in enhanced.get("items", []):
             risk_id = update.get("id")
-            clause = str(update.get("clause", "")).strip()
-            if risk_id not in risk_by_id or not clause or clause not in input_text:
+            clause = ground_model_clause(str(update.get("clause", "")), input_text)
+            if risk_id not in risk_by_id or not clause:
                 continue
             try:
                 model_confidence = float(update.get("confidence", 0))
@@ -995,9 +1027,9 @@ def enhance_with_llm(result: dict) -> dict:
                 existing[risk_id] = risk
 
             if update.get("reason"):
-                risk["modelReason"] = str(update["reason"])[:240]
+                risk["modelReason"] = redact_pii(str(update["reason"]))[:240]
             if update.get("action"):
-                risk["modelAction"] = str(update["action"])[:240]
+                risk["modelAction"] = redact_pii(str(update["action"]))[:240]
 
         result["engine"] = "rules+semantic+retrieval+llm"
         result["trace"].append({
