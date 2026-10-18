@@ -202,7 +202,6 @@ def init_auth_db() -> None:
                 detail TEXT,
                 created_at TEXT NOT NULL
             );
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users(lower(email)) WHERE email IS NOT NULL AND email <> '';
             CREATE INDEX IF NOT EXISTS idx_email_challenges_user ON email_challenges(user_id, purpose, created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_custody_evidence ON custody_events(evidence_id, created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_cases_user_created ON cases(user_id, created_at DESC);
@@ -213,6 +212,7 @@ def init_auth_db() -> None:
         ensure_column(connection, "users", "status", "TEXT NOT NULL DEFAULT 'active'")
         ensure_column(connection, "users", "email", "TEXT")
         ensure_column(connection, "users", "email_verified_at", "TEXT")
+        connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users(lower(email)) WHERE email IS NOT NULL AND email <> ''")
         ensure_column(connection, "users", "last_login_at", "TEXT")
         ensure_column(connection, "users", "updated_at", "TEXT")
         ensure_column(connection, "sessions", "user_agent", "TEXT NOT NULL DEFAULT ''")
@@ -2461,7 +2461,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"ok": True, "evidence": {
                     "id": evidence_id, "case_id": case_id, "filename": filename,
                     "content_type": content_type, "size_bytes": len(data),
-                    "sha256": digest, "created_at": created_at,
+                    "sha256": digest, "previous_hash": previous_hash, "record_hash": record_hash, "created_at": created_at,
                 }})
                 return
             if parsed.path == "/api/evidence/delete":
