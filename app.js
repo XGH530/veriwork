@@ -13,9 +13,14 @@ const state = {
     model: ""
   },
   user: null,
-  authMode: "student",
-  authToken: localStorage.getItem("veriwork-token") || ""
+  authMode: "student"
 };
+
+try {
+  localStorage.removeItem("veriwork-token");
+} catch (error) {
+  console.warn("旧会话清理失败", error);
+}
 
 function escapeHtml(value = "") {
   return String(value)
@@ -103,6 +108,7 @@ async function extractDocumentViaApi(file) {
   const baseUrl = state.settings.apiBase.replace(/\/$/, "");
   const response = await fetch(`${baseUrl}/api/extract`, {
     method: "POST",
+    credentials: "include",
     headers: apiHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({
       filename: file.name,
@@ -121,14 +127,13 @@ async function extractDocumentViaApi(file) {
 }
 
 function apiHeaders(extra = {}) {
-  const headers = { ...extra };
-  if (state.authToken) headers.Authorization = `Bearer ${state.authToken}`;
-  return headers;
+  return { ...extra };
 }
 
 async function authRequest(path, payload) {
   const response = await fetch(`${state.settings.apiBase.replace(/\/$/, "")}${path}`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
@@ -154,9 +159,7 @@ function clearAuthError() {
 async function loginWithCredentials(username, password) {
   clearAuthError();
   const data = await authRequest("/api/auth/login", { username, password });
-  state.authToken = data.token;
   state.user = data.user;
-  localStorage.setItem("veriwork-token", data.token);
   updateUserUI();
   $("#authDialog")?.close();
   clearAuthError();
@@ -167,30 +170,20 @@ async function loginWithCredentials(username, password) {
 
 async function registerAccount(username, password) {
   const data = await authRequest("/api/auth/register", { username, password });
-  state.authToken = data.token;
   state.user = data.user;
-  localStorage.setItem("veriwork-token", data.token);
   updateUserUI();
   $("#authDialog")?.close();
   toast(`注册成功：${data.user.username}`);
 }
 
 async function loadCurrentUser() {
-  if (!state.authToken) {
-    state.user = null;
-    updateUserUI();
-    return false;
-  }
   try {
     const response = await fetch(`${state.settings.apiBase.replace(/\/$/, "")}/api/auth/me`, {
+      credentials: "include",
       headers: apiHeaders()
     });
     const data = await response.json();
     state.user = data.authenticated ? data.user : null;
-    if (!state.user) {
-      state.authToken = "";
-      localStorage.removeItem("veriwork-token");
-    }
   } catch (error) {
     state.user = null;
   }
@@ -202,15 +195,14 @@ async function logoutAccount() {
   try {
     await fetch(`${state.settings.apiBase.replace(/\/$/, "")}/api/auth/logout`, {
       method: "POST",
+      credentials: "include",
       headers: apiHeaders({ "Content-Type": "application/json" }),
       body: "{}"
     });
   } catch (error) {
     console.warn(error);
   }
-  state.authToken = "";
   state.user = null;
-  localStorage.removeItem("veriwork-token");
   updateUserUI();
   toast("已退出登录。");
 }
@@ -451,6 +443,7 @@ async function analyzeWithApi(text, options) {
   const url = `${state.settings.apiBase.replace(/\/$/, "")}/api/analyze`;
   const response = await fetch(url, {
     method: "POST",
+    credentials: "include",
     headers: apiHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ text, ...options })
   });
@@ -881,7 +874,7 @@ function addPolicyToChecklist(policyId) {
 async function refreshAdminPage() {
   if (!state.user || state.user.role !== "admin") return;
   try {
-    const response = await fetch(`${state.settings.apiBase.replace(/\/$/, "")}/api/admin/stats`, { headers: apiHeaders() });
+    const response = await fetch(`${state.settings.apiBase.replace(/\/$/, "")}/api/admin/stats`, { credentials: "include", headers: apiHeaders() });
     const data = await response.json();
     if (!response.ok || data.error) throw new Error(data.error || `API ${response.status}`);
     $("#adminUserCount").textContent = data.userCount;
@@ -908,6 +901,7 @@ async function refreshAdminPage() {
         const role = $(`.admin-role-select[data-user-id="${userId}"]`).value;
         const saveResponse = await fetch(`${state.settings.apiBase.replace(/\/$/, "")}/api/admin/set-role`, {
           method: "POST",
+          credentials: "include",
           headers: apiHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({ user_id: Number(userId), role })
         });

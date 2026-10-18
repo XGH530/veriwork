@@ -26,14 +26,16 @@
 
 ## 用户登录
 
-大模型模式使用SQLite用户系统和Bearer会话令牌。系统首次启动会自动创建演示账号：
+大模型模式使用SQLite用户系统和HttpOnly会话Cookie：
 
 - 普通用户通过注册创建账号，或由运营方开通
 - 管理员账号和密码由服务器环境变量 `ADMIN_USERNAME`、`ADMIN_PASSWORD` 配置
+- 首次初始化必须提供至少10位的管理员密码，代码中不再存在默认管理员密码
 - 管理员登录后由系统自动识别角色并进入管理后台
-- 参数示例仅保留占位值，不在页面公开任何默认密码
+- 浏览器不保存Bearer令牌；会话Cookie设置 `HttpOnly` 和 `SameSite`，数据库只保存令牌的SHA-256摘要
+- 登录失败和注册均有基础限流，生产环境还应由Nginx/WAF增加全局限流
 
-用户也可以注册自己的账号。未登录用户可以浏览页面和运行纯前端演示，但后端合同研判和PDF/Word解析需要登录。密码使用PBKDF2-SHA256加盐存储，API密钥不会进入浏览器。
+未登录用户可以浏览页面和运行纯前端演示，但后端合同研判和PDF/Word解析需要登录。密码使用PBKDF2-SHA256加盐存储，API密钥不会进入浏览器。
 
 ## 多语言与PDF页码
 
@@ -163,7 +165,7 @@ python tools/validate_policy_pack.py
 ├─ submission/                        提交材料模板
 ├─ results/                           自动生成的评测报告
 ├─ tools/                             数据集、评测和校验脚本
-├─ tests/                             后端单元测试
+├─ tests/                             后端单元测试与安全集成测试
 └─ docs/
    ├─ 竞赛规则与流程总览.md
    ├─ 零基础系统说明书.md
@@ -178,9 +180,12 @@ python tools/validate_policy_pack.py
 
 部署配置文件位于 `deploy/`：
 
-- `deploy/veriwork.nginx.conf`：Nginx子路径反向代理；
+- `deploy/veriwork.nginx.conf`：Nginx子路径反向代理，并在代理前直接拒绝数据库、源码、文档和部署文件；
+- `deploy/apply-nginx-guard.sh`：备份当前配置后安装安全规则并执行 `nginx -t`；
 - `deploy/veriwork.service`：systemd常驻服务；
-- `deploy/update-from-github.sh`：从GitHub一键拉取更新并重启。
+- `deploy/update-from-github.sh`：备份数据库、迁移至Web目录外、从GitHub拉取更新并重启。
+
+生产数据库应通过 `VERIWORK_DB_PATH` 放在 `/opt/veriwork-data/veriwork.db`，不要继续留在应用目录。每次更新脚本会保留最近14天的数据库备份。公网部署必须启用HTTPS，并将 `SESSION_COOKIE_SECURE` 设为 `1`。
 
 官方法规和最低工资数据保存在 `data/official_sources/`，包含原始HTML、正文、来源URL和SHA-256。公网部署说明见 `docs/公网部署指南.md`，Docker和Render配置已包含在项目根目录。
 ## 重要边界

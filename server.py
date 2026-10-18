@@ -18,10 +18,12 @@ import re
 import secrets
 import sqlite3
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta
+from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlparse
@@ -46,9 +48,22 @@ load_env_file()
 HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = int(os.environ.get("PORT", "8000"))
 MAX_BODY = 12 * 1024 * 1024
-DB_PATH = BASE_DIR / "data" / "veriwork.db"
+MAX_AUTH_BODY = 64 * 1024
+_db_path = os.environ.get("VERIWORK_DB_PATH", "").strip()
+DB_PATH = Path(_db_path).expanduser().resolve() if _db_path else BASE_DIR / "data" / "veriwork.db"
 PBKDF2_ITERATIONS = 200_000
 SESSION_DAYS = 7
+SESSION_COOKIE_NAME = os.environ.get("SESSION_COOKIE_NAME", "veriwork_session").strip() or "veriwork_session"
+SESSION_COOKIE_PATH = os.environ.get("SESSION_COOKIE_PATH", "/").strip() or "/"
+SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "").lower() in {"1", "true", "yes"}
+CORS_ORIGIN = os.environ.get("CORS_ORIGIN", "").strip().rstrip("/")
+LOGIN_FAILURE_LIMIT = max(1, int(os.environ.get("LOGIN_FAILURE_LIMIT", "5")))
+LOGIN_WINDOW_SECONDS = max(60, int(os.environ.get("LOGIN_WINDOW_SECONDS", "600")))
+REGISTER_LIMIT = max(1, int(os.environ.get("REGISTER_LIMIT", "5")))
+REGISTER_WINDOW_SECONDS = max(60, int(os.environ.get("REGISTER_WINDOW_SECONDS", "3600")))
+_rate_lock = threading.Lock()
+_login_failures: dict[str, list[float]] = {}
+_register_attempts: dict[str, list[float]] = {}
 
 
 def auth_db() -> sqlite3.Connection:
@@ -99,34 +114,30 @@ def init_auth_db() -> None:
             );
             """
         )
-        demo_username = os.environ.get("DEMO_USERNAME", "demo")
-        demo_password = os.environ.get("DEMO_PASSWORD", "demo123456")
-        existing = connection.execute("SELECT id FROM users WHERE username = ?", (demo_username,)).fetchone()
-        salt, digest = hash_password(demo_password)
-        if not existing:
-            connection.execute(
-                "INSERT INTO users(username, salt, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)",
-                (demo_username, salt, digest, "student", datetime.now().isoformat(timespec="seconds")),
-            )
-        else:
-            connection.execute(
-                "UPDATE users SET salt = ?, password_hash = ?, role = 'student' WHERE username = ?",
-                (salt, digest, demo_username),
-            )
-        admin_username = os.environ.get("ADMIN_USERNAME", "admin")
-        admin_password = os.environ.get("ADMIN_PASSWORD", "admin123456")
-        existing_admin = connection.execute("SELECT id FROM users WHERE username = ?", (admin_username,)).fetchone()
-        salt, digest = hash_password(admin_password)
-        if not existing_admin:
-            connection.execute(
-                "INSERT INTO users(username, salt, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)",
-                (admin_username, salt, digest, "admin", datetime.now().isoformat(timespec="seconds")),
-            )
-        else:
-            connection.execute(
-                "UPDATE users SET salt = ?, password_hash = ?, role = 'admin' WHERE username = ?",
-                (salt, digest, admin_username),
-            )
+        def sync_configured_account(username_key: str, password_key: str, default_username: str, role: str, required: bool) -> None:
+            username = os.environ.get(username_key, default_username).strip() or default_username
+            password = os.environ.get(password_key, "").strip()
+            existing = connection.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone()
+            if not password:
+                if required and not existing:
+                    raise RuntimeError(f"首次初始化必须配置 {password_key}，禁止使用默认密码")
+                return
+            if len(password) < 10:
+                raise RuntimeError(f"{password_key} 至少需要 10 位")
+            salt, digest = hash_password(password)
+            if existing:
+                connection.execute(
+                    "UPDATE users SET salt = ?, password_hash = ?, role = ? WHERE username = ?",
+                    (salt, digest, role, username),
+                )
+            else:
+                connection.execute(
+                    "INSERT INTO users(username, salt, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)",
+                    (username, salt, digest, role, datetime.now().isoformat(timespec="seconds")),
+                )
+
+        sync_configured_account("DEMO_USERNAME", "DEMO_PASSWORD", "demo", "student", required=False)
+        sync_configured_account("ADMIN_USERNAME", "ADMIN_PASSWORD", "admin", "admin", required=True)
         connection.commit()
 
 
@@ -163,14 +174,18 @@ def authenticate_user(username: str, password: str) -> dict | None:
     return {"id": row["id"], "username": row["username"], "role": row["role"]}
 
 
+def hash_session_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
 def create_session(user_id: int) -> str:
-    token = secrets.token_urlsafe(32)
+    token = secrets.token_urlsafe(48)
     now = datetime.now()
     expires = now + timedelta(days=SESSION_DAYS)
     with auth_db() as connection:
         connection.execute(
             "INSERT INTO sessions(token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
-            (token, user_id, now.isoformat(timespec="seconds"), expires.isoformat(timespec="seconds")),
+            (hash_session_token(token), user_id, now.isoformat(timespec="seconds"), expires.isoformat(timespec="seconds")),
         )
         connection.commit()
     return token
@@ -179,6 +194,7 @@ def create_session(user_id: int) -> str:
 def resolve_session(token: str | None) -> dict | None:
     if not token:
         return None
+    token_digest = hash_session_token(token)
     with auth_db() as connection:
         row = connection.execute(
             """
@@ -186,12 +202,12 @@ def resolve_session(token: str | None) -> dict | None:
             FROM sessions JOIN users ON sessions.user_id = users.id
             WHERE sessions.token = ?
             """,
-            (token,),
+            (token_digest,),
         ).fetchone()
         if not row:
             return None
         if datetime.fromisoformat(row["expires_at"]) < datetime.now():
-            connection.execute("DELETE FROM sessions WHERE token = ?", (token,))
+            connection.execute("DELETE FROM sessions WHERE token = ?", (token_digest,))
             connection.commit()
             return None
     return {"id": row["id"], "username": row["username"], "role": row["role"]}
@@ -251,7 +267,7 @@ def revoke_session(token: str | None) -> None:
     if not token:
         return
     with auth_db() as connection:
-        connection.execute("DELETE FROM sessions WHERE token = ?", (token,))
+        connection.execute("DELETE FROM sessions WHERE token = ?", (hash_session_token(token),))
         connection.commit()
 
 
@@ -998,34 +1014,124 @@ def enhance_with_llm(result: dict) -> dict:
     return result
 
 
-class Handler(BaseHTTPRequestHandler):
-    server_version = "VeriWork/0.9"
+def _prune_attempts(bucket: dict[str, list[float]], key: str, window: int) -> list[float]:
+    now = time.time()
+    attempts = [stamp for stamp in bucket.get(key, []) if now - stamp < window]
+    if attempts:
+        bucket[key] = attempts
+    else:
+        bucket.pop(key, None)
+    return attempts
 
-    def send_json(self, payload: dict, status: int = 200) -> None:
+
+def register_rate_limited(client_ip: str) -> bool:
+    with _rate_lock:
+        attempts = _prune_attempts(_register_attempts, client_ip, REGISTER_WINDOW_SECONDS)
+        if len(attempts) >= REGISTER_LIMIT:
+            return True
+        bucket = _register_attempts.setdefault(client_ip, [])
+        bucket.append(time.time())
+        return False
+
+
+def login_rate_limited(client_ip: str, username: str) -> bool:
+    key = f"{client_ip}|{username.strip().lower()}"
+    with _rate_lock:
+        return len(_prune_attempts(_login_failures, key, LOGIN_WINDOW_SECONDS)) >= LOGIN_FAILURE_LIMIT
+
+
+def record_login_failure(client_ip: str, username: str) -> None:
+    key = f"{client_ip}|{username.strip().lower()}"
+    with _rate_lock:
+        _login_failures.setdefault(key, []).append(time.time())
+
+
+def clear_login_failures(client_ip: str, username: str) -> None:
+    key = f"{client_ip}|{username.strip().lower()}"
+    with _rate_lock:
+        _login_failures.pop(key, None)
+
+
+class Handler(BaseHTTPRequestHandler):
+    server_version = "VeriWork"
+    sys_version = ""
+
+    def common_headers(self) -> None:
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        self.send_header("Cross-Origin-Resource-Policy", "same-origin")
+        origin = self.headers.get("Origin", "").rstrip("/")
+        if origin and CORS_ORIGIN and secrets.compare_digest(origin, CORS_ORIGIN):
+            self.send_header("Access-Control-Allow-Origin", CORS_ORIGIN)
+            self.send_header("Access-Control-Allow-Credentials", "true")
+            self.send_header("Vary", "Origin")
+
+    def send_json(self, payload: dict, status: int = 200, extra_headers: dict[str, str] | None = None) -> None:
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
-        self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Cache-Control", "no-store")
+        self.common_headers()
+        for name, value in (extra_headers or {}).items():
+            self.send_header(name, value)
         self.end_headers()
         self.wfile.write(data)
 
     def do_OPTIONS(self) -> None:
+        origin = self.headers.get("Origin", "").rstrip("/")
+        if origin and not (CORS_ORIGIN and secrets.compare_digest(origin, CORS_ORIGIN)):
+            self.send_json({"error": "origin_not_allowed"}, 403)
+            return
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.send_header("Content-Length", "0")
+        self.common_headers()
+        if origin:
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Access-Control-Max-Age", "600")
         self.end_headers()
 
-    def bearer_token(self) -> str | None:
+    def client_ip(self) -> str:
+        real_ip = self.headers.get("X-Real-IP", "").strip()
+        if real_ip:
+            return real_ip[:64]
+        forwarded = self.headers.get("X-Forwarded-For", "")
+        if forwarded:
+            # Nginx appends the peer address. Taking the last value avoids a spoofed first hop.
+            return forwarded.rsplit(",", 1)[-1].strip()[:64]
+        return self.client_address[0]
+
+    def session_token(self) -> str | None:
+        raw_cookie = self.headers.get("Cookie", "")
+        if raw_cookie:
+            cookie = SimpleCookie()
+            try:
+                cookie.load(raw_cookie)
+                morsel = cookie.get(SESSION_COOKIE_NAME)
+                if morsel and morsel.value:
+                    return morsel.value
+            except Exception:  # noqa: BLE001 - 非法 Cookie 直接忽略
+                pass
         header = self.headers.get("Authorization", "")
         if header.lower().startswith("bearer "):
             return header[7:].strip()
         return None
 
+    def session_cookie(self, token: str | None, clear: bool = False) -> str:
+        parts = [f"{SESSION_COOKIE_NAME}={token or ''}", f"Path={SESSION_COOKIE_PATH}", "HttpOnly", "SameSite=Lax"]
+        if clear:
+            parts.extend(["Max-Age=0", "Expires=Thu, 01 Jan 1970 00:00:00 GMT"])
+        else:
+            parts.append(f"Max-Age={SESSION_DAYS * 86400}")
+        if SESSION_COOKIE_SECURE or self.headers.get("X-Forwarded-Proto", "").split(",", 1)[0].strip() == "https":
+            parts.append("Secure")
+        return "; ".join(parts)
+
     def current_user(self) -> dict | None:
-        return resolve_session(self.bearer_token())
+        return resolve_session(self.session_token())
 
     def require_user(self) -> dict | None:
         user = self.current_user()
@@ -1037,23 +1143,35 @@ class Handler(BaseHTTPRequestHandler):
     def handle_auth(self, path: str) -> None:
         try:
             content_length = int(self.headers.get("Content-Length", "0"))
-            body = json.loads(self.rfile.read(content_length).decode("utf-8")) if content_length else {}
+            if content_length <= 0 or content_length > MAX_AUTH_BODY:
+                raise ValueError("请求体为空或过大")
+            body = json.loads(self.rfile.read(content_length).decode("utf-8"))
+            client_ip = self.client_ip()
             if path == "/api/auth/register":
+                if register_rate_limited(client_ip):
+                    self.send_json({"error": "注册过于频繁，请稍后再试"}, 429)
+                    return
                 user = register_user(str(body.get("username", "")), str(body.get("password", "")))
                 token = create_session(user["id"])
-                self.send_json({"token": token, "user": user})
+                self.send_json({"user": user}, extra_headers={"Set-Cookie": self.session_cookie(token)})
                 return
             if path == "/api/auth/login":
-                user = authenticate_user(str(body.get("username", "")), str(body.get("password", "")))
+                username = str(body.get("username", "")).strip()
+                if login_rate_limited(client_ip, username):
+                    self.send_json({"error": "登录失败次数过多，请10分钟后再试"}, 429)
+                    return
+                user = authenticate_user(username, str(body.get("password", "")))
                 if not user:
+                    record_login_failure(client_ip, username)
                     self.send_json({"error": "用户名或密码错误"}, 401)
                     return
+                clear_login_failures(client_ip, username)
                 token = create_session(user["id"])
-                self.send_json({"token": token, "user": user})
+                self.send_json({"user": user}, extra_headers={"Set-Cookie": self.session_cookie(token)})
                 return
             if path == "/api/auth/logout":
-                revoke_session(self.bearer_token())
-                self.send_json({"ok": True})
+                revoke_session(self.session_token())
+                self.send_json({"ok": True}, extra_headers={"Set-Cookie": self.session_cookie(None, clear=True)})
                 return
             self.send_json({"error": "not_found"}, 404)
         except (ValueError, json.JSONDecodeError) as exc:
@@ -1172,13 +1290,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def serve_static(self, request_path: str) -> None:
         relative = unquote(request_path).lstrip("/") or "index.html"
-        target = (BASE_DIR / relative).resolve()
-        if target != BASE_DIR and BASE_DIR not in target.parents:
-            self.send_error(403)
+        public_files = {"index.html", "styles.css", "app.js", "data.js"}
+        public_asset_suffixes = {".svg", ".png", ".jpg", ".jpeg", ".webp", ".ico", ".gif"}
+        suffix = Path(relative).suffix.lower()
+        allowed = relative in public_files or (relative.startswith("assets/") and suffix in public_asset_suffixes)
+        if not allowed:
+            self.send_error(404)
             return
-        if target.is_dir():
-            target = target / "index.html"
-        if not target.exists() or not target.is_file():
+        target = (BASE_DIR / relative).resolve()
+        if BASE_DIR not in target.parents or not target.is_file():
             self.send_error(404)
             return
 
@@ -1190,6 +1310,18 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-cache")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "SAMEORIGIN")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        self.send_header("Cross-Origin-Resource-Policy", "same-origin")
+        if suffix in {".html"} or relative == "index.html":
+            self.send_header(
+                "Content-Security-Policy",
+                "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; "
+                "script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; "
+                "form-action 'self'; frame-ancestors 'self'",
+            )
         self.end_headers()
         self.wfile.write(data)
 
