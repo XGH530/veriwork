@@ -6,7 +6,7 @@
   <meta name="description" content="职安盾 VeriWork——面向高校毕业生就业合同的可验证 AI 风险评估与证据链系统">
   <title>职安盾 VeriWork · 可信就业风险决策</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <link rel="stylesheet" href="styles.css?v=20261019r17">
+  <link rel="stylesheet" href="styles.css?v=20261019r18">
 </head>
 <body>
   
@@ -671,7 +671,12 @@
           <p>仅限具备管理员角色的账号。普通用户请返回用户登录。</p>
         </div>
         <label class="admin-login-field">管理员账号<input id="adminUsername" type="text" autocomplete="username" placeholder="请输入管理员账号"></label>
-        <label class="admin-login-field">管理员密码<input id="adminPassword" type="password" autocomplete="current-password" placeholder="请输入管理员密码"></label>
+        <label class="admin-login-field">管理员密码
+          <span class="password-input-wrap">
+            <input id="adminPassword" type="password" autocomplete="current-password" placeholder="请输入管理员密码">
+            <button type="button" class="password-toggle" data-password-target="adminPassword" aria-label="显示密码" aria-pressed="false">显示密码</button>
+          </span>
+        </label>
         <div id="admin2faRow" class="admin-login-field hidden"><label>邮箱验证码<input id="admin2faCode" type="text" inputmode="numeric" maxlength="6" placeholder="6位验证码"></label></div>
         <div id="adminLoginError" class="auth-error hidden" role="alert"></div>
         <button id="adminLoginButton" class="primary-button admin-login-submit">进入运营控制台</button>
@@ -719,7 +724,10 @@
         </div>
         <div class="auth-field">
           <label for="authPassword">密码</label>
-          <input id="authPassword" type="password" value="" autocomplete="current-password" placeholder="请输入密码">
+          <div class="password-input-wrap">
+            <input id="authPassword" type="password" value="" autocomplete="current-password" placeholder="请输入密码">
+            <button type="button" class="password-toggle" data-password-target="authPassword" aria-label="显示密码" aria-pressed="false">显示密码</button>
+          </div>
         </div>
         <div id="twoFactorPanel" class="auth-field hidden">
           <label for="auth2faCode">管理员邮箱验证码</label>
@@ -738,7 +746,10 @@
         </div>
         <div class="auth-field">
           <label for="registerPassword">密码</label>
-          <input id="registerPassword" type="password" value="" autocomplete="new-password" placeholder="至少8位">
+          <div class="password-input-wrap">
+            <input id="registerPassword" type="password" value="" autocomplete="new-password" placeholder="至少8位">
+            <button type="button" class="password-toggle" data-password-target="registerPassword" aria-label="显示密码" aria-pressed="false">显示密码</button>
+          </div>
         </div>
         <div class="auth-field">
           <label for="authEmail">注册邮箱</label>
@@ -789,7 +800,7 @@
     </form>
   </dialog>
 
-  <script src="data.js?v=20261019r17"></script>
-  <script src="app.js?v=20261019r17"></script>
+  <script src="data.js?v=20261019r18"></script>
+  <script src="app.js?v=20261019r18"></script>
 </body>
 </html>

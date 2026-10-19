@@ -2144,6 +2144,18 @@ async function handleFiles(fileList) {
 }
 
 function bindEvents() {
+  $$(".password-toggle").forEach((button) => {
+    button.addEventListener("click", () => {
+      const input = document.getElementById(button.dataset.passwordTarget);
+      if (!input) return;
+      const willShow = input.type === "password";
+      input.type = willShow ? "text" : "password";
+      button.textContent = willShow ? "隐藏密码" : "显示密码";
+      button.setAttribute("aria-label", willShow ? "隐藏密码" : "显示密码");
+      button.setAttribute("aria-pressed", willShow ? "true" : "false");
+      input.focus();
+    });
+  });
   $$(".nav-item").forEach((element) => element.addEventListener("click", () => navigate(element.dataset.page)));
   $$("[data-go]").forEach((element) => element.addEventListener("click", () => navigate(element.dataset.go)));
 

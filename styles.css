@@ -1697,3 +1697,38 @@ table th { color: #586474; background: #f8f9fa; }
   .drop-zone { padding: 11px 12px; }
   .drop-zone strong { font-size: 11px; }
 }
+
+/* 密码显示/隐藏切换 */
+.password-input-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+.password-input-wrap input {
+  width: 100%;
+  padding-right: 78px;
+}
+.password-toggle {
+  position: absolute;
+  right: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  color: #0d5c63;
+  font-family: "Microsoft YaHei", sans-serif;
+  font-size: 10px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.password-toggle:hover,
+.password-toggle:focus-visible {
+  color: #083f45;
+  text-decoration: underline;
+  outline: none;
+}
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
