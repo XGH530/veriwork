@@ -17,6 +17,7 @@ import mimetypes
 import os
 import re
 import secrets
+import shutil
 import smtplib
 import sqlite3
 import subprocess
@@ -416,7 +417,7 @@ def health_payload() -> dict:
     return {
         "ok": database_ok,
         "name": "职安盾 VeriWork",
-        "version": "2.0.1",
+        "version": "2.1.0",
         "uptimeSeconds": int(time.time() - STARTED_AT),
         "databaseOk": database_ok,
         "evidenceStorageOk": EVIDENCE_DIR.is_dir() and os.access(EVIDENCE_DIR, os.W_OK),
@@ -424,6 +425,7 @@ def health_payload() -> dict:
         "emailConfigured": smtp_configured(),
         "admin2faEnabled": ADMIN_2FA_ENABLED and bool(ADMIN_EMAIL) and smtp_configured(),
         "model": os.environ.get("LLM_MODEL", ""),
+        "ocrAvailable": ocr_available(),
         "rules": len(RISKS),
         "laws": len(LAWS),
     }
@@ -877,6 +879,13 @@ LAWS = [
         "summary": "高校实习应完善实习协议、安全教育、过程管理和权益保障；具体适用需结合学校制度和属地要求核验。",
         "url": "https://www.moe.gov.cn/",
     },
+    {
+        "id": "tripartite_policy",
+        "title": "高校毕业生就业协议管理",
+        "source": "教育部《普通高等学校毕业生就业工作暂行规定》（教学〔1997〕6号）及现行高校毕业生就业工作规定",
+        "summary": "三方协议用于明确毕业生、学校和用人单位的就业安排，但不等同于劳动合同；违约金、档案、户口和报到安排应明确、可执行。",
+        "url": "https://www.moe.gov.cn/",
+    },
 ]
 
 
@@ -907,97 +916,131 @@ JURISDICTIONS = {
         "id": "全国规则",
         "title": "全国基础规则包",
         "status": "基础模式",
-        "note": "当前使用全国性法律法规规则，不自动套用未经验证的地方数字标准。",
+        "note": "全国性法律法规和规则；地方金额与条件需选择具体地区后核验。",
         "source": "全国人大法律法规数据库、人力资源和社会保障部",
         "version": "2026-10",
+        "officialUrl": "https://www.mohrss.gov.cn/",
+        "effectiveDate": "",
     },
     "北京": {
         "id": "北京",
         "title": "北京地区政策适配包",
         "status": "最低工资已核验",
-        "note": "北京月最低工资分档：2540元；小时最低工资分档：27.7元。数据来自人社部截至2026年10月1日全国汇总，地方生效日期和具体适用档次仍需以属地通知为准。",
-        "source": "人力资源和社会保障部全国最低工资汇总",
-        "version": "2026-10-01",
+        "note": "2025年9月1日起：月最低工资2540元，非全日制小时最低工资27.7元。",
+        "source": "北京市人力资源和社会保障局",
+        "version": "2025-09-01",
+        "officialUrl": "https://rsj.beijing.gov.cn/weimenhu/wmtgz/202507/t20250724_4157298.html",
+        "effectiveDate": "2025-09-01",
     },
     "上海": {
         "id": "上海",
         "title": "上海地区政策适配包",
         "status": "最低工资已核验",
-        "note": "上海月最低工资分档：2740元；小时最低工资分档：25元。数据来自人社部截至2026年10月1日全国汇总，地方生效日期和具体适用档次仍需以属地通知为准。",
-        "source": "人力资源和社会保障部全国最低工资汇总",
-        "version": "2026-10-01",
+        "note": "2025年7月1日起：月最低工资2740元，小时最低工资25元。",
+        "source": "上海市人力资源和社会保障局",
+        "version": "2025-07-01",
+        "officialUrl": "https://rsj.sh.gov.cn/tgzfl_17732/20250714/t0035_1434097.html",
+        "effectiveDate": "2025-07-01",
     },
     "广东": {
         "id": "广东",
         "title": "广东地区政策适配包",
         "status": "最低工资已核验",
-        "note": "广东月最低工资分档：2680、2300、2040元；小时最低工资分档：25.4、21.9、20.2元。数据来自人社部截至2026年10月1日全国汇总，地方生效日期和具体适用档次仍需以属地通知为准。",
-        "source": "人力资源和社会保障部全国最低工资汇总",
-        "version": "2026-10-01",
+        "note": "2026年9月1日起：月最低工资分档2680、2300、2040元；小时最低工资分档25.4、21.9、20.2元。广州执行2680元/月，深圳单列2700元/月。",
+        "source": "广东省人力资源和社会保障厅",
+        "version": "2026-09-01",
+        "officialUrl": "https://hrss.gd.gov.cn/zwgk/xxgkml/gzdt/content/post_4942224.html",
+        "effectiveDate": "2026-09-01",
+    },
+    "深圳": {
+        "id": "深圳",
+        "title": "深圳地区政策适配包",
+        "status": "最低工资已核验",
+        "note": "2026年9月1日起：全日制月最低工资2700元，非全日制小时最低工资25.4元。",
+        "source": "深圳市人力资源和社会保障局",
+        "version": "2026-09-01",
+        "officialUrl": "http://hrss.sz.gov.cn/xxgk/qtxx/tzgg/content/post_12954949.html",
+        "effectiveDate": "2026-09-01",
     },
     "重庆": {
         "id": "重庆",
         "title": "重庆地区政策适配包",
         "status": "最低工资已核验",
-        "note": "重庆月最低工资分档：2330、2200元；小时最低工资分档：23、22元。数据来自人社部截至2026年10月1日全国汇总，地方生效日期和具体适用档次仍需以属地通知为准。",
-        "source": "人力资源和社会保障部全国最低工资汇总",
-        "version": "2026-10-01",
+        "note": "2025年1月1日起：主城等区县月最低工资2330元、小时23元；其他区县月最低工资2200元、小时22元。",
+        "source": "重庆市人力资源和社会保障局",
+        "version": "2025-01-01",
+        "officialUrl": "https://www.cq.gov.cn/ywdt/jrcq/202501/t20250102_14038331.html",
+        "effectiveDate": "2025-01-01",
     },
     "四川": {
         "id": "四川",
         "title": "四川地区政策适配包",
-        "status": "最低工资已核验",
-        "note": "四川月最低工资分档：2330、2200元；小时最低工资分档：23、22元。数据来自人社部截至2026年10月1日全国汇总，地方生效日期和具体适用档次仍需以属地通知为准。",
+        "status": "人社部汇总，待属地原文复核",
+        "note": "人社部截至2026年10月1日汇总：月最低工资分档2330、2200元；小时最低工资分档23、22元。",
         "source": "人力资源和社会保障部全国最低工资汇总",
         "version": "2026-10-01",
+        "officialUrl": "https://rst.sc.gov.cn/",
+        "effectiveDate": "",
     },
     "贵州": {
         "id": "贵州",
         "title": "贵州地区政策适配包",
-        "status": "最低工资已核验",
-        "note": "贵州月最低工资分档：2130、1980、1890元；小时最低工资分档：22.4、20.8、19.8元。数据来自人社部截至2026年10月1日全国汇总，地方生效日期和具体适用档次仍需以属地通知为准。",
+        "status": "人社部汇总，待属地原文复核",
+        "note": "人社部截至2026年10月1日汇总：月最低工资分档2130、1980、1890元；小时最低工资分档22.4、20.8、19.8元。",
         "source": "人力资源和社会保障部全国最低工资汇总",
         "version": "2026-10-01",
+        "officialUrl": "https://rst.guizhou.gov.cn/",
+        "effectiveDate": "",
     },
     "云南": {
         "id": "云南",
         "title": "云南地区政策适配包",
-        "status": "最低工资已核验",
-        "note": "云南月最低工资分档：2270、2120、1970元；小时最低工资分档：22、21、20元。数据来自人社部截至2026年10月1日全国汇总，地方生效日期和具体适用档次仍需以属地通知为准。",
+        "status": "人社部汇总，待属地原文复核",
+        "note": "人社部截至2026年10月1日汇总：月最低工资分档2270、2120、1970元；小时最低工资分档22、21、20元。",
         "source": "人力资源和社会保障部全国最低工资汇总",
         "version": "2026-10-01",
+        "officialUrl": "https://hrss.yn.gov.cn/",
+        "effectiveDate": "",
     },
     "陕西": {
         "id": "陕西",
         "title": "陕西地区政策适配包",
-        "status": "最低工资已核验",
-        "note": "陕西月最低工资分档：2376、2250、2140元；小时最低工资分档：23、21.7、20.7元。数据来自人社部截至2026年10月1日全国汇总，地方生效日期和具体适用档次仍需以属地通知为准。",
+        "status": "人社部汇总，待属地原文复核",
+        "note": "人社部截至2026年10月1日汇总：月最低工资分档2376、2250、2140元；小时最低工资分档23、21.7、20.7元。",
         "source": "人力资源和社会保障部全国最低工资汇总",
         "version": "2026-10-01",
+        "officialUrl": "https://hrss.shaanxi.gov.cn/",
+        "effectiveDate": "",
     },
     "湖北": {
         "id": "湖北",
         "title": "湖北地区政策适配包",
-        "status": "最低工资已核验",
-        "note": "湖北月最低工资分档：2400、2130、1970元；小时最低工资分档：24、21.5、20元。数据来自人社部截至2026年10月1日全国汇总，地方生效日期和具体适用档次仍需以属地通知为准。",
+        "status": "人社部汇总，待属地原文复核",
+        "note": "人社部截至2026年10月1日汇总：月最低工资分档2400、2130、1970元；小时最低工资分档24、21.5、20元。",
         "source": "人力资源和社会保障部全国最低工资汇总",
         "version": "2026-10-01",
+        "officialUrl": "https://rst.hubei.gov.cn/",
+        "effectiveDate": "",
     },
     "湖南": {
         "id": "湖南",
         "title": "湖南地区政策适配包",
-        "status": "最低工资已核验",
-        "note": "湖南月最低工资分档：2200、2000、1800元；小时最低工资分档：22、20、18元。数据来自人社部截至2026年10月1日全国汇总，地方生效日期和具体适用档次仍需以属地通知为准。",
+        "status": "人社部汇总，待属地原文复核",
+        "note": "人社部截至2026年10月1日汇总：月最低工资分档2200、2000、1800元；小时最低工资分档22、20、18元。",
         "source": "人力资源和社会保障部全国最低工资汇总",
         "version": "2026-10-01",
+        "officialUrl": "https://rst.hunan.gov.cn/",
+        "effectiveDate": "",
     },
     "广西": {
         "id": "广西",
         "title": "广西地区政策适配包",
-        "status": "最低工资已核验",
-        "note": "广西月最低工资分档：2200、2040、1870元；小时最低工资分档：22.4、20.7、19元。数据来自人社部截至2026年10月1日全国汇总，地方生效日期和具体适用档次仍需以属地通知为准。",
+        "status": "人社部汇总，待属地原文复核",
+        "note": "人社部截至2026年10月1日汇总：月最低工资分档2200、2040、1870元；小时最低工资分档22.4、20.7、19元。",
         "source": "人力资源和社会保障部全国最低工资汇总",
         "version": "2026-10-01",
+        "officialUrl": "https://rst.gxzf.gov.cn/",
+        "effectiveDate": "",
     },
 }
 
@@ -1253,7 +1296,7 @@ RISKS = [
         "reason": "即时解除、严重违纪和全部赔偿责任应当有明确事实、证据和程序，不宜由一方单方认定。",
         "action": "要求补充解除程序、申辩机会、损失范围和举证责任；保留考核、通知和沟通记录。",
         "lawIds": ["lcl_38_46_47", "lcl_26", "civil_code_contract"],
-        "documentTypes": ["实习协议", "劳动合同"],
+        "documentTypes": ["实习协议", "劳动合同", "三方协议"],
     },
     {
         "id": "internship_insurance_missing",
@@ -1282,6 +1325,98 @@ RISKS = [
         "action": "补查学校实习安排、实际管理主体、工作内容、报酬支付和社保情况；在确认关系性质前不要只按“实习”处理。",
         "lawIds": ["labor_relationship_notice", "internship_policy", "lcl_10_82"],
         "documentTypes": ["实习协议"],
+    },
+    {
+        "id": "tripartite_not_labor_contract",
+        "title": "以三方协议代替劳动合同",
+        "category": "合同性质",
+        "severity": "high",
+        "weight": 18,
+        "confidence": 0.93,
+        "regex": r"三方协议[^。；\n]{0,30}(?:代替|替代|视为|等同)[^。；\n]{0,15}劳动合同|以三方协议[^。；\n]{0,15}为准",
+        "reason": "三方协议主要确认就业意向和报到安排，不能替代入职后的书面劳动合同；劳动关系建立后仍需依法订立劳动合同。",
+        "action": "要求明确三方协议与劳动合同的关系，并在入职后一个月内签订书面劳动合同。",
+        "lawIds": ["tripartite_policy", "lcl_10_82", "labor_relationship_notice"],
+        "documentTypes": ["三方协议"],
+    },
+    {
+        "id": "tripartite_penalty_overbroad",
+        "title": "三方协议违约金过高或依据不清",
+        "category": "违约责任",
+        "severity": "medium",
+        "weight": 16,
+        "confidence": 0.88,
+        "regex": r"违约金[^。；\n]{0,24}(?:\d{3,}|[一二三四五六七八九十百千万]{2,})|未满[^。；\n]{0,12}(?:服务期|年限)[^。；\n]{0,20}违约金|违约[^。；\n]{0,15}(?:赔偿|违约金)",
+        "reason": "三方协议可以约定违约责任，但高额违约金、没有服务期或培训成本依据的违约金，实际执行时可能被调整。",
+        "action": "要求写明违约金计算依据、服务期、培训费用和实际损失，并保留沟通记录。",
+        "lawIds": ["tripartite_policy", "civil_code_contract", "lcl_26"],
+        "documentTypes": ["三方协议"],
+    },
+    {
+        "id": "tripartite_blank_terms",
+        "title": "三方协议关键条款空白或待定",
+        "category": "条款完整性",
+        "severity": "medium",
+        "weight": 14,
+        "confidence": 0.87,
+        "regex": r"(?:岗位|职位|薪资|工资|试用期|工作地点|报到时间|服务期)[^。；\n]{0,18}(?:空白|待定|面议|另行约定|以实际为准|未填写|不填)",
+        "reason": "岗位、薪资、试用期、工作地点或报到时间不明确，后续容易产生争议，也无法据此判断就业条件。",
+        "action": "要求在签署前补齐岗位、薪资、试用期、工作地点、报到时间和违约责任。",
+        "lawIds": ["tripartite_policy", "civil_code_contract"],
+        "documentTypes": ["三方协议"],
+    },
+    {
+        "id": "tripartite_entity_mismatch",
+        "title": "签约单位与报到或实际用工单位不一致",
+        "category": "主体一致性",
+        "severity": "medium",
+        "weight": 15,
+        "confidence": 0.86,
+        "regex": r"(?:签约单位|甲方)[^。；\n]{0,35}(?:与)?[^。；\n]{0,20}(?:报到单位|接收单位|实际用工单位)[^。；\n]{0,20}(?:不一致|不同)|(?:报到单位|接收单位)[^。；\n]{0,20}(?:不是|非)[^。；\n]{0,20}(?:甲方|签约单位)",
+        "reason": "签约主体、报到单位和实际用工单位不一致，会影响档案接收、报到、社保和事故责任归属。",
+        "action": "书面确认签约主体、报到单位、实际用工单位和档案接收单位，并保留三方盖章文本。",
+        "lawIds": ["tripartite_policy", "labor_relationship_notice", "civil_code_contract"],
+        "documentTypes": ["三方协议"],
+    },
+    {
+        "id": "tripartite_school_missing",
+        "title": "三方协议缺少学校签章",
+        "category": "协议形式",
+        "severity": "medium",
+        "weight": 12,
+        "confidence": 0.82,
+        "factOnly": True,
+        "regex": r"丙方|学校",
+        "reason": "三方协议通常需要毕业生、学校和用人单位三方确认；学校未签章会影响报到、档案和就业手续办理。",
+        "action": "补齐学校就业部门盖章、经办人和日期，并保留学校审核记录。",
+        "lawIds": ["tripartite_policy"],
+        "documentTypes": ["三方协议"],
+    },
+    {
+        "id": "tripartite_archive_household",
+        "title": "档案、户口或报到证安排不清",
+        "category": "就业手续",
+        "severity": "medium",
+        "weight": 13,
+        "confidence": 0.85,
+        "regex": r"(?:档案|户口|户籍|报到证)[^。；\n]{0,24}(?:自行|不负责|待定|空白|转回原籍|不接收|无处接收)",
+        "reason": "档案、户口和报到证安排不清会影响毕业派遣、入职手续和后续公共服务办理。",
+        "action": "要求写明档案接收单位、地址、联系人，户口迁移方向和报到证抬头，并向学校就业部门确认。",
+        "lawIds": ["tripartite_policy"],
+        "documentTypes": ["三方协议"],
+    },
+    {
+        "id": "tripartite_service_period",
+        "title": "服务期或培训费与违约金绑定",
+        "category": "违约责任",
+        "severity": "medium",
+        "weight": 14,
+        "confidence": 0.84,
+        "regex": r"服务期[^。；\n]{0,25}(?:违约金|赔偿|服务年限)|培训费[^。；\n]{0,25}(?:违约金|赔偿|服务期)",
+        "reason": "服务期和培训费违约条款需要明确培训内容、费用凭证、服务期限和违约金计算方式，否则容易产生争议。",
+        "action": "要求列明培训项目、费用明细、服务期起算和违约金上限，并保留培训协议和付款凭证。",
+        "lawIds": ["tripartite_policy", "civil_code_contract", "lcl_26"],
+        "documentTypes": ["三方协议"],
     },
 ]
 
@@ -1324,6 +1459,58 @@ def parse_page_range(spec: str, total: int) -> list[int]:
     return sorted(dict.fromkeys(selected))
 
 
+OCR_LANGUAGE_MAP = {"zh": "chi_sim+eng", "en": "eng", "ja": "jpn+eng"}
+
+
+def ocr_available() -> bool:
+    try:
+        import pytesseract  # noqa: F401
+        from PIL import Image  # noqa: F401
+    except ImportError:
+        return False
+    command = os.environ.get("TESSERACT_CMD", "").strip()
+    return bool(command or shutil.which("tesseract"))
+
+
+def ocr_image_text(data: bytes, language: str = "zh") -> str:
+    try:
+        import pytesseract
+        from PIL import Image, ImageOps
+    except ImportError as exc:
+        raise ValueError("服务器未安装图片OCR依赖，请安装 pillow 和 pytesseract") from exc
+    command = os.environ.get("TESSERACT_CMD", "").strip()
+    if command:
+        pytesseract.pytesseract.tesseract_cmd = command
+    elif not shutil.which("tesseract"):
+        raise ValueError("服务器未安装 Tesseract OCR")
+    try:
+        image = Image.open(io.BytesIO(data))
+        image = ImageOps.exif_transpose(image)
+        if image.mode not in ("L", "RGB"):
+            image = image.convert("RGB")
+        if image.width < 1200:
+            scale = 1200 / max(1, image.width)
+            resampling = getattr(Image, "Resampling", Image).LANCZOS
+            image = image.resize((max(1, int(image.width * scale)), max(1, int(image.height * scale))), resampling)
+        gray = ImageOps.grayscale(image)
+        gray = ImageOps.autocontrast(gray)
+        lang = OCR_LANGUAGE_MAP.get(language, "chi_sim+eng")
+        text = pytesseract.image_to_string(gray, lang=lang, config="--psm 6")
+        cleaned = "\n".join(line.strip() for line in text.splitlines() if line.strip())
+        if len(cleaned) < 15:
+            fallback = pytesseract.image_to_string(gray, lang=lang, config="--psm 3")
+            fallback = "\n".join(line.strip() for line in fallback.splitlines() if line.strip())
+            if len(fallback) > len(cleaned):
+                cleaned = fallback
+        if len(cleaned) < 10:
+            raise ValueError("图片中没有识别到足够的文字")
+        return cleaned
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError("图片OCR识别失败，请上传更清晰的截图或手动粘贴文字") from exc
+
+
 def extract_document(filename: str, data: bytes, language: str = "zh", page_range: str = "") -> dict:
     suffix = Path(filename).suffix.lower()
     text = ""
@@ -1339,6 +1526,9 @@ def extract_document(filename: str, data: bytes, language: str = "zh", page_rang
             page_text = reader.pages[index].extract_text() or ""
             page_texts.append({"page": index + 1, "text": page_text})
         text = "\n".join(item["text"] for item in page_texts)
+    elif suffix in {".png", ".jpg", ".jpeg", ".webp", ".bmp"}:
+        text = ocr_image_text(data, language=language)
+        page_texts = [{"page": 1, "text": text}]
     elif suffix == ".docx":
         try:
             import docx
@@ -1375,6 +1565,8 @@ def extract_document(filename: str, data: bytes, language: str = "zh", page_rang
         "sha256": hashlib.sha256(data).hexdigest(),
         "sizeBytes": len(data),
         "pageCount": len(page_texts),
+        "ocr": suffix in {".png", ".jpg", ".jpeg", ".webp", ".bmp"},
+        "ocrLanguage": OCR_LANGUAGE_MAP.get(language, "chi_sim+eng") if suffix in {".png", ".jpg", ".jpeg", ".webp", ".bmp"} else "",
         "pages": page_texts,
         "text": text,
     }
@@ -1469,15 +1661,23 @@ def split_clauses(text: str) -> list[str]:
 
 
 def detect_document_type(text: str, selected_type: str = "") -> str:
-    head = re.sub(r"\s+", "", text[:500])
+    head = re.sub(r"\s+", "", text[:600])
+    if any(term in head for term in ("三方协议", "就业协议书", "毕业生就业协议", "全国普通高等学校毕业生就业协议书")):
+        return "三方协议"
     if "实习协议" in head:
         return "实习协议"
     if "劳动合同" in head:
         return "劳动合同"
+    if any(term in head for term in ("劳务协议", "劳务合同")):
+        return "劳务协议"
+    tripartite_terms = ("三方协议", "就业协议书", "丙方", "学校就业部门", "报到证", "档案转寄")
     internship_terms = ("实习协议", "实习补贴", "实习期", "实习内容", "实习期间", "学校学生", "派驻", "实习岗位")
     labor_terms = ("劳动合同", "用人单位", "劳动者", "社会保险", "工资支付", "试用期")
+    tripartite_score = sum(1 for term in tripartite_terms if term in text)
     internship_score = sum(1 for term in internship_terms if term in text)
     labor_score = sum(1 for term in labor_terms if term in text)
+    if tripartite_score >= 2 and tripartite_score >= internship_score and tripartite_score >= labor_score:
+        return "三方协议"
     if internship_score >= 2 and internship_score >= labor_score:
         return "实习协议"
     if labor_score >= 2:
@@ -1493,40 +1693,61 @@ def extract_document_facts(text: str, document_type: str, selected_jurisdiction:
     def clean(value: str) -> str:
         return re.sub(r"\s+", "", value or "")
 
+    is_tripartite = document_type == "三方协议"
     party_a = clean(match(r"(?:甲方|用人单位)\s*[:：]\s*([^\n（(]{2,60})"))
+    if not party_a:
+        party_a = clean(match(r"甲方[^。\n]{0,25}?(?:名称)?\s*[:：]\s*([^\n，,；;]{2,60})"))
     if not party_a:
         party_a = clean(match(r"([^\n（(]{2,60}?)\s*[（(]\s*以下简称[^）)]*甲方[^）)]*[）)]"))
     school = clean(match(r"([\u4e00-\u9fa5]{2,30}(?:学院|大学))[\s\S]{0,40}?学\s*生"))
     if not school:
+        school = clean(match(r"丙方[^。\n]{0,25}?(?:名称)?\s*[:：]\s*([^\n，,；;]{2,60})"))
+    if not school:
         school = clean(match(r"(?:学校|院校)\s*[:：]\s*([^\n，,；;]{2,40})"))
     actual_employer = clean(match(r"派驻至\s*([\s\S]{3,80}?)[，,。；]?\s*在"))
     if not actual_employer:
-        actual_employer = clean(match(r"(?:实际用工单位|用工单位)\s*[:：]\s*([^\n，,；;]{2,60})"))
+        actual_employer = clean(match(r"(?:实际用工单位|用工单位|报到单位|接收单位)\s*[:：]\s*([^\n，,；;]{2,60})"))
     position = clean(match(r"在\s*([^\s，,。；;]{1,20})\s*(?:部门|岗位)"))
-    location_text = clean(match(r"(?:工作地点|实习地点|用工地点)\s*[:：]\s*([^\n，,；;]{2,40})"))
+    if not position:
+        position = clean(match(r"(?:岗位|职位)(?:名称)?\s*(?:[:：]|为)\s*([^\n，,；;。]{1,30})"))
+    location_text = clean(match(r"(?:工作地点|实习地点|用工地点|报到地点)\s*(?:[:：]|为)\s*([^\n，,；;。]{2,40})"))
     start_match = re.search(r"自\s*(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日\s*至", text)
     end_match = re.search(r"至\s*(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日", text)
     start_date = f"{start_match.group(1)}年{start_match.group(2)}月{start_match.group(3)}日" if start_match else ""
     end_date = f"{end_match.group(1)}年{end_match.group(2)}月{end_match.group(3)}日" if end_match else ""
+    report_deadline = clean(match(r"报到(?:时间|日期)?[^。\n]{0,12}?(20\d{2}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日)"))
     daily_pay_text = match(r"(\d+(?:\.\d+)?)\s*元\s*[/／]\s*天")
     monthly_pay_text = match(r"(\d+(?:\.\d+)?)\s*元\s*[/／]\s*月")
+    salary_text = monthly_pay_text
+    if not salary_text:
+        salary_text = match(r"(?:月工资|月薪|薪资|工资标准)[^。\n]{0,15}?(\d+(?:\.\d+)?)\s*元")
+    probation_months = match(r"试用期[^。\n]{0,12}?([一二三四五六七八九十0-9]{1,2})\s*个?月")
+    probation_text = f"{probation_months}个月" if probation_months else ""
+    liquidated_damages = match(r"违约金[^。\n]{0,20}?(\d+(?:\.\d+)?)\s*元")
+    if not liquidated_damages:
+        liquidated_damages = match(r"违约金[^。\n]{0,20}?([一二三四五六七八九十百千万]{2,})")
+    archive_transfer = match(r"(档案[^。\n]{0,40}(?:转寄|接收|保管|转回|迁转|随转)[^。\n]{0,40})")
+    household_transfer = match(r"((?:户口|户籍)[^。\n]{0,40}(?:迁移|接收|不接收|转回|随迁)[^。\n]{0,40})")
     work_hours = "标准工时制" if "标准工时" in text else ("综合计算工时制" if "综合计算工时" in text else ("不定时工作制" if "不定时工作" in text else ""))
     insurance_terms = [term for term in ("意外伤害保险", "意外险", "实习责任保险", "工伤保险", "商业保险") if term in text]
-    school_signature = bool(re.search(r"学校[^。；\n]{0,20}(?:盖章|签字)|学校（盖章）|丙方[^。；\n]{0,20}(?:盖章|签字)", text))
+    school_signature = bool(re.search(r"学校[^。；\n]{0,20}(?:盖章|签字|签章)|学校（盖章）|丙方[^。；\n]{0,25}(?:盖章|签字|签章)", text))
+    employer_signature = bool(re.search(r"甲方[^。；\n]{0,25}(?:盖章|签字|签章)", text))
+    student_signature = bool(re.search(r"乙方[^。；\n]{0,25}(?:签字|签名|签章)", text))
     has_dispute_clause = bool(re.search(r"争议|仲裁|人民法院|诉讼|管辖", text))
     has_job_attachment = bool(re.search(r"岗位说明|实习任务书|实习任务|附件[一二三四五六七八九十0-9]?|附件清单", text))
-    third_party = bool(actual_employer and party_a and actual_employer not in party_a)
+    third_party = bool(actual_employer and party_a and actual_employer not in party_a and not is_tripartite)
     payer_window = match(r"委托([\s\S]{0,220}?)(?:发放|支付)")
     payer_candidates = re.findall(r"[\u4e00-\u9fa5]{4,40}(?:有限公司|有限责任公司|分公司|集团)", payer_window)
     payer = payer_candidates[-1] if payer_candidates else ""
     payer = re.sub(r"^(?:其)?(?:依法)?(?:设立的?)?", "", payer)
-    relationship_features = [term for term in ("标准工时", "实际出勤", "绩效", "考勤", "部门", "按月", "派驻") if term in text]
+    relationship_terms = ("标准工时", "实际出勤", "绩效", "考勤", "部门", "按月", "派驻", "试用期", "服务期", "违约金")
+    relationship_features = [term for term in relationship_terms if term in text]
     city_names = ["深圳", "广州", "北京", "上海", "重庆", "成都", "杭州", "南京", "武汉", "西安", "苏州", "天津", "长沙", "郑州", "合肥", "厦门", "福州", "济南", "青岛", "大连", "沈阳", "哈尔滨", "昆明", "南昌", "贵阳", "南宁", "海口", "兰州", "太原", "石家庄", "乌鲁木齐", "呼和浩特", "银川", "西宁", "拉萨"]
     work_location = location_text or actual_employer
     work_city = next((city for city in city_names if city in work_location), "")
     if not work_city and actual_employer:
         work_city = next((city for city in city_names if city in actual_employer), "")
-    jurisdiction_map = {"深圳": "广东", "广州": "广东", "北京": "北京", "上海": "上海", "重庆": "重庆", "成都": "四川", "杭州": "浙江", "南京": "江苏", "武汉": "湖北", "西安": "陕西", "苏州": "江苏", "天津": "天津", "长沙": "湖南", "郑州": "河南", "合肥": "安徽", "厦门": "福建", "福州": "福建"}
+    jurisdiction_map = {"深圳": "深圳", "广州": "广东", "北京": "北京", "上海": "上海", "重庆": "重庆", "成都": "四川", "杭州": "浙江", "南京": "江苏", "武汉": "湖北", "西安": "陕西", "苏州": "江苏", "天津": "天津", "长沙": "湖南", "郑州": "河南", "合肥": "安徽", "厦门": "福建", "福州": "福建"}
     jurisdiction_hint = jurisdiction_map.get(work_city, "")
     hourly_equivalent = round(float(daily_pay_text) / 8, 2) if daily_pay_text else None
     term_days = None
@@ -1540,6 +1761,7 @@ def extract_document_facts(text: str, document_type: str, selected_jurisdiction:
     facts = {
         "documentType": document_type,
         "selectedCaseType": "",
+        "isTripartite": is_tripartite,
         "partyA": party_a,
         "school": school,
         "actualEmployer": actual_employer,
@@ -1549,17 +1771,25 @@ def extract_document_facts(text: str, document_type: str, selected_jurisdiction:
         "startDate": start_date,
         "endDate": end_date,
         "termDays": term_days,
+        "reportDeadline": report_deadline,
         "dailyPay": daily_pay_text,
         "monthlyPay": monthly_pay_text,
+        "salary": salary_text,
+        "probation": probation_text,
         "hourlyEquivalentAt8h": hourly_equivalent,
         "workHours": work_hours,
         "payer": payer if payer and payer != party_a else "",
         "thirdPartyArrangement": third_party,
         "hasSchoolSignature": school_signature,
+        "hasEmployerSignature": employer_signature,
+        "hasStudentSignature": student_signature,
         "hasAccidentInsurance": bool(insurance_terms),
         "insuranceTerms": insurance_terms,
         "hasDisputeClause": has_dispute_clause,
         "hasJobAttachment": has_job_attachment,
+        "liquidatedDamages": liquidated_damages,
+        "archiveTransfer": archive_transfer,
+        "householdTransfer": household_transfer,
         "relationshipFeatures": relationship_features,
         "suggestedJurisdiction": jurisdiction_hint,
         "factsToVerify": [],
@@ -1568,14 +1798,34 @@ def extract_document_facts(text: str, document_type: str, selected_jurisdiction:
         facts["factsToVerify"].append(f"已识别到工作地点可能在{jurisdiction_hint}（{work_city}），请切换或核验属地规则。")
     if third_party:
         facts["factsToVerify"].append("签约单位、实际用工单位和发薪主体可能不一致，需确认管理、报酬和事故责任主体。")
-    if document_type == "实习协议" and school and not school_signature:
-        facts["factsToVerify"].append("协议提到学校，但未识别到学校签署或盖章页。")
-    if document_type == "实习协议" and not has_dispute_clause:
-        facts["factsToVerify"].append("未识别到争议解决或管辖条款。")
-    if document_type == "实习协议" and not has_job_attachment:
-        facts["factsToVerify"].append("未识别到岗位说明书、实习任务书或具体工作内容附件。")
-    if document_type == "实习协议" and not insurance_terms:
-        facts["factsToVerify"].append("未识别到实习责任保险或意外伤害保险安排。")
+    if document_type == "实习协议":
+        if school and not school_signature:
+            facts["factsToVerify"].append("协议提到学校，但未识别到学校签署或盖章页。")
+        if not has_dispute_clause:
+            facts["factsToVerify"].append("未识别到争议解决或管辖条款。")
+        if not has_job_attachment:
+            facts["factsToVerify"].append("未识别到岗位说明书、实习任务书或具体工作内容附件。")
+        if not insurance_terms:
+            facts["factsToVerify"].append("未识别到实习责任保险或意外伤害保险安排。")
+    if document_type == "三方协议":
+        if not employer_signature:
+            facts["factsToVerify"].append("未识别到甲方（用人单位）盖章或签字。")
+        if not student_signature:
+            facts["factsToVerify"].append("未识别到乙方（毕业生）签字。")
+        if school and not school_signature:
+            facts["factsToVerify"].append("未识别到丙方（学校）盖章或签字。")
+        if not has_dispute_clause:
+            facts["factsToVerify"].append("未识别到争议解决或管辖条款。")
+        if not archive_transfer:
+            facts["factsToVerify"].append("未识别到档案转寄、接收或保管安排。")
+        if not household_transfer:
+            facts["factsToVerify"].append("未识别到户口/户籍迁移或接收安排。")
+        if liquidated_damages:
+            facts["factsToVerify"].append(f"识别到违约金条款（{liquidated_damages}），需核对是否与服务期、培训费或实际损失相匹配。")
+        if "三方协议" in text and "代替" in text and "劳动合同" in text:
+            facts["factsToVerify"].append("协议出现以三方协议代替劳动合同的表述，需在入职后依法签订书面劳动合同。")
+        if not has_job_attachment:
+            facts["factsToVerify"].append("未识别到岗位职责或工作内容附件。")
     if daily_pay_text:
         facts["factsToVerify"].append(f"日补贴{daily_pay_text}元，按8小时折算约{hourly_equivalent}元/小时，需核对工作地最低工资和实际工时。")
     return facts
@@ -1678,6 +1928,11 @@ def deterministic_analysis(text: str, case_type: str, jurisdiction: str, languag
         add_fact_risk("confidentiality_overbroad", "保密义务延续至协议终止后且范围不明确", "保密")
     if document_type == "实习协议" and not facts.get("hasAccidentInsurance"):
         add_fact_risk("internship_insurance_missing", "未识别到实习责任保险或意外伤害保险", "")
+    if document_type == "三方协议":
+        if facts.get("partyA") and facts.get("actualEmployer") and facts.get("actualEmployer") not in facts.get("partyA"):
+            add_fact_risk("tripartite_entity_mismatch", "签约单位与报到或实际用工单位不一致", "报到单位")
+        if facts.get("school") and not facts.get("hasSchoolSignature"):
+            add_fact_risk("tripartite_school_missing", "未识别到丙方学校盖章或签字", "丙方")
 
     semantic = semantic_detection(
         clauses,
@@ -1736,6 +1991,74 @@ def deterministic_analysis(text: str, case_type: str, jurisdiction: str, languag
             "detail": "协议未识别到岗位说明书、实习任务书或具体工作内容附件，岗位边界和考核标准不明确。",
             "source": "事实抽取",
         })
+    if document_type == "三方协议":
+        if not facts.get("hasEmployerSignature"):
+            review_items.append({
+                "id": "tripartite_employer_signature",
+                "title": "甲方（用人单位）签章需核实",
+                "detail": "未识别到甲方盖章或签字，三方协议需要用人单位确认后才能作为完整就业材料。",
+                "source": "事实抽取",
+            })
+        if not facts.get("hasStudentSignature"):
+            review_items.append({
+                "id": "tripartite_student_signature",
+                "title": "乙方（毕业生）签字需核实",
+                "detail": "未识别到毕业生本人签字，需确认签署主体和签署日期。",
+                "source": "事实抽取",
+            })
+        if facts.get("school") and not facts.get("hasSchoolSignature"):
+            review_items.append({
+                "id": "tripartite_school_signature",
+                "title": "丙方（学校）签章需核实",
+                "detail": "未识别到学校就业部门盖章或经办人签字，可能影响报到、档案和就业手续办理。",
+                "source": "事实抽取",
+            })
+        if not facts.get("hasDisputeClause"):
+            review_items.append({
+                "id": "tripartite_dispute_clause",
+                "title": "三方协议争议解决条款缺失",
+                "detail": "未识别到争议解决或管辖安排，发生违约争议时处理路径可能不明确。",
+                "source": "事实抽取",
+            })
+        archive_text = str(facts.get("archiveTransfer") or "")
+        household_text = str(facts.get("householdTransfer") or "")
+        archive_unclear = not archive_text or any(term in archive_text for term in ("不负责", "自行", "转回原籍", "待定", "空白"))
+        household_unclear = not household_text or any(term in household_text for term in ("不负责", "自行", "转回原籍", "不接收", "待定", "空白"))
+        if archive_unclear:
+            review_items.append({
+                "id": "tripartite_archive_missing",
+                "title": "档案转寄安排需核实",
+                "detail": "未识别到档案接收单位、地址或转寄安排，可能影响毕业派遣和入职手续。",
+                "source": "事实抽取",
+            })
+        if household_unclear:
+            review_items.append({
+                "id": "tripartite_household_missing",
+                "title": "户口/户籍安排需核实",
+                "detail": "未识别到户口迁移或接收安排，需向学校和用人单位确认。",
+                "source": "事实抽取",
+            })
+        if facts.get("liquidatedDamages"):
+            review_items.append({
+                "id": "tripartite_liquidated_damages",
+                "title": "违约金条款需要实质核验",
+                "detail": f"识别到违约金条款（{facts.get('liquidatedDamages')}），需核对是否与服务期、培训费、实际损失和双方对等性相匹配。",
+                "source": "事实抽取",
+            })
+        if "三方协议" in text and "代替" in text and "劳动合同" in text:
+            review_items.append({
+                "id": "tripartite_not_labor_contract",
+                "title": "三方协议不能替代劳动合同",
+                "detail": "协议出现以三方协议代替劳动合同的表述，入职后仍应依法签订书面劳动合同。",
+                "source": "规则",
+            })
+        if not facts.get("hasJobAttachment"):
+            review_items.append({
+                "id": "tripartite_job_attachment",
+                "title": "岗位职责或工作内容附件缺失",
+                "detail": "未识别到岗位说明书、岗位职责或工作内容附件，岗位边界和考核标准不明确。",
+                "source": "事实抽取",
+            })
     # Remove duplicate review titles while keeping the first explanation.
     deduped_reviews = []
     seen_review_ids = set()
@@ -1748,7 +2071,7 @@ def deterministic_analysis(text: str, case_type: str, jurisdiction: str, languag
 
     high_count = sum(1 for item in detected if item["severity"] == "high")
     medium_count = sum(1 for item in detected if item["severity"] == "medium")
-    has_review = bool(review_items) or any(item["detectionMode"] == "llm_candidate" for item in detected)
+    has_review = bool(review_items) or document_type in {"实习协议", "三方协议"} or any(item["detectionMode"] == "llm_candidate" for item in detected)
     if detected:
         risk_score = min(98, 22 + sum(item["weight"] for item in detected))
         if any(item["id"] == "internship_wage_forfeit" for item in detected):
@@ -1768,7 +2091,7 @@ def deterministic_analysis(text: str, case_type: str, jurisdiction: str, languag
     questions = list(dict.fromkeys(questions))[:14]
     evidence_lines = [f"- {item['title']}：{item['action']}" for item in detected[:10]]
     complaint_lines = [
-        "实习/劳动权益事项材料整理草稿",
+        "就业协议/劳动权益事项材料整理草稿",
         "",
         "一、诉求事项",
         "请求核对并依法处理下列材料风险：" + "、".join(item["title"] for item in detected) + "。"
@@ -1786,7 +2109,7 @@ def deterministic_analysis(text: str, case_type: str, jurisdiction: str, languag
         "caseType": document_type,
         "selectedCaseType": case_type,
         "documentType": document_type,
-        "documentTypeConfidence": min(0.99, 0.55 + 0.08 * len([term for term in ("实习协议", "实习补贴", "实习期", "派驻", "学校学生") if term in text])),
+        "documentTypeConfidence": min(0.99, 0.55 + 0.08 * len([term for term in ("实习协议", "实习补贴", "实习期", "派驻", "学校学生", "三方协议", "就业协议书", "丙方", "违约金") if term in text])),
         "documentLanguage": language,
         "inputText": text,
         "jurisdiction": jurisdiction,

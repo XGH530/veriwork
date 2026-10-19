@@ -6,7 +6,7 @@
   <meta name="description" content="职安盾 VeriWork——面向高校毕业生就业合同的可验证 AI 风险评估与证据链系统">
   <title>职安盾 VeriWork · 可信就业风险决策</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <link rel="stylesheet" href="styles.css?v=20261019r15">
+  <link rel="stylesheet" href="styles.css?v=20261019r16">
 </head>
 <body>
   
@@ -55,7 +55,7 @@
       <div class="account-bar sidebar-account-bar">
         <div class="user-chip" id="userChip"><span>未登录</span><button id="openAuth" class="link-button">登录</button></div>
         <button id="openSettings" class="link-button topbar-settings">模型设置</button>
-        <div class="platform-version"><strong>平台版本</strong><span>v2.0</span></div>
+        <div class="platform-version"><strong>平台版本</strong><span>v2.1</span></div>
       </div>
 
       <div class="sidebar-card">
@@ -197,6 +197,8 @@
             <select id="caseType">
               <option value="劳动合同">劳动合同</option>
               <option value="实习协议">实习协议</option>
+              <option value="三方协议">三方协议</option>
+              <option value="劳务协议">劳务协议</option>
               <option value="招聘信息">招聘信息</option>
             </select>
           </label>
@@ -214,6 +216,7 @@
               <option value="北京">北京</option>
               <option value="上海">上海</option>
               <option value="广东">广东</option>
+              <option value="深圳">深圳</option>
             </select>
           </label>
           <label>文档语言
@@ -226,9 +229,9 @@
           <label>PDF页码
             <input id="pageRange" type="text" placeholder="全部，或 1-3,5">
           </label>
-          <label class="upload-label">载入文本
-            <input type="file" id="fileInput" accept=".txt,.md,.json,.csv,.pdf,.docx" hidden>
-            <span>选择文件</span>
+          <label class="upload-label">载入材料
+            <input type="file" id="fileInput" accept=".txt,.md,.json,.csv,.pdf,.docx,.png,.jpg,.jpeg,.webp,.bmp" multiple hidden>
+            <span>选择文件或图片</span>
           </label>
           <div class="toolbar-spacer"></div>
           <span id="analysisModeLabel" class="soft-label">本地可信链路</span>
@@ -240,7 +243,11 @@
               <div><span class="section-kicker">材料输入</span><h3>待研判文本</h3></div>
               <button id="loadSampleButton" class="link-button">载入演示合同</button>
             </div>
-            <textarea id="contractInput" spellcheck="false" placeholder="在这里粘贴劳动合同、Offer、实习协议或招聘信息……"></textarea>
+            <div id="dropZone" class="drop-zone" role="button" tabindex="0">
+              <strong>拖入文件，或从微信 / QQ 直接拖入聊天截图</strong>
+              <span>支持 PDF、Word、TXT、PNG、JPG、WEBP；图片会自动 OCR。也可以按 Ctrl+V 粘贴截图。</span>
+            </div>
+            <textarea id="contractInput" spellcheck="false" placeholder="在这里粘贴劳动合同、实习协议、三方协议、Offer、招聘信息，或拖入图片/文件……"></textarea>
             <div class="input-footer">
               <span id="charCount">0 字</span>
               <div>
@@ -630,10 +637,14 @@
           <div class="stack-list">
             <div><span>最低工资汇总</span><strong>人力资源和社会保障部 · 截至2026年10月1日</strong></div>
             <div><span>广东最低工资调整</span><strong>广东省人民政府 · 2026年9月1日起执行</strong></div>
+            <div><span>深圳最低工资调整</span><strong>深圳市人力资源和社会保障局 · 2700元/月、25.4元/小时</strong></div>
+            <div><span>北京最低工资调整</span><strong>北京市人力资源和社会保障局 · 2025年9月1日起执行</strong></div>
+            <div><span>上海最低工资调整</span><strong>上海市人力资源和社会保障局 · 2025年7月1日起执行</strong></div>
+            <div><span>重庆最低工资标准</span><strong>重庆市人力资源和社会保障局 · 2025年1月1日起执行</strong></div>
             <div><span>劳动法与劳动合同法</span><strong>中国人大网 / 国家市场监督管理总局</strong></div>
             <div><span>社会保险法与就业促进法</span><strong>中国政府网</strong></div>
           </div>
-          <p style="margin-top:14px">每个来源均保留URL、发布时间、抓取时间、原始HTML、正文和SHA-256校验值。北京和上海最低工资数值已依据人社部全国汇总记录，地方生效日期仍需补充。</p>
+          <p style="margin-top:14px">每个来源均保留URL、发布时间、抓取时间、原始HTML、正文和SHA-256校验值。北京、上海、广东、深圳、重庆已按官方通知核验；其余地区使用人社部全国汇总值，属地原文仍建议赛前逐条复核。</p>
         </article>
       </section>
     </main>
@@ -778,7 +789,7 @@
     </form>
   </dialog>
 
-  <script src="data.js?v=20261019r15"></script>
-  <script src="app.js?v=20261019r15"></script>
+  <script src="data.js?v=20261019r16"></script>
+  <script src="app.js?v=20261019r16"></script>
 </body>
 </html>

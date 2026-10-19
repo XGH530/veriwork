@@ -587,54 +587,78 @@ function extractLocalFacts(text, documentType = "") {
     return item ? String(item[1] || "").trim() : "";
   };
   const clean = (value) => String(value || "").replace(/\s+/g, "");
+  const isTripartite = documentType === "三方协议";
   const partyA = clean(match("(?:甲方|用人单位)\\s*[:：]\\s*([^\\n（(]{2,60})"))
+    || clean(match("甲方[^。\\n]{0,25}?(?:名称)?\\s*[:：]\\s*([^\\n，,；;]{2,60})"))
     || clean(match("([^\\n（(]{2,60}?)\\s*[（(]\\s*以下简称[^）)]*甲方[^）)]*[）)]"));
-  const school = clean(match("([\\u4e00-\\u9fa5]{2,30}(?:学院|大学))[\\s\\S]{0,40}?学\\s*生"));
+  const school = clean(match("([\\u4e00-\\u9fa5]{2,30}(?:学院|大学))[\\s\\S]{0,40}?学\\s*生"))
+    || clean(match("丙方[^。\\n]{0,25}?(?:名称)?\\s*[:：]\\s*([^\\n，,；;]{2,60})"))
+    || clean(match("(?:学校|院校)\\s*[:：]\\s*([^\\n，,；;]{2,40})"));
   const actualEmployer = clean(match("派驻至\\s*([\\s\\S]{3,80}?)[，,。；]?\\s*在"))
-    || clean(match("(?:实际用工单位|用工单位)\\s*[:：]\\s*([^\\n，,；;]{2,60})"));
-  const position = clean(match("在\\s*([^\\s，,。；;]{1,20})\\s*(?:部门|岗位)"));
+    || clean(match("(?:实际用工单位|用工单位|报到单位|接收单位)\\s*[:：]\\s*([^\\n，,；;]{2,60})"));
+  const position = clean(match("在\\s*([^\\s，,。；;]{1,20})\\s*(?:部门|岗位)"))
+    || clean(match("(?:岗位|职位)(?:名称)?\\s*(?:[:：]|为)\\s*([^\\n，,；;。]{1,30})"));
+  const locationText = clean(match("(?:工作地点|实习地点|用工地点|报到地点)\\s*(?:[:：]|为)\\s*([^\\n，,；;。]{2,40})"));
   const startMatch = text.match(/自\s*(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日\s*至/);
   const endMatch = text.match(/至\s*(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
   const formatDate = (item) => item ? `${item[1]}年${Number(item[2])}月${Number(item[3])}日` : "";
   const start = startMatch ? `${startMatch[1]}-${startMatch[2]}-${startMatch[3]}` : "";
   const end = endMatch ? `${endMatch[1]}-${endMatch[2]}-${endMatch[3]}` : "";
   const termDays = start && end ? Math.max(0, Math.round((new Date(end) - new Date(start)) / 86400000)) : null;
+  const reportDeadline = clean(match("报到(?:时间|日期)?[^。\\n]{0,12}?(20\\d{2}\\s*年\\s*\\d{1,2}\\s*月\\s*\\d{1,2}\\s*日)"));
   const dailyPay = match("(\\d+(?:\\.\\d+)?)\\s*元\\s*[/／]\\s*天");
   const monthlyPay = match("(\\d+(?:\\.\\d+)?)\\s*元\\s*[/／]\\s*月");
+  const salary = monthlyPay || match("(?:月工资|月薪|薪资|工资标准)[^。\\n]{0,15}?(\\d+(?:\\.\\d+)?)\\s*元");
+  const probation = match("试用期[^。\\n]{0,12}?([一二三四五六七八九十0-9]{1,2})\\s*个?月");
+  const liquidatedDamages = match("违约金[^。\\n]{0,20}?(\\d+(?:\\.\\d+)?)\\s*元") || match("违约金[^。\\n]{0,20}?([一二三四五六七八九十百千万]{2,})");
+  const archiveTransfer = match("(档案[^。\\n]{0,40}(?:转寄|接收|保管|转回|迁转|随转)[^。\\n]{0,40})");
+  const householdTransfer = match("((?:户口|户籍)[^。\\n]{0,40}(?:迁移|接收|不接收|转回|随迁)[^。\\n]{0,40})");
   const workHours = text.includes("标准工时") ? "标准工时制" : text.includes("综合计算工时") ? "综合计算工时制" : text.includes("不定时工作") ? "不定时工作制" : "";
   const insuranceTerms = ["意外伤害保险", "意外险", "实习责任保险", "工伤保险", "商业保险"].filter((term) => text.includes(term));
-  const schoolSignature = /学校[^。；\n]{0,20}(?:盖章|签字)|学校（盖章）|丙方[^。；\n]{0,20}(?:盖章|签字)/.test(text);
+  const schoolSignature = /学校[^。；\n]{0,20}(?:盖章|签字|签章)|学校（盖章）|丙方[^。；\n]{0,25}(?:盖章|签字|签章)/.test(text);
+  const employerSignature = /甲方[^。；\n]{0,25}(?:盖章|签字|签章)/.test(text);
+  const studentSignature = /乙方[^。；\n]{0,25}(?:签字|签名|签章)/.test(text);
   const hasDisputeClause = /争议|仲裁|人民法院|诉讼|管辖/.test(text);
   const hasJobAttachment = /岗位说明|实习任务书|实习任务|附件[一二三四五六七八九十0-9]?|附件清单/.test(text);
   const payerWindow = match("委托([\\s\\S]{0,220}?)(?:发放|支付)");
   const payerMatches = payerWindow.match(/[\u4e00-\u9fa5]{4,40}(?:有限公司|有限责任公司|分公司|集团)/g) || [];
   const payer = (payerMatches[payerMatches.length - 1] || "").replace(/^(?:其)?(?:依法)?(?:设立的?)?/, "");
-  const relationshipFeatures = ["标准工时", "实际出勤", "绩效", "考勤", "部门", "按月", "派驻"].filter((term) => text.includes(term));
+  const relationshipFeatures = ["标准工时", "实际出勤", "绩效", "考勤", "部门", "按月", "派驻", "试用期", "服务期", "违约金"].filter((term) => text.includes(term));
   const cityNames = ["深圳", "广州", "北京", "上海", "重庆", "成都", "杭州", "南京", "武汉", "西安", "苏州", "天津", "长沙", "郑州", "合肥", "厦门", "福州", "济南", "青岛", "大连", "沈阳", "哈尔滨", "昆明", "南昌", "贵阳", "南宁", "海口", "兰州", "太原", "石家庄"];
-  const workCity = cityNames.find((city) => actualEmployer.includes(city)) || cityNames.find((city) => text.slice(0, 600).includes(city)) || "";
-  const jurisdictionMap = { "深圳": "广东", "广州": "广东", "北京": "北京", "上海": "上海", "重庆": "重庆", "成都": "四川", "杭州": "浙江", "南京": "江苏", "武汉": "湖北", "西安": "陕西", "苏州": "江苏", "天津": "天津", "长沙": "湖南", "郑州": "河南", "合肥": "安徽", "厦门": "福建", "福州": "福建" };
+  const workLocation = locationText || actualEmployer;
+  const workCity = cityNames.find((city) => workLocation.includes(city)) || cityNames.find((city) => actualEmployer.includes(city)) || cityNames.find((city) => text.slice(0, 600).includes(city)) || "";
+  const jurisdictionMap = { "深圳": "深圳", "广州": "广东", "北京": "北京", "上海": "上海", "重庆": "重庆", "成都": "四川", "杭州": "浙江", "南京": "江苏", "武汉": "湖北", "西安": "陕西", "苏州": "江苏", "天津": "天津", "长沙": "湖南", "郑州": "河南", "合肥": "安徽", "厦门": "福建", "福州": "福建" };
   return {
     documentType,
+    isTripartite,
     partyA,
     school,
     actualEmployer,
     position,
-    workLocation: actualEmployer,
+    workLocation,
     workCity,
     startDate: formatDate(startMatch),
     endDate: formatDate(endMatch),
     termDays,
+    reportDeadline,
     dailyPay,
     monthlyPay,
+    salary,
+    probation: probation ? `${probation}个月` : "",
     hourlyEquivalentAt8h: dailyPay ? Math.round((Number(dailyPay) / 8) * 100) / 100 : null,
     workHours,
     payer: payer && payer !== partyA ? payer : "",
-    thirdPartyArrangement: Boolean(actualEmployer && partyA && actualEmployer !== partyA),
+    thirdPartyArrangement: Boolean(!isTripartite && actualEmployer && partyA && actualEmployer !== partyA),
     hasSchoolSignature: schoolSignature,
+    hasEmployerSignature: employerSignature,
+    hasStudentSignature: studentSignature,
     hasAccidentInsurance: insuranceTerms.length > 0,
     insuranceTerms,
     hasDisputeClause,
     hasJobAttachment,
+    liquidatedDamages,
+    archiveTransfer,
+    householdTransfer,
     relationshipFeatures,
     suggestedJurisdiction: jurisdictionMap[workCity] || "",
     factsToVerify: []
@@ -665,7 +689,9 @@ function analyzeContract(text, options = {}) {
   const jurisdiction = options.jurisdiction || "全国规则";
   const jurisdictionProfile = APP_DATA.jurisdictionProfiles.find((item) => item.id === jurisdiction) || APP_DATA.jurisdictionProfiles[0];
   const head = text.slice(0, 500).replace(/\s+/g, "");
-  const documentType = head.includes("实习协议") ? "实习协议" : head.includes("劳动合同") ? "劳动合同" : (options.caseType || "劳动合同");
+  const documentType = (head.includes("三方协议") || head.includes("就业协议书"))
+    ? "三方协议"
+    : head.includes("实习协议") ? "实习协议" : head.includes("劳动合同") ? "劳动合同" : (options.caseType || "劳动合同");
   const facts = extractLocalFacts(text, documentType);
   const clauses = splitClauses(text);
   const detected = [];
@@ -716,6 +742,10 @@ function analyzeContract(text, options = {}) {
   if (text.includes("延长工作时间") && !text.includes("加班费") && !text.includes("加班工资")) addFactRisk("overtime_without_compensation", "文本存在加班安排但未识别到加班费或调休");
   if (text.includes("绩效") && text.includes("岗位") && text.includes("调整")) addFactRisk("performance_unilateral", "绩效津贴可随岗位或表现变化");
   if (text.includes("保密") && (text.includes("终止") || text.includes("后均有效"))) addFactRisk("confidentiality_overbroad", "保密义务延续至协议终止后且范围不明确");
+  if (documentType === "三方协议") {
+    if (facts.partyA && facts.actualEmployer && !facts.partyA.includes(facts.actualEmployer)) addFactRisk("tripartite_entity_mismatch", "签约单位与报到或实际用工单位不一致");
+    if (facts.school && !facts.hasSchoolSignature) addFactRisk("tripartite_school_missing", "未识别到丙方学校盖章或签字");
+  }
 
   const reviewItems = [];
   APP_DATA.reviewRules.forEach((rule) => {
@@ -770,6 +800,16 @@ function analyzeContract(text, options = {}) {
       detail: "未识别到实习责任保险或意外伤害保险安排，发生事故时责任和救治路径不清。"
     });
   }
+  if (documentType === "三方协议") {
+    if (!facts.hasEmployerSignature) reviewItems.push({ id: "tripartite_employer_signature", title: "甲方（用人单位）签章需核实", detail: "未识别到甲方盖章或签字，三方协议需要用人单位确认后才能作为完整就业材料。" });
+    if (!facts.hasStudentSignature) reviewItems.push({ id: "tripartite_student_signature", title: "乙方（毕业生）签字需核实", detail: "未识别到毕业生本人签字，需确认签署主体和签署日期。" });
+    if (facts.school && !facts.hasSchoolSignature) reviewItems.push({ id: "tripartite_school_signature", title: "丙方（学校）签章需核实", detail: "未识别到学校就业部门盖章或经办人签字，可能影响报到、档案和就业手续办理。" });
+    if (!facts.hasDisputeClause) reviewItems.push({ id: "tripartite_dispute_clause", title: "三方协议争议解决条款缺失", detail: "未识别到争议解决或管辖安排，发生违约争议时处理路径可能不明确。" });
+    if (!facts.archiveTransfer) reviewItems.push({ id: "tripartite_archive_missing", title: "档案转寄安排需核实", detail: "未识别到档案接收单位、地址或转寄安排，可能影响毕业派遣和入职手续。" });
+    if (!facts.householdTransfer) reviewItems.push({ id: "tripartite_household_missing", title: "户口/户籍安排需核实", detail: "未识别到户口迁移或接收安排，需向学校和用人单位确认。" });
+    if (facts.liquidatedDamages) reviewItems.push({ id: "tripartite_liquidated_damages", title: "违约金条款需要实质核验", detail: `识别到违约金条款（${facts.liquidatedDamages}），需核对是否与服务期、培训费、实际损失和双方对等性相匹配。` });
+    if (text.includes("三方协议") && text.includes("代替") && text.includes("劳动合同")) reviewItems.push({ id: "tripartite_not_labor_contract", title: "三方协议不能替代劳动合同", detail: "协议出现以三方协议代替劳动合同的表述，入职后仍应依法签订书面劳动合同。" });
+  }
   if (facts.dailyPay) {
     reviewItems.push({
       id: "daily_pay_check",
@@ -788,7 +828,7 @@ function analyzeContract(text, options = {}) {
   const highCount = detected.filter((item) => item.severity === "high").length;
   const mediumCount = detected.filter((item) => item.severity === "medium").length;
   const rawRisk = detected.reduce((sum, item) => sum + item.weight, 22);
-  const requiresHumanReview = dedupedReviews.length > 0 || documentType === "实习协议";
+  const requiresHumanReview = dedupedReviews.length > 0 || documentType === "实习协议" || documentType === "三方协议";
   let riskScore = detected.length ? Math.min(96, rawRisk) : requiresHumanReview ? 35 : 6;
   if (detected.some((item) => item.id === "internship_wage_forfeit")) riskScore = Math.max(riskScore, 78);
   const riskLevel = detected.length
@@ -1003,6 +1043,13 @@ function renderAnalysis(result) {
     ["保险 / 争议条款", `${facts.hasAccidentInsurance ? "已识别保险" : "未识别保险"} · ${facts.hasDisputeClause ? "有争议条款" : "无争议条款"}`, facts.hasJobAttachment ? "已识别岗位附件" : "岗位附件缺失"],
     ["工时 / 关系特征", facts.workHours || "待核实", (facts.relationshipFeatures || []).length ? `含${facts.relationshipFeatures.slice(0, 3).join("、")}等特征` : ""]
   ];
+  if (result.documentType === "三方协议") {
+    factItems.push(["报到日期", facts.reportDeadline || "待核实", "三方协议就业手续"]);
+    factItems.push(["试用期 / 月薪", `${facts.probation || "待核实"} · ${facts.salary ? `${facts.salary} 元/月` : "待核实"}`, ""]);
+    factItems.push(["违约金", facts.liquidatedDamages ? `${facts.liquidatedDamages} 元` : "未识别", "需核对服务期、培训费和实际损失"]);
+    factItems.push(["档案 / 户口", facts.archiveTransfer || facts.householdTransfer || "待核实", facts.archiveTransfer && facts.householdTransfer ? "已识别安排" : "有事项待核实"]);
+    factItems.push(["三方签章", `甲方${facts.hasEmployerSignature ? "已签" : "未签"} · 乙方${facts.hasStudentSignature ? "已签" : "未签"} · 学校${facts.hasSchoolSignature ? "已签" : "未签"}`, ""]);
+  }
   const factPanel = `
     <section class="analysis-facts">
       <div class="facts-head"><div><span class="section-kicker">材料识别</span><h4>基本事实与适用边界</h4></div><span class="type-badge">${escapeHtml(result.documentType || result.caseType || "待核实")}</span></div>
@@ -2022,6 +2069,78 @@ function initCarousel() {
   $("#heroCarousel")?.addEventListener("mouseleave", () => { timer = window.setInterval(() => show(index + 1), 5200); });
 }
 
+async function handleFiles(fileList) {
+  const files = Array.from(fileList || []).filter(Boolean);
+  if (!files.length) return;
+  if (state.settings.runMode === "api" && !state.user) {
+    showAuthView("login");
+    $("#authDialog")?.showModal();
+    toast("文件解析需要登录，请先登录或注册账号。");
+    return;
+  }
+  const documents = [];
+  const errors = [];
+  for (const file of files) {
+    const extension = `.${file.name.split(".").pop().toLowerCase()}`;
+    try {
+      if ([".pdf", ".docx", ".png", ".jpg", ".jpeg", ".webp", ".bmp"].includes(extension)) {
+        if (state.settings.runMode !== "api") {
+          throw new Error("PDF、Word 和图片解析需要后端服务，请启动完整服务后重试");
+        }
+        documents.push(await extractDocumentViaApi(file));
+      } else {
+        const buffer = await file.arrayBuffer();
+        const text = new TextDecoder("utf-8").decode(buffer);
+        documents.push({
+          text,
+          pages: [{ page: 1, text }],
+          filename: file.name,
+          format: extension.replace(".", ""),
+          chars: text.length,
+          sizeBytes: file.size,
+          sha256: await sha256Hex(buffer),
+          pageCount: 1
+        });
+      }
+    } catch (error) {
+      errors.push(`${file.name}: ${error.message}`);
+    }
+  }
+  if (!documents.length) {
+    toast(`文件读取失败：${errors.join("；")}`);
+    return;
+  }
+  const pages = [];
+  const textParts = [];
+  let pageOffset = 0;
+  for (const document of documents) {
+    const documentPages = Array.isArray(document.pages) && document.pages.length ? document.pages : [{ page: 1, text: document.text }];
+    for (const page of documentPages) {
+      pages.push({ page: pageOffset + Number(page.page || 1), text: String(page.text || ""), source: document.filename });
+    }
+    pageOffset += Number(document.pageCount) || documentPages.length;
+    textParts.push(documents.length > 1 ? `【文件：${document.filename}】\n${document.text}` : document.text);
+  }
+  const text = textParts.join("\n\n");
+  $("#contractInput").value = text;
+  $("#charCount").textContent = `${text.length} 字`;
+  state.sourcePages = pages;
+  const hashParts = documents.map((document) => document.sha256 || "").join(":");
+  const combinedHash = documents.length === 1
+    ? (documents[0].sha256 || "")
+    : ((await sha256Hex(new TextEncoder().encode(hashParts))) || hashParts);
+  state.sourceDocument = {
+    filename: documents.length === 1 ? documents[0].filename : `${documents.length} 个文件：${documents.map((document) => document.filename).join("、")}`,
+    format: documents.length === 1 ? documents[0].format : "mixed",
+    chars: text.length,
+    sizeBytes: documents.reduce((sum, document) => sum + Number(document.sizeBytes || 0), 0),
+    sha256: combinedHash,
+    pageCount: pages.length
+  };
+  toast(`已载入 ${documents.length} 个文件，共 ${text.length} 字${errors.length ? `；${errors.length} 个失败` : ""}`);
+  if (errors.length) console.warn("部分文件读取失败", errors);
+}
+
 function bindEvents() {
   $$(".nav-item").forEach((element) => element.addEventListener("click", () => navigate(element.dataset.page)));
   $$("[data-go]").forEach((element) => element.addEventListener("click", () => navigate(element.dataset.go)));
@@ -2050,55 +2169,50 @@ function bindEvents() {
     }
   });
   $("#fileInput").addEventListener("change", async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-    if (state.settings.runMode === "api" && !state.user) {
-      showAuthView("login");
-      $("#authDialog")?.showModal();
-      toast("文件解析需要登录，请先登录或注册账号。");
-      event.target.value = "";
-      return;
-    }
-    const extension = `.${file.name.split(".").pop().toLowerCase()}`;
-    try {
-      let extracted;
-      if ([".pdf", ".docx"].includes(extension)) {
-        if (state.settings.runMode !== "api") {
-          throw new Error("PDF和Word解析需要后端服务，请启动完整服务后重试");
-        }
-        extracted = await extractDocumentViaApi(file);
-      } else {
-        const buffer = await file.arrayBuffer();
-        const text = new TextDecoder("utf-8").decode(buffer);
-        extracted = {
-          text,
-          pages: [{ page: 1, text }],
-          filename: file.name,
-          format: extension.replace(".", ""),
-          chars: text.length,
-          sizeBytes: file.size,
-          sha256: await sha256Hex(buffer),
-          pageCount: 1
-        };
+    await handleFiles(event.target.files);
+    event.target.value = "";
+  });
+  const dropZone = $("#dropZone");
+  if (dropZone) {
+    dropZone.addEventListener("click", () => $("#fileInput").click());
+    dropZone.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        $("#fileInput").click();
       }
-      const text = extracted.text;
-      $("#contractInput").value = text;
-      $("#charCount").textContent = `${text.length} 字`;
-      state.sourcePages = extracted.pages || [{ page: 1, text }];
-      state.sourceDocument = {
-        filename: extracted.filename,
-        format: extracted.format,
-        chars: extracted.chars,
-        sizeBytes: extracted.sizeBytes,
-        sha256: extracted.sha256,
-        pageCount: extracted.pageCount
-      };
-      toast(`已载入 ${file.name}，共 ${text.length} 字${extracted.sha256 ? "，已记录文件哈希" : ""}`);
-    } catch (error) {
-      toast(`文件读取失败：${error.message}`);
-    } finally {
-      event.target.value = "";
+    });
+    ["dragenter", "dragover"].forEach((name) => dropZone.addEventListener(name, (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      dropZone.classList.add("dragover");
+    }));
+    ["dragleave", "drop"].forEach((name) => dropZone.addEventListener(name, (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (name === "dragleave" && event.relatedTarget && dropZone.contains(event.relatedTarget)) return;
+      dropZone.classList.remove("dragover");
+    }));
+  }
+  document.addEventListener("dragover", (event) => {
+    if (state.currentPage === "analysis" && Array.from(event.dataTransfer?.types || []).includes("Files")) {
+      event.preventDefault();
     }
+  });
+  document.addEventListener("drop", async (event) => {
+    if (state.currentPage !== "analysis" || !event.dataTransfer?.files?.length) return;
+    event.preventDefault();
+    dropZone?.classList.remove("dragover");
+    await handleFiles(event.dataTransfer.files);
+  });
+  document.addEventListener("paste", async (event) => {
+    if (state.currentPage !== "analysis") return;
+    const files = Array.from(event.clipboardData?.items || [])
+      .filter((item) => item.kind === "file")
+      .map((item) => item.getAsFile())
+      .filter(Boolean);
+    if (!files.length) return;
+    event.preventDefault();
+    await handleFiles(files);
   });
   $("#analyzeButton").addEventListener("click", runAnalysis);
   $$(".result-tabs .tab").forEach((element) => element.addEventListener("click", () => switchResultTab(element.dataset.resultTab)));

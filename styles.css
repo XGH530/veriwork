@@ -1658,3 +1658,42 @@ table th { color: #586474; background: #f8f9fa; }
   .clause-head { display: block; }
   .clause-head span { display: block; margin-top: 3px; }
 }
+
+/* 文件拖拽与图片 OCR */
+.drop-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 12px;
+  padding: 13px 15px;
+  border: 1px dashed #b9c9d8;
+  border-radius: 7px;
+  background: #f8fbfd;
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.drop-zone strong {
+  color: #2d4d69;
+  font-size: 12px;
+  font-weight: 700;
+}
+.drop-zone span {
+  color: #74859a;
+  font-size: 10px;
+  line-height: 1.6;
+}
+.drop-zone:hover,
+.drop-zone:focus-visible {
+  border-color: #7ba6c9;
+  background: #f3f9fd;
+  outline: none;
+}
+.drop-zone.dragover {
+  border-color: #0d5c63;
+  background: #edf7f7;
+  box-shadow: inset 0 0 0 1px #0d5c63;
+}
+@media (max-width: 640px) {
+  .drop-zone { padding: 11px 12px; }
+  .drop-zone strong { font-size: 11px; }
+}

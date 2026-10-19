@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import sys
@@ -130,7 +131,7 @@ class RuleEngineTests(unittest.TestCase):
         self.assertNotIn("test@example.com", deposit.get("modelAction", ""))
 
     def test_all_frontend_jurisdictions_have_backend_profiles(self):
-        expected = ["全国规则", "北京", "上海", "广东", "重庆", "四川", "贵州", "云南", "陕西", "湖北", "湖南", "广西"]
+        expected = ["全国规则", "北京", "上海", "广东", "深圳", "重庆", "四川", "贵州", "云南", "陕西", "湖北", "湖南", "广西"]
         for name in expected:
             self.assertIn(name, server.JURISDICTIONS)
         result = server.deterministic_analysis(
@@ -161,6 +162,67 @@ class RuleEngineTests(unittest.TestCase):
         for risk in server.RISKS:
             self.assertTrue(risk["lawIds"], risk["id"])
             self.assertTrue(all(law_id in server.law_map() for law_id in risk["lawIds"]), risk["id"])
+
+
+class TripartiteAgreementTests(unittest.TestCase):
+    def tripartite_text(self) -> str:
+        return """全国普通高等学校毕业生就业协议书（三方协议）
+甲方（用人单位）名称：深圳某科技有限公司
+乙方（毕业生）姓名：张某
+丙方（学校）名称：重庆某学院
+第一条 乙方到甲方报到时间为2026年7月1日，工作地点为深圳市南山区，岗位为测试工程师。
+第二条 试用期六个月，月工资5000元，岗位职责另行约定，薪资以实际发放为准。
+第三条 甲方有权根据经营需要调整岗位；乙方未满服务期离职的，应支付违约金20000元。
+第四条 甲方不负责档案和户口接收，档案转回原籍，户口自行处理。
+第五条 本三方协议代替劳动合同，双方以本协议为准。
+甲方（盖章）： 乙方（签字）： 丙方（学校）（盖章）：
+"""
+
+    def test_tripartite_is_identified_and_facts_are_extracted(self):
+        result = server.deterministic_analysis(self.tripartite_text(), "劳动合同", "深圳")
+        self.assertEqual("三方协议", result["documentType"])
+        self.assertEqual("劳动合同", result["selectedCaseType"])
+        facts = result["facts"]
+        self.assertTrue(facts["isTripartite"])
+        self.assertEqual("深圳某科技有限公司", facts["partyA"])
+        self.assertEqual("重庆某学院", facts["school"])
+        self.assertEqual("测试工程师", facts["position"])
+        self.assertEqual("深圳市南山区", facts["workLocation"])
+        self.assertEqual("深圳", facts["workCity"])
+        self.assertEqual("2026年7月1日", facts["reportDeadline"])
+        self.assertEqual("5000", facts["salary"])
+        self.assertEqual("六个月", facts["probation"])
+        self.assertEqual("20000", facts["liquidatedDamages"])
+        self.assertEqual("深圳", facts["suggestedJurisdiction"])
+
+    def test_tripartite_risks_and_review_items(self):
+        result = server.deterministic_analysis(self.tripartite_text(), "劳动合同", "深圳")
+        ids = {item["id"] for item in result["risks"]}
+        self.assertTrue({
+            "tripartite_not_labor_contract",
+            "tripartite_penalty_overbroad",
+            "tripartite_blank_terms",
+            "tripartite_archive_household",
+            "tripartite_service_period",
+        }.issubset(ids))
+        review_ids = {item["id"] for item in result["reviewItems"]}
+        self.assertIn("tripartite_dispute_clause", review_ids)
+        self.assertIn("tripartite_archive_missing", review_ids)
+        self.assertIn("tripartite_household_missing", review_ids)
+        self.assertTrue(result["requiresHumanReview"])
+        self.assertEqual("高风险", result["riskLevel"])
+        self.assertGreater(result["analysisStats"]["ruleHits"], 0)
+
+    def test_image_extraction_returns_ocr_metadata(self):
+        png = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII="
+        )
+        with patch("server.ocr_image_text", return_value="三方协议\n甲方：深圳某科技有限公司\n乙方：张某\n丙方：重庆某学院"):
+            result = server.extract_document("chat.png", png, language="zh")
+        self.assertTrue(result["ocr"])
+        self.assertEqual("chi_sim+eng", result["ocrLanguage"])
+        self.assertEqual(1, result["pageCount"])
+        self.assertIn("三方协议", result["text"])
 
 
 class InternshipAgreementTests(unittest.TestCase):
@@ -195,7 +257,7 @@ class InternshipAgreementTests(unittest.TestCase):
         self.assertEqual("2026年12月15日", facts["endDate"])
         self.assertEqual("140", facts["dailyPay"])
         self.assertEqual(17.5, facts["hourlyEquivalentAt8h"])
-        self.assertEqual("广东", facts["suggestedJurisdiction"])
+        self.assertEqual("深圳", facts["suggestedJurisdiction"])
         self.assertFalse(facts["hasAccidentInsurance"])
         self.assertFalse(facts["hasDisputeClause"])
         self.assertFalse(facts["hasJobAttachment"])
