@@ -1968,7 +1968,7 @@ function buildReport(result) {
     return [
       `${index + 1}. [${severityText(risk.severity)}] ${risk.title}`,
       `位置：第${location.page || 1}页 / ${location.clause || "未编号条款"}　来源：${modeLabels[risk.detectionMode] || "规则"}`,
-      `原文：${risk.clause}`,
+      `${risk.detectionMode === "fact" ? "事实依据" : "原文"}：${risk.clause}`,
       `说明：${risk.modelReason || risk.reason}`,
       `建议：${risk.modelAction || risk.action}`,
       `法源：${(risk.lawItems || []).map((law) => law.source).join("；")}`

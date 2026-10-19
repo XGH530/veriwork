@@ -2241,7 +2241,8 @@ def build_report_pdf(user: dict, case: dict, evidence: list[dict]) -> bytes | No
         location_text = f"第{location.get('page') or 1}页 / {location.get('clause') or '未编号条款'}"
         mode_text = {"deterministic": "确定性规则", "fact": "结构化事实", "semantic": "语义规则", "llm_candidate": "大模型候选"}.get(str(item.get("detectionMode")), "规则")
         story.append(Paragraph(f"位置：{html_escape(location_text)}　来源：{html_escape(mode_text)}　置信度：{round(float(item.get('confidence') or 0) * 100)}%", small_style))
-        story.append(Paragraph(f"原文片段：{html_escape(str(item.get('clause', '')))}", body_style))
+        clause_label = "事实依据" if item.get("detectionMode") == "fact" else "原文片段"
+        story.append(Paragraph(f"{clause_label}：{html_escape(str(item.get('clause', '')))}", body_style))
         story.append(Paragraph(f"风险说明：{html_escape(str(item.get('modelReason') or item.get('reason') or ''))}", body_style))
         story.append(Paragraph(f"行动建议：{html_escape(str(item.get('modelAction') or item.get('action') or ''))}", body_style))
         story.append(Paragraph("法源依据：" + html_escape("；".join(str(law.get("source", "")) for law in item.get("lawItems", []))), body_style))
@@ -2344,7 +2345,7 @@ def build_report_html(user: dict, case: dict, evidence: list[dict]) -> str:
         f"""<article class="risk {esc(item.get('severity', 'low'))}">
         <div class="risk-head"><h3>{esc(item.get('title', '风险项'))}</h3><span>{esc(mode_names.get(str(item.get('detectionMode')), '规则'))}</span></div>
         <p class="risk-meta">位置：第{(item.get('location') or {}).get('page') or 1}页 / {esc((item.get('location') or {}).get('clause') or '未编号条款')}　分类：{esc(item.get('category'))}　置信度：{round(float(item.get('confidence') or 0) * 100)}%</p>
-        <p><b>原文片段</b>{esc(item.get('clause'))}</p>
+        <p><b>{'事实依据' if item.get('detectionMode') == 'fact' else '原文片段'}</b>{esc(item.get('clause'))}</p>
         <p><b>风险说明</b>{esc(item.get('modelReason') or item.get('reason'))}</p>
         <p><b>行动建议</b>{esc(item.get('modelAction') or item.get('action'))}</p>
         <p class="laws"><b>法源依据</b>{esc('；'.join(str(law.get('source', '')) for law in item.get('lawItems', [])))}</p>
