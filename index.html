@@ -6,7 +6,7 @@
   <meta name="description" content="职安盾 VeriWork——面向高校毕业生就业合同的可验证 AI 风险评估与证据链系统">
   <title>职安盾 VeriWork · 可信就业风险决策</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <link rel="stylesheet" href="styles.css?v=20261019r5">
+  <link rel="stylesheet" href="styles.css?v=20261019r6">
 </head>
 <body>
   
@@ -70,7 +70,7 @@
         </div>
         <div class="topbar-actions">
           <button id="openSettings" class="link-button topbar-settings">模型设置</button>
-          <div class="platform-version"><strong>平台版本</strong><span>v1.4</span></div>
+          <div class="platform-version"><strong>平台版本</strong><span>v1.5</span></div>
           <div class="user-chip" id="userChip"><span>未登录</span><button id="openAuth" class="link-button">登录</button></div>
           <div class="mode-chip" id="modeChip"><span></span>演示模式</div>
           <button class="secondary-button" id="quickDemo">载入风险样例</button>
@@ -636,6 +636,37 @@
     </main>
   </div>
 
+  <main id="adminLoginPage" class="admin-login-page hidden">
+    <div class="admin-login-shell">
+      <aside class="admin-login-brand">
+        <img class="auth-logo" src="assets/logo-full.svg" alt="职安盾 VeriWork">
+        <span class="admin-login-kicker">VERIWORK / OPERATIONS</span>
+        <h1>管理员<br>安全登录</h1>
+        <p>合同风险研判平台的运营控制台。用户、案例、证据和审计记录由管理员统一管理。</p>
+        <ul>
+          <li>服务端角色校验</li>
+          <li>管理员邮箱二次验证</li>
+          <li>操作留痕与异常会话退出</li>
+        </ul>
+        <div class="admin-login-service"><span>服务状态</span><strong id="adminServiceStatus">正在检测...</strong></div>
+      </aside>
+      <section class="admin-login-form-panel">
+        <div class="admin-login-heading">
+          <span class="section-kicker">运营控制台</span>
+          <h2>管理员登录</h2>
+          <p>仅限具备管理员角色的账号。普通用户请返回用户登录。</p>
+        </div>
+        <label class="admin-login-field">管理员账号<input id="adminUsername" type="text" autocomplete="username" placeholder="请输入管理员账号"></label>
+        <label class="admin-login-field">管理员密码<input id="adminPassword" type="password" autocomplete="current-password" placeholder="请输入管理员密码"></label>
+        <div id="admin2faRow" class="admin-login-field hidden"><label>邮箱验证码<input id="admin2faCode" type="text" inputmode="numeric" maxlength="6" placeholder="6位验证码"></label></div>
+        <div id="adminLoginError" class="auth-error hidden" role="alert"></div>
+        <button id="adminLoginButton" class="primary-button admin-login-submit">进入运营控制台</button>
+        <button id="backToUserLogin" class="link-button admin-login-back">返回用户登录</button>
+        <p class="dialog-note">管理员入口不会绕过服务端权限校验。登录成功后才会加载管理后台。</p>
+      </section>
+    </div>
+  </main>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <dialog id="authDialog" class="auth-dialog">
@@ -682,7 +713,7 @@
           <button id="verify2faButton" class="primary-button">完成二次验证</button>
         </div>
         <button id="loginButton" class="primary-button auth-submit">登录</button>
-        <div class="auth-link-row"><button id="forgotPasswordButton" class="link-button">忘记密码？</button><button id="showRegisterView" class="link-button">没有账号？去注册</button></div>
+        <div class="auth-link-row"><button id="forgotPasswordButton" class="link-button">忘记密码？</button><button id="showRegisterView" class="link-button">没有账号？去注册</button><button id="openAdminLogin" class="link-button">管理员登录</button></div>
         <p class="dialog-note">平台账号由本人注册或运营方开通。密钥和权限信息不会进入浏览器。</p>
       </div>
 
@@ -744,7 +775,7 @@
     </form>
   </dialog>
 
-  <script src="data.js?v=20261019r5"></script>
-  <script src="app.js?v=20261019r5"></script>
+  <script src="data.js?v=20261019r6"></script>
+  <script src="app.js?v=20261019r6"></script>
 </body>
 </html>

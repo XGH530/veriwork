@@ -276,6 +276,96 @@ async function registerAccount(username, password) {
   toast(`注册成功：${data.user.username}${email ? "，请到账户中心完成邮箱验证。" : ""}`);
 }
 
+function showAdminLoginError(message) {
+  const element = $("#adminLoginError");
+  if (!element) return;
+  element.textContent = message;
+  element.classList.remove("hidden");
+}
+
+function clearAdminLoginError() {
+  const element = $("#adminLoginError");
+  if (!element) return;
+  element.textContent = "";
+  element.classList.add("hidden");
+}
+
+async function refreshAdminLoginStatus() {
+  try {
+    const data = await apiRequest("/api/health");
+    $("#adminServiceStatus").textContent = data.ok
+      ? `服务正常 · ${data.model || "本地规则链路"}`
+      : "服务状态异常";
+  } catch (error) {
+    $("#adminServiceStatus").textContent = "服务暂不可用";
+  }
+}
+
+async function adminLoginWithCredentials() {
+  clearAdminLoginError();
+  try {
+    const data = await authRequest("/api/auth/login", {
+      username: $("#adminUsername").value.trim(),
+      password: $("#adminPassword").value
+    });
+    if (data.requires2fa) {
+      state.pending2fa = data;
+      $("#admin2faRow")?.classList.remove("hidden");
+      $("#admin2faCode")?.focus();
+      showAdminLoginError(`验证码已发送到 ${data.emailHint || "管理员邮箱"}。`);
+      return;
+    }
+    if (data.user?.role !== "admin") {
+      await authRequest("/api/auth/logout", {});
+      showAdminLoginError("该账号不是管理员，不能进入运营控制台。");
+      return;
+    }
+    window.location.href = `${window.location.pathname}?page=admin`;
+  } catch (error) {
+    showAdminLoginError(error.message || "管理员登录失败");
+  }
+}
+
+async function verifyAdminLogin2fa() {
+  if (!state.pending2fa?.challengeId) {
+    showAdminLoginError("请先输入管理员账号和密码。");
+    return;
+  }
+  clearAdminLoginError();
+  try {
+    const data = await authRequest("/api/auth/verify-2fa", {
+      challengeId: state.pending2fa.challengeId,
+      code: $("#admin2faCode").value.trim()
+    });
+    if (data.user?.role !== "admin") {
+      await authRequest("/api/auth/logout", {});
+      showAdminLoginError("该账号不是管理员，不能进入运营控制台。");
+      return;
+    }
+    window.location.href = `${window.location.pathname}?page=admin`;
+  } catch (error) {
+    showAdminLoginError(error.message || "邮箱验证码不正确");
+  }
+}
+
+function initAdminLoginPage() {
+  document.body.classList.add("admin-login-mode");
+  const page = $("#adminLoginPage");
+  page?.classList.remove("hidden");
+  loadSettings();
+  refreshAdminLoginStatus();
+  $("#adminLoginButton")?.addEventListener("click", adminLoginWithCredentials);
+  $("#admin2faCode")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") verifyAdminLogin2fa();
+  });
+  $("#adminPassword")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") adminLoginWithCredentials();
+  });
+  $("#backToUserLogin")?.addEventListener("click", () => {
+    window.location.href = window.location.pathname;
+  });
+}
+
 async function requestPasswordResetCode() {
   const identifier = $("#resetIdentifier")?.value.trim();
   if (!identifier) {
@@ -1784,6 +1874,9 @@ function bindEvents() {
     if (event.target.closest("#showLoginView")) {
       showAuthView("login");
     }
+    if (event.target.closest("#openAdminLogin")) {
+      window.location.href = `${window.location.pathname}?admin=1`;
+    }
     if (event.target.closest("#closeAuth")) { clearAuthError(); $("#authDialog")?.close(); }
     if (event.target.closest("#loginButton")) {
       loginWithCredentials($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => showAuthError(error.message || "登录失败，请检查账号和密码"));
@@ -1809,6 +1902,11 @@ function bindEvents() {
 }
 
 function init() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("admin") === "1") {
+    initAdminLoginPage();
+    return;
+  }
   renderMetrics();
   renderCaseQueue();
   renderEvidence();
@@ -1834,7 +1932,6 @@ function init() {
   $("#contractInput").value = APP_DATA.demoCases[0].text;
   $("#contractInput").dispatchEvent(new Event("input"));
 
-  const params = new URLSearchParams(window.location.search);
   const requestedPage = params.get("page");
   if (requestedPage && ["dashboard", "analysis", "history", "evidence", "policy", "account", "admin", "evaluation", "architecture"].includes(requestedPage)) {
     navigate(requestedPage);
