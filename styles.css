@@ -1374,3 +1374,5 @@ table th { color: #586474; background: #f8f9fa; }
   .email-binding-row { grid-template-columns: 1fr; }
   .auth-link-row { align-items: flex-start; flex-direction: column; }
 }
+.auth-view.hidden { display: none !important; }
+.auth-submit { width: 100%; margin-top: 4px; }

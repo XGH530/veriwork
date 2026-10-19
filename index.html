@@ -6,7 +6,7 @@
   <meta name="description" content="职安盾 VeriWork——面向高校毕业生就业合同的可验证 AI 风险评估与证据链系统">
   <title>职安盾 VeriWork · 可信就业风险决策</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <link rel="stylesheet" href="styles.css?v=20261018r4">
+  <link rel="stylesheet" href="styles.css?v=20261019r5">
 </head>
 <body>
   
@@ -70,7 +70,7 @@
         </div>
         <div class="topbar-actions">
           <button id="openSettings" class="link-button topbar-settings">模型设置</button>
-          <div class="platform-version"><strong>平台版本</strong><span>v1.3</span></div>
+          <div class="platform-version"><strong>平台版本</strong><span>v1.4</span></div>
           <div class="user-chip" id="userChip"><span>未登录</span><button id="openAuth" class="link-button">登录</button></div>
           <div class="mode-chip" id="modeChip"><span></span>演示模式</div>
           <button class="secondary-button" id="quickDemo">载入风险样例</button>
@@ -658,39 +658,51 @@
     <section class="auth-form-panel">
       <div class="auth-title-row">
         <div>
-          <span class="section-kicker">平台登录</span>
-          <h3>登录职安盾</h3>
-          <p>请输入平台账号和密码。系统会根据账号角色进入对应工作界面。</p>
+          <span id="authKicker" class="section-kicker">平台登录</span>
+          <h3 id="authHeading">登录职安盾</h3>
+          <p id="authDescription">请输入平台账号和密码。系统会根据账号角色进入对应工作界面。</p>
         </div>
         <button class="icon-button" id="closeAuth" aria-label="关闭">×</button>
       </div>
 
-      <div class="auth-field">
-        <label for="authUsername">用户名</label>
-        <input id="authUsername" type="text" value="" autocomplete="username" placeholder="请输入用户名">
-      </div>
-      <div class="auth-field">
-        <label for="authPassword">密码</label>
-        <input id="authPassword" type="password" value="" autocomplete="current-password" placeholder="请输入密码">
-      </div>
-      <div class="auth-field">
-        <label for="authEmail">邮箱（注册时填写）</label>
-        <input id="authEmail" type="email" value="" autocomplete="email" placeholder="用于找回密码和安全验证">
-      </div>
-      <div id="twoFactorPanel" class="auth-field hidden">
-        <label for="auth2faCode">管理员邮箱验证码</label>
-        <input id="auth2faCode" type="text" inputmode="numeric" maxlength="6" placeholder="6位验证码">
-        <button id="verify2faButton" class="primary-button">完成二次验证</button>
-      </div>
-
       <div id="authError" class="auth-error hidden" role="alert"></div>
 
-      <div class="auth-button-row">
-        <button id="loginButton" class="primary-button">登录</button>
-        <button id="registerButton" class="ghost-button">注册新账号</button>
+      <div id="loginView" class="auth-view">
+        <div class="auth-field">
+          <label for="authUsername">用户名</label>
+          <input id="authUsername" type="text" value="" autocomplete="username" placeholder="请输入用户名">
+        </div>
+        <div class="auth-field">
+          <label for="authPassword">密码</label>
+          <input id="authPassword" type="password" value="" autocomplete="current-password" placeholder="请输入密码">
+        </div>
+        <div id="twoFactorPanel" class="auth-field hidden">
+          <label for="auth2faCode">管理员邮箱验证码</label>
+          <input id="auth2faCode" type="text" inputmode="numeric" maxlength="6" placeholder="6位验证码">
+          <button id="verify2faButton" class="primary-button">完成二次验证</button>
+        </div>
+        <button id="loginButton" class="primary-button auth-submit">登录</button>
+        <div class="auth-link-row"><button id="forgotPasswordButton" class="link-button">忘记密码？</button><button id="showRegisterView" class="link-button">没有账号？去注册</button></div>
+        <p class="dialog-note">平台账号由本人注册或运营方开通。密钥和权限信息不会进入浏览器。</p>
       </div>
-      <div class="auth-link-row"><button id="forgotPasswordButton" class="link-button">忘记密码？</button><span>管理员账号启用邮箱二次验证后需填写验证码。</span></div>
-      <p class="dialog-note">平台账号由本人注册或运营方开通。密钥和权限信息不会进入浏览器。</p>
+
+      <div id="registerView" class="auth-view hidden">
+        <div class="auth-field">
+          <label for="registerUsername">用户名</label>
+          <input id="registerUsername" type="text" value="" autocomplete="username" placeholder="设置用户名，3至32位">
+        </div>
+        <div class="auth-field">
+          <label for="registerPassword">密码</label>
+          <input id="registerPassword" type="password" value="" autocomplete="new-password" placeholder="至少8位">
+        </div>
+        <div class="auth-field">
+          <label for="authEmail">注册邮箱</label>
+          <input id="authEmail" type="email" value="" autocomplete="email" placeholder="用于找回密码和安全验证">
+        </div>
+        <button id="registerButton" class="primary-button auth-submit">创建账号</button>
+        <div class="auth-link-row"><button id="showLoginView" class="link-button">已有账号？返回登录</button></div>
+        <p class="dialog-note">邮箱会用于密码找回和安全验证；注册后可在账户中心继续完成邮箱验证。</p>
+      </div>
     </section>
   </div>
 </dialog>
@@ -732,7 +744,7 @@
     </form>
   </dialog>
 
-  <script src="data.js?v=20261018r4"></script>
-  <script src="app.js?v=20261018r4"></script>
+  <script src="data.js?v=20261019r5"></script>
+  <script src="app.js?v=20261019r5"></script>
 </body>
 </html>

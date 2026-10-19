@@ -16,7 +16,7 @@ const state = {
     model: ""
   },
   user: null,
-  authMode: "student",
+  authMode: "login",
   pending2fa: null,
   emailChallengeId: null
 };
@@ -124,6 +124,7 @@ async function extractDocumentViaApi(file) {
   });
   const payload = await response.json();
   if (response.status === 401) {
+    showAuthView("login");
     $("#authDialog")?.showModal();
     throw new Error("登录已失效，请重新登录");
   }
@@ -204,6 +205,25 @@ function clearAuthError() {
   if (!element) return;
   element.textContent = "";
   element.classList.add("hidden");
+}
+
+function showAuthView(mode = "login") {
+  state.authMode = mode;
+  clearAuthError();
+  $("#loginView")?.classList.toggle("hidden", mode !== "login");
+  $("#registerView")?.classList.toggle("hidden", mode !== "register");
+  $("#authKicker").textContent = mode === "register" ? "创建账号" : "平台登录";
+  $("#authHeading").textContent = mode === "register" ? "注册职安盾账号" : "登录职安盾";
+  $("#authDescription").textContent = mode === "register"
+    ? "填写用户名、密码和邮箱。邮箱仅用于账号恢复和安全验证。"
+    : "请输入平台账号和密码。系统会根据账号角色进入对应工作界面。";
+  if (mode !== "login") {
+    state.pending2fa = null;
+    $("#twoFactorPanel")?.classList.add("hidden");
+    $("#registerUsername")?.focus();
+  } else {
+    $("#authUsername")?.focus();
+  }
 }
 
 async function loginWithCredentials(username, password) {
@@ -333,7 +353,7 @@ function updateUserUI() {
     $("#logoutButton")?.addEventListener("click", logoutAccount);
   } else {
     chip.innerHTML = '<span>未登录</span><button id="openAuth" class="link-button">登录</button>';
-    $("#openAuth")?.addEventListener("click", () => $("#authDialog")?.showModal());
+    $("#openAuth")?.addEventListener("click", () => { showAuthView("login"); $("#authDialog")?.showModal(); });
   }
   const isAdmin = state.user?.role === "admin";
   document.body.classList.toggle("admin-mode", isAdmin);
@@ -573,6 +593,7 @@ async function analyzeWithApi(text, options) {
     body: JSON.stringify({ text, ...options })
   });
   if (response.status === 401) {
+    showAuthView("login");
     $("#authDialog")?.showModal();
     throw new Error("登录已失效，请重新登录");
   }
@@ -598,6 +619,7 @@ async function runAnalysis() {
   }
 
   if (state.settings.runMode === "api" && !state.user) {
+    showAuthView("login");
     $("#authDialog")?.showModal();
     toast("请先登录后再使用后端可信研判。");
     return;
@@ -1201,6 +1223,7 @@ function renderEvidenceFiles() {
 
 async function uploadEvidenceFile() {
   if (!state.user) {
+    showAuthView("login");
     $("#authDialog")?.showModal();
     toast("上传证据文件需要先登录。");
     return;
@@ -1255,6 +1278,7 @@ async function deleteEvidenceFile(evidenceId) {
 
 async function verifyEvidenceChain() {
   if (!state.user) {
+    showAuthView("login");
     $("#authDialog")?.showModal();
     return;
   }
@@ -1278,6 +1302,7 @@ async function verifyEvidenceChain() {
 
 async function downloadEvidencePackage() {
   if (!state.user) {
+    showAuthView("login");
     $("#authDialog")?.showModal();
     return;
   }
@@ -1571,6 +1596,7 @@ async function deleteAccount() {
     setAccountMessage("账号及全部数据已删除。");
     updateUserUI();
     navigate("dashboard");
+    showAuthView("login");
     $("#authDialog")?.showModal();
   } catch (error) {
     setAccountMessage(`删除失败：${error.message}`, true);
@@ -1645,6 +1671,7 @@ function bindEvents() {
     const file = event.target.files[0];
     if (!file) return;
     if (state.settings.runMode === "api" && !state.user) {
+      showAuthView("login");
       $("#authDialog")?.showModal();
       toast("文件解析需要登录，请先登录或注册账号。");
       event.target.value = "";
@@ -1748,25 +1775,34 @@ function bindEvents() {
 
   document.addEventListener("click", (event) => {
     if (event.target.closest("#openAuth")) {
-      clearAuthError();
-      state.pending2fa = null;
-      $("#twoFactorPanel")?.classList.add("hidden");
+      showAuthView("login");
       $("#authDialog")?.showModal();
+    }
+    if (event.target.closest("#showRegisterView")) {
+      showAuthView("register");
+    }
+    if (event.target.closest("#showLoginView")) {
+      showAuthView("login");
     }
     if (event.target.closest("#closeAuth")) { clearAuthError(); $("#authDialog")?.close(); }
     if (event.target.closest("#loginButton")) {
       loginWithCredentials($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => showAuthError(error.message || "登录失败，请检查账号和密码"));
     }
     if (event.target.closest("#registerButton")) {
-      registerAccount($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => showAuthError(error.message || "注册失败，请检查输入信息"));
+      registerAccount($("#registerUsername").value.trim(), $("#registerPassword").value).catch((error) => showAuthError(error.message || "注册失败，请检查输入信息"));
     }
   });
-  ["authUsername", "authPassword", "authEmail", "auth2faCode"].forEach((id) => {
+  ["authUsername", "authPassword", "registerUsername", "registerPassword", "authEmail", "auth2faCode"].forEach((id) => {
     $(`#${id}`)?.addEventListener("input", clearAuthError);
     $(`#${id}`)?.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
-        if (id === "auth2faCode") verifyAdmin2fa();
-        else loginWithCredentials($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => showAuthError(error.message || "登录失败，请检查账号和密码"));
+        if (id === "auth2faCode") {
+          verifyAdmin2fa();
+        } else if (id === "registerUsername" || id === "registerPassword" || id === "authEmail") {
+          registerAccount($("#registerUsername").value.trim(), $("#registerPassword").value).catch((error) => showAuthError(error.message || "注册失败，请检查输入信息"));
+        } else {
+          loginWithCredentials($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => showAuthError(error.message || "登录失败，请检查账号和密码"));
+        }
       }
     });
   });
@@ -1791,7 +1827,7 @@ function init() {
       if (state.currentPage === "account") refreshAccountCenter();
     }
     if (state.settings.runMode === "api" && !authenticated) {
-      clearAuthError();
+      showAuthView("login");
       $("#authDialog")?.showModal();
     }
   })();
