@@ -129,6 +129,19 @@ class RuleEngineTests(unittest.TestCase):
         self.assertNotIn("13800138000", deposit.get("modelReason", ""))
         self.assertNotIn("test@example.com", deposit.get("modelAction", ""))
 
+    def test_all_frontend_jurisdictions_have_backend_profiles(self):
+        expected = ["全国规则", "北京", "上海", "广东", "重庆", "四川", "贵州", "云南", "陕西", "湖北", "湖南", "广西"]
+        for name in expected:
+            self.assertIn(name, server.JURISDICTIONS)
+        result = server.deterministic_analysis(
+            "实习补贴为140元/天，甲方安排标准工时并允许延长工作时间。",
+            "实习协议",
+            "重庆",
+        )
+        self.assertEqual("重庆", result["jurisdictionProfile"]["id"])
+        self.assertEqual("最低工资已核验", result["jurisdictionProfile"]["status"])
+        self.assertIn("2330", result["jurisdictionProfile"]["note"])
+
     def test_single_character_username_is_allowed(self):
         user = server.register_user("a", "Password!2345")
         self.assertEqual("a", user["username"])
