@@ -1,7 +1,7 @@
 const APP_DATA = {
   meta: {
     name: "职安盾 VeriWork",
-    version: "0.9.0-demo",
+    version: "2.0.0-demo",
     updated: "2026-10-01",
     disclaimer: "本系统用于就业风险提示、普法教育和材料整理，不替代律师、仲裁机构或人社部门作出最终法律判断。"
   },
@@ -132,6 +132,42 @@ const APP_DATA = {
       summary: "用人单位招用人员应依法保障劳动者平等就业权利，不得实施就业歧视。以婚育、性别等与岗位无关条件限制就业存在合规风险。",
       url: "https://flk.npc.gov.cn/",
       tags: ["怀孕", "婚育", "性别歧视", "平等就业"]
+},
+    {
+      id: "wage_payment_9_15",
+      title: "工资支付与离职结算",
+      source: "《工资支付暂行规定》第九条、第十五条",
+      authority: "劳动部",
+      summary: "劳动关系解除或终止时应一次付清工资；不得克扣或无故拖欠劳动者工资。",
+      url: "https://www.gov.cn/",
+      tags: ["离职结算", "克扣工资", "欠薪"]
+    },
+    {
+      id: "civil_code_contract",
+      title: "格式条款与合同公平",
+      source: "《中华人民共和国民法典》第四百九十六条、第四百九十七条",
+      authority: "全国人民代表大会",
+      summary: "格式条款应提示说明；不合理免除责任、加重对方责任或限制主要权利的条款可能无效。",
+      url: "https://flk.npc.gov.cn/",
+      tags: ["格式条款", "显失公平", "无效条款"]
+    },
+    {
+      id: "labor_relationship_notice",
+      title: "事实劳动关系判断要素",
+      source: "《关于确立劳动关系有关事项的通知》（劳社部发〔2005〕12号）",
+      authority: "劳动和社会保障部",
+      summary: "判断劳动关系应综合主体资格、劳动管理、报酬支付和业务组成等事实，不能只看协议名称。",
+      url: "https://www.gov.cn/",
+      tags: ["事实劳动关系", "用工管理", "协议名称"]
+    },
+    {
+      id: "internship_policy",
+      title: "高校实习管理与实习协议要求",
+      source: "教育部关于加强和规范普通本科高校实习管理工作的意见（教高函〔2019〕12号）",
+      authority: "教育部",
+      summary: "高校实习应完善实习协议、安全教育、过程管理和权益保障；具体适用需结合学校制度和属地要求核验。",
+      url: "https://www.moe.gov.cn/",
+      tags: ["实习协议", "学校管理", "权益保障"]
     }
   ],
 
@@ -295,6 +331,127 @@ const APP_DATA = {
       reason: "与岗位无关的性别、婚育限制可能构成就业歧视。",
       action: "保存招聘页面和沟通记录，可向人社部门、工会或公共法律服务平台反映。",
       lawIds: ["employment_27"]
+},
+    {
+      id: "internship_wage_forfeit",
+      title: "离职即扣发实习补贴",
+      category: "工资支付",
+      severity: "high",
+      weight: 30,
+      confidence: 0.98,
+      regex: "(?:离职|自动离职)[^。；\\n]{0,35}(?:工资|补贴)[^。；\\n]{0,15}(?:不予|不|停发|扣除|核发)|(?:入职后|实习)[^。；\\n]{0,25}(?:10|十|15|十五)[^。；\\n]{0,12}个?工作日[^。；\\n]{0,25}(?:离职|自动离职)",
+      reason: "以离职为条件不支付已经提供劳动的实习补贴或工资，属于惩罚性扣发，需重点核实其法律性质。",
+      action: "要求删除离职限制；保留考勤、工作记录和补贴发放记录，明确离职时按实际出勤结算。",
+      lawIds: ["wage_payment_9_15", "labor_50_wage", "civil_code_contract"],
+      documentTypes: ["实习协议"]
+    },
+    {
+      id: "third_party_payor",
+      title: "签约单位、实际用工单位和发薪主体不一致",
+      category: "用工关系",
+      severity: "high",
+      weight: 18,
+      confidence: 0.91,
+      regex: "(?:委托|由)[^。；\\n]{0,70}(?:分公司|第三方|人力资源|人才)[^。；\\n]{0,45}(?:发放|支付|代发|薪酬|工资)",
+      reason: "签约、实际用工和发薪主体分离会使用人责任和证据指向不清，也可能涉及派遣、外包或事实用工。",
+      action: "书面确认实际用工单位、发薪主体、管理主体和事故责任主体，并保留排班、考勤和发薪记录。",
+      lawIds: ["labor_relationship_notice", "internship_policy", "lcl_26"],
+      documentTypes: ["实习协议", "劳务协议"]
+    },
+    {
+      id: "overtime_without_compensation",
+      title: "安排加班但未约定补偿",
+      category: "工时薪酬",
+      severity: "medium",
+      weight: 14,
+      confidence: 0.86,
+      regex: "(?:安排|要求|需要)[^。；\\n]{0,24}(?:延长工作时间|休息日|节假日)[^。；\\n]{0,24}加班",
+      exceptionRegex: "加班费|加班工资|调休|补休|加班补偿",
+      reason: "协议允许安排加班但没有明确加班报酬、调休或审批程序，实际执行容易产生争议。",
+      action: "要求补充加班审批、加班费或调休规则，并保存考勤、排班和任务分配记录。",
+      lawIds: ["labor_41_44", "labor_50_wage"],
+      documentTypes: ["实习协议", "劳动合同"]
+    },
+    {
+      id: "performance_unilateral",
+      title: "绩效津贴可单方变化",
+      category: "工资支付",
+      severity: "medium",
+      weight: 12,
+      confidence: 0.84,
+      regex: "绩效[^。；\\n]{0,30}(?:随|根据)[^。；\\n]{0,28}(?:岗位|表现)[^。；\\n]{0,24}(?:调整|变化)|绩效[^。；\\n]{0,35}(?:理解|确认|接受)",
+      reason: "绩效津贴调整缺少明确标准、计算方式和异议程序，存在变相降低报酬的空间。",
+      action: "要求写明绩效基数、考核周期、计算方式和调整程序，并保留工资条。",
+      lawIds: ["civil_code_contract", "lcl_35"],
+      documentTypes: ["实习协议", "劳动合同"]
+    },
+    {
+      id: "broad_deduction",
+      title: "工资扣款范围不明确",
+      category: "工资支付",
+      severity: "medium",
+      weight: 13,
+      confidence: 0.87,
+      regex: "扣除[^。；\\n]{0,15}(?:有关|其他|相应|相关|适当)[^。；\\n]{0,12}(?:款项|费用)|代缴[^。；\\n]{0,25}扣除",
+      reason: "“有关款项”“其他费用”等表述范围不清，可能造成未经明确依据的工资扣减。",
+      action: "要求逐项列明可扣除项目、法律依据、计算方式和通知程序。",
+      lawIds: ["wage_payment_9_15", "labor_50_wage"],
+      documentTypes: ["实习协议", "劳动合同"]
+    },
+    {
+      id: "confidentiality_overbroad",
+      title: "保密义务范围过宽或期限过长",
+      category: "保密与竞业",
+      severity: "medium",
+      weight: 14,
+      confidence: 0.86,
+      regex: "保密[^。；\\n]{0,18}(?:最高限度|所有|不明确|视为商业机密)|保密(?:期限|义务)[^。；\\n]{0,25}(?:终止|解除|结束)[^。；\\n]{0,18}(?:后|继续有效)|视为商业机密",
+      reason: "将不明确信息推定为商业秘密、无限期保密或让员工承担全部损失，可能导致义务边界不清。",
+      action: "要求限定商业秘密范围、保密期限、例外情形和责任上限，并保留信息和权限记录。",
+      lawIds: ["civil_code_contract", "lcl_23_24"],
+      documentTypes: ["实习协议", "劳动合同"]
+    },
+    {
+      id: "unilateral_termination",
+      title: "单方解除且不支付补偿",
+      category: "解除与终止",
+      severity: "high",
+      weight: 20,
+      confidence: 0.9,
+      regex: "(?:有权|可以)[^。；\\n]{0,20}(?:立即|随时|单方)[^。；\\n]{0,12}解除[^。；\\n]{0,24}(?:不支付|无需支付|不予支付)[^。；\\n]{0,10}(?:赔偿金|补偿)",
+      reason: "协议赋予一方过宽的单方解除权并排除补偿，需结合实际解除理由和法定程序判断。",
+      action: "要求列明解除条件、通知程序、证据要求和补偿规则，并保留解除通知与沟通记录。",
+      lawIds: ["lcl_26", "lcl_38_46_47"],
+      documentTypes: ["实习协议", "劳动合同"]
+    },
+    {
+      id: "internship_insurance_missing",
+      title: "缺少实习责任或意外伤害保险安排",
+      category: "实习保障",
+      severity: "medium",
+      weight: 13,
+      confidence: 0.78,
+      factOnly: true,
+      regex: "劳动保护|安全卫生|防护用品|实习期间",
+      exceptionRegex: "意外|工伤|保险|实习责任|商业保险",
+      reason: "实习协议提到劳动保护但没有看到实习责任保险或意外伤害保障安排，发生事故时责任和救治路径不清。",
+      action: "要求补充保险类型、投保主体、保额、理赔流程和事故联系人。",
+      lawIds: ["internship_policy"],
+      documentTypes: ["实习协议"]
+    },
+    {
+      id: "internship_relationship_mismatch",
+      title: "名为实习但存在劳动用工特征",
+      category: "用工关系",
+      severity: "high",
+      weight: 19,
+      confidence: 0.84,
+      factOnly: true,
+      regex: "标准工时|实际出勤|绩效|考勤|派驻",
+      reason: "协议同时出现固定期限、标准工时、实际出勤、绩效或派驻等特征，需结合实际管理、报酬和学校安排判断是否可能构成劳动关系或派遣用工。",
+      action: "补充学校实习安排、三方协议、考勤与报酬记录，并请专业人员判断关系性质。",
+      lawIds: ["labor_relationship_notice", "internship_policy", "lcl_26"],
+      documentTypes: ["实习协议"]
     }
   ],
 

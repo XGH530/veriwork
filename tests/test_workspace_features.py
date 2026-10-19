@@ -89,6 +89,23 @@ class WorkspaceFeatureTests(unittest.TestCase):
         )
         return opener.open(request, timeout=15)
 
+    def test_extract_returns_source_hash_and_pages(self):
+        user = self.opener()
+        with self.request(user, "/api/auth/register", {"username": "extractuser", "password": "ExtractUser!2345"}) as response:
+            self.assertIn(response.status, (200, 201))
+        text = "实习协议\n第一条 乙方自2026年6月16日至2026年12月15日在测试部门实习。\n第二条 实习补贴为140元/天。"
+        with self.request(user, "/api/extract", {
+            "filename": "sample.txt",
+            "language": "zh",
+            "content_base64": base64.b64encode(text.encode("utf-8")).decode("ascii"),
+        }) as response:
+            payload = json.loads(response.read())
+        self.assertEqual("sample.txt", payload["filename"])
+        self.assertEqual(64, len(payload["sha256"]))
+        self.assertEqual(1, payload["pageCount"])
+        self.assertEqual(1, len(payload["pages"]))
+        self.assertEqual(len(text), payload["chars"])
+
     def test_complete_user_and_admin_lifecycle(self):
         user = self.opener()
         with self.request(user, "/api/auth/register", {"username": "flowuser", "password": "FlowUser!2345"}) as response:
@@ -116,7 +133,7 @@ class WorkspaceFeatureTests(unittest.TestCase):
         with self.request(user, f"/api/cases/{case_id}/report") as response:
             report = response.read().decode("utf-8")
             self.assertIn("text/html", response.headers.get("Content-Type", ""))
-        self.assertIn("就业合同研判报告", report)
+        self.assertIn("就业材料研判报告", report)
         self.assertIn("VW-", report)
 
         with self.request(user, f"/api/cases/{case_id}/report.pdf") as response:

@@ -150,5 +150,106 @@ class RuleEngineTests(unittest.TestCase):
             self.assertTrue(all(law_id in server.law_map() for law_id in risk["lawIds"]), risk["id"])
 
 
+class InternshipAgreementTests(unittest.TestCase):
+    def internship_text(self) -> str:
+        return """实习协议
+湖南某人才服务有限公司（以下简称“甲方”），同意 重庆某学院 学校学生 张某，在甲方实习。双方协商一致，共同订立本协议。
+第一条 乙方自 2026 年 6 月 16 日至 2026 年 12 月 15 日，被派驻至深圳市某科技有限公司，在测试部门实习，具体实习内容另行规定。
+第二条 经双方协商，乙方的工作时间执行标准工时制，乙方应按规定时间准时上班。
+第三条 乙方同意，甲方因生产（工作）需要，可依法安排乙方延长工作时间、休息日或节假日加班。
+第五条 乙方同意按实际出勤日计薪，实习补贴为：140 元/天。乙方绩效津贴随乙方工作岗位的调整和工作表现变化。甲方委托其依法设立的湖南某人才服务有限公司湘江新区分公司作为薪酬发放主体，按月发放实习补贴。承诺入职后 10 个工作日内不会自动离职，如离职则工资不予核发。
+第六条 甲方支付乙方的劳动报酬为税前收入，乙方同意甲方有权根据规定扣除有关款项并代缴。
+第九条 乙方应对在甲方实习期间所掌握的所有甲方认为具有保密性质的信息进行最高限度的保密，在本协议终止后继续有效。
+第十二条 乙方违反本协议规定的，甲方有权立即解除劳动合同并不支付赔偿金。
+"""
+
+    def test_internship_is_identified_and_facts_are_extracted(self):
+        text = self.internship_text()
+        result = server.deterministic_analysis(
+            text,
+            "劳动合同",
+            "全国规则",
+            source_pages=[{"page": 1, "text": text}],
+        )
+        self.assertEqual("实习协议", result["documentType"])
+        self.assertEqual("劳动合同", result["selectedCaseType"])
+        facts = result["facts"]
+        self.assertEqual("湖南某人才服务有限公司", facts["partyA"])
+        self.assertEqual("重庆某学院", facts["school"])
+        self.assertEqual("深圳市某科技有限公司", facts["actualEmployer"])
+        self.assertEqual("测试", facts["position"])
+        self.assertEqual("2026年6月16日", facts["startDate"])
+        self.assertEqual("2026年12月15日", facts["endDate"])
+        self.assertEqual("140", facts["dailyPay"])
+        self.assertEqual(17.5, facts["hourlyEquivalentAt8h"])
+        self.assertEqual("广东", facts["suggestedJurisdiction"])
+        self.assertFalse(facts["hasAccidentInsurance"])
+        self.assertFalse(facts["hasDisputeClause"])
+        self.assertFalse(facts["hasJobAttachment"])
+
+    def test_internship_risks_and_locations(self):
+        text = self.internship_text()
+        result = server.deterministic_analysis(
+            text,
+            "劳动合同",
+            "全国规则",
+            source_pages=[{"page": 1, "text": text}],
+        )
+        ids = {item["id"] for item in result["risks"]}
+        self.assertTrue({
+            "internship_wage_forfeit",
+            "third_party_payor",
+            "overtime_without_compensation",
+            "performance_unilateral",
+            "broad_deduction",
+            "confidentiality_overbroad",
+            "unilateral_termination",
+            "internship_insurance_missing",
+            "internship_relationship_mismatch",
+        }.issubset(ids))
+        self.assertEqual("高风险", result["riskLevel"])
+        self.assertGreaterEqual(result["riskScore"], 78)
+        self.assertGreater(result["analysisStats"]["ruleHits"], 0)
+        self.assertGreater(result["analysisStats"]["factHits"], 0)
+        self.assertTrue(result["requiresHumanReview"])
+        self.assertTrue(any(item.get("location", {}).get("clause") not in ("", "未编号条款") for item in result["risks"]))
+        wage_risk = next(item for item in result["risks"] if item["id"] == "internship_wage_forfeit")
+        self.assertEqual(1, wage_risk["location"]["page"])
+
+    def test_internship_report_contains_required_sections(self):
+        text = self.internship_text()
+        result = server.deterministic_analysis(
+            text,
+            "劳动合同",
+            "全国规则",
+            source_pages=[{"page": 1, "text": text}],
+            source_document={
+                "filename": "实习协议-脱敏.pdf",
+                "format": "pdf",
+                "chars": len(text),
+                "sizeBytes": 2048,
+                "sha256": "a" * 64,
+                "pageCount": 1,
+            },
+        )
+        case = {
+            "id": 12,
+            "case_type": "劳动合同",
+            "jurisdiction": "全国规则",
+            "document_language": "zh",
+            "risk_score": result["riskScore"],
+            "risk_level": result["riskLevel"],
+            "result": result,
+        }
+        html = server.build_report_html({"username": "测试用户"}, case, [])
+        for section in ("就业材料研判报告", "基本事实", "风险结论", "待核实事项", "可信研判轨迹", "证据文件清单", "后续行动", "原始文件"):
+            self.assertIn(section, html)
+        self.assertIn("实习协议-脱敏.pdf", html)
+        pdf = server.build_report_pdf({"username": "测试用户"}, case, [])
+        if pdf is not None:
+            self.assertTrue(pdf.startswith(b"%PDF-"))
+            self.assertGreater(len(pdf), 1000)
+
+
 if __name__ == "__main__":
     unittest.main()

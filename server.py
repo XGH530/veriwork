@@ -366,6 +366,10 @@ def strip_result_for_storage(result: dict) -> dict:
         for key in ("clause", "matchText", "reason", "action", "modelReason", "modelAction"):
             if risk.get(key):
                 risk[key] = redact_pii(str(risk[key]))
+    if isinstance(payload.get("sourceDocument"), dict):
+        source_document = payload["sourceDocument"]
+        if source_document.get("filename"):
+            source_document["filename"] = redact_pii(str(source_document["filename"]))
     if payload.get("complaintDraft"):
         payload["complaintDraft"] = redact_pii(str(payload["complaintDraft"]))
     if isinstance(payload.get("questions"), list):
@@ -412,7 +416,7 @@ def health_payload() -> dict:
     return {
         "ok": database_ok,
         "name": "职安盾 VeriWork",
-        "version": "1.9.0",
+        "version": "2.0.0",
         "uptimeSeconds": int(time.time() - STARTED_AT),
         "databaseOk": database_ok,
         "evidenceStorageOk": EVIDENCE_DIR.is_dir() and os.access(EVIDENCE_DIR, os.W_OK),
@@ -845,6 +849,34 @@ LAWS = [
         "summary": "用人单位招用人员应依法保障劳动者平等就业权利。",
         "url": "https://flk.npc.gov.cn/",
     },
+    {
+        "id": "wage_payment_9_15",
+        "title": "工资支付与离职结算",
+        "source": "《工资支付暂行规定》第九条、第十五条",
+        "summary": "劳动关系解除或终止时应一次付清工资；不得克扣或无故拖欠劳动者工资。",
+        "url": "https://www.gov.cn/",
+    },
+    {
+        "id": "civil_code_contract",
+        "title": "格式条款与合同公平",
+        "source": "《中华人民共和国民法典》第四百九十六条、第四百九十七条",
+        "summary": "格式条款应提示说明；不合理免除责任、加重对方责任或限制主要权利的条款可能无效。",
+        "url": "https://flk.npc.gov.cn/",
+    },
+    {
+        "id": "labor_relationship_notice",
+        "title": "事实劳动关系判断要素",
+        "source": "《关于确立劳动关系有关事项的通知》（劳社部发〔2005〕12号）",
+        "summary": "判断劳动关系应综合主体资格、劳动管理、报酬支付和业务组成等事实，不能只看协议名称。",
+        "url": "https://www.gov.cn/",
+    },
+    {
+        "id": "internship_policy",
+        "title": "高校实习管理与实习协议要求",
+        "source": "教育部关于加强和规范普通本科高校实习管理工作的意见（教高函〔2019〕12号）",
+        "summary": "高校实习应完善实习协议、安全教育、过程管理和权益保障；具体适用需结合学校制度和属地要求核验。",
+        "url": "https://www.moe.gov.cn/",
+    },
 ]
 
 
@@ -1059,6 +1091,126 @@ RISKS = [
         "action": "保存招聘页面和沟通记录，可向人社部门、工会或公共法律服务平台反映。",
         "lawIds": ["employment_27"],
     },
+    {
+        "id": "internship_wage_forfeit",
+        "title": "离职即扣发实习补贴",
+        "category": "工资支付",
+        "severity": "high",
+        "weight": 30,
+        "confidence": 0.98,
+        "regex": r"(?:离职|自动离职)[^。；\n]{0,35}(?:工资|补贴)[^。；\n]{0,15}(?:不予|不|停发|扣除|核发)|(?:入职后|实习)[^。；\n]{0,25}(?:10|十|15|十五)[^。；\n]{0,12}个?工作日[^。；\n]{0,25}(?:离职|自动离职)",
+        "reason": "以离职为条件不支付已经提供劳动的实习补贴或工资，属于惩罚性扣发，需重点核实其法律性质。",
+        "action": "要求删除离职限制；保留考勤、工作记录和补贴发放记录，明确离职时按实际出勤结算。",
+        "lawIds": ["wage_payment_9_15", "labor_50_wage", "civil_code_contract"],
+        "documentTypes": ["实习协议"],
+    },
+    {
+        "id": "third_party_payor",
+        "title": "签约单位、实际用工单位和发薪主体不一致",
+        "category": "用工关系",
+        "severity": "high",
+        "weight": 18,
+        "confidence": 0.91,
+        "regex": r"(?:委托|由)[^。；\n]{0,70}(?:分公司|第三方|人力资源|人才)[^。；\n]{0,45}(?:发放|支付|代发|薪酬|工资)",
+        "reason": "签约、实际用工和发薪主体分离会使用人责任和证据指向不清，也可能涉及派遣、外包或事实用工。",
+        "action": "书面确认实际用工单位、发薪主体、管理主体和事故责任主体，并保留排班、考勤和发薪记录。",
+        "lawIds": ["labor_relationship_notice", "internship_policy", "lcl_26"],
+        "documentTypes": ["实习协议", "劳务协议"],
+    },
+    {
+        "id": "overtime_without_compensation",
+        "title": "安排加班但未约定补偿",
+        "category": "工时薪酬",
+        "severity": "medium",
+        "weight": 14,
+        "confidence": 0.86,
+        "regex": r"(?:安排|要求|需要)[^。；\n]{0,24}(?:延长工作时间|休息日|节假日)[^。；\n]{0,24}加班",
+        "exceptionRegex": r"加班费|加班工资|调休|补休|加班补偿",
+        "reason": "协议允许安排加班但没有明确加班报酬、调休或审批程序，实际执行容易产生争议。",
+        "action": "要求补充加班审批、加班费或调休规则，并保存考勤、排班和任务分配记录。",
+        "lawIds": ["labor_41_44", "labor_50_wage"],
+        "documentTypes": ["实习协议", "劳动合同"],
+    },
+    {
+        "id": "performance_unilateral",
+        "title": "绩效津贴可单方变化",
+        "category": "工资支付",
+        "severity": "medium",
+        "weight": 12,
+        "confidence": 0.84,
+        "regex": r"绩效[^。；\n]{0,30}(?:随|根据)[^。；\n]{0,28}(?:岗位|表现)[^。；\n]{0,24}(?:调整|变化)|绩效[^。；\n]{0,35}(?:理解|确认|接受)",
+        "reason": "绩效津贴调整缺少明确标准、计算方式和异议程序，存在变相降低报酬的空间。",
+        "action": "要求写明绩效基数、考核周期、计算方式和调整程序，并保留工资条。",
+        "lawIds": ["civil_code_contract", "lcl_35"],
+        "documentTypes": ["实习协议", "劳动合同"],
+    },
+    {
+        "id": "broad_deduction",
+        "title": "工资扣款范围不明确",
+        "category": "工资支付",
+        "severity": "medium",
+        "weight": 13,
+        "confidence": 0.87,
+        "regex": r"扣除[^。；\n]{0,15}(?:有关|其他|相应|相关|适当)[^。；\n]{0,12}(?:款项|费用)|代缴[^。；\n]{0,25}扣除",
+        "reason": "“有关款项”“其他费用”等表述范围不清，可能造成未经明确依据的工资扣减。",
+        "action": "要求逐项列明可扣除项目、法律依据、计算方式和通知程序。",
+        "lawIds": ["wage_payment_9_15", "labor_50_wage"],
+        "documentTypes": ["实习协议", "劳动合同"],
+    },
+    {
+        "id": "confidentiality_overbroad",
+        "title": "保密义务范围过宽或期限过长",
+        "category": "保密与竞业",
+        "severity": "medium",
+        "weight": 14,
+        "confidence": 0.86,
+        "regex": r"保密[^。；\n]{0,18}(?:最高限度|所有|不明确|视为商业机密)|保密(?:期限|义务)[^。；\n]{0,25}(?:终止|解除|结束)[^。；\n]{0,18}(?:后|继续有效)|视为商业机密",
+        "reason": "将不明确信息推定为商业秘密、无限期保密或让员工承担全部损失，可能导致义务边界不清。",
+        "action": "要求限定商业秘密范围、保密期限、例外情形和责任上限，并保留信息和权限记录。",
+        "lawIds": ["civil_code_contract", "lcl_23_24"],
+        "documentTypes": ["实习协议", "劳动合同"],
+    },
+    {
+        "id": "unilateral_termination",
+        "title": "即时解除和赔偿责任缺少边界",
+        "category": "解除与赔偿",
+        "severity": "medium",
+        "weight": 15,
+        "confidence": 0.85,
+        "regex": r"(?:不能胜任|违反[^。；\n]{0,25}(?:规章|制度))[^。；\n]{0,28}(?:随时|立即)[^。；\n]{0,15}解除|(?:随时|立即)解除[^。；\n]{0,25}(?:不支付|无赔偿|全部赔偿)",
+        "reason": "即时解除、严重违纪和全部赔偿责任应当有明确事实、证据和程序，不宜由一方单方认定。",
+        "action": "要求补充解除程序、申辩机会、损失范围和举证责任；保留考核、通知和沟通记录。",
+        "lawIds": ["lcl_38_46_47", "lcl_26", "civil_code_contract"],
+        "documentTypes": ["实习协议", "劳动合同"],
+    },
+    {
+        "id": "internship_insurance_missing",
+        "title": "缺少实习责任或意外伤害保险安排",
+        "category": "实习保障",
+        "severity": "medium",
+        "weight": 13,
+        "confidence": 0.78,
+        "factOnly": True,
+        "regex": r"(?:劳动保护|安全卫生|防护用品|实习期间)",
+        "exceptionRegex": r"意外|工伤|保险|实习责任|商业保险",
+        "reason": "实习协议提到劳动保护但没有看到实习责任保险或意外伤害保障安排，发生事故时责任和救治路径不清。",
+        "action": "要求补充保险类型、投保主体、保额、理赔流程和事故联系人。",
+        "lawIds": ["internship_policy"],
+        "documentTypes": ["实习协议"],
+    },
+    {
+        "id": "internship_relationship_mismatch",
+        "title": "名为实习但存在劳动用工特征",
+        "category": "用工关系",
+        "severity": "medium",
+        "weight": 20,
+        "confidence": 0.76,
+        "regex": r"实习协议[\s\S]{0,1200}(?:标准工时|实际出勤|绩效|考勤|部门|按月|派驻)",
+        "reason": "固定期限、标准工时、考勤绩效、按月补贴和第三方派驻等事实可能构成事实劳动关系或派遣用工特征，需要结合真实管理方式核实。",
+        "action": "补查学校实习安排、实际管理主体、工作内容、报酬支付和社保情况；在确认关系性质前不要只按“实习”处理。",
+        "lawIds": ["labor_relationship_notice", "internship_policy", "lcl_10_82"],
+        "documentTypes": ["实习协议"],
+    },
 ]
 
 
@@ -1103,6 +1255,7 @@ def parse_page_range(spec: str, total: int) -> list[int]:
 def extract_document(filename: str, data: bytes, language: str = "zh", page_range: str = "") -> dict:
     suffix = Path(filename).suffix.lower()
     text = ""
+    page_texts: list[dict] = []
     if suffix == ".pdf":
         try:
             from pypdf import PdfReader
@@ -1110,7 +1263,10 @@ def extract_document(filename: str, data: bytes, language: str = "zh", page_rang
             raise ValueError("服务器未安装 pypdf，无法解析PDF") from exc
         reader = PdfReader(io.BytesIO(data))
         selected = parse_page_range(page_range, len(reader.pages))
-        text = "\n".join((reader.pages[index].extract_text() or "") for index in selected)
+        for index in selected:
+            page_text = reader.pages[index].extract_text() or ""
+            page_texts.append({"page": index + 1, "text": page_text})
+        text = "\n".join(item["text"] for item in page_texts)
     elif suffix == ".docx":
         try:
             import docx
@@ -1129,9 +1285,27 @@ def extract_document(filename: str, data: bytes, language: str = "zh", page_rang
     else:
         raise ValueError(f"暂不支持的文件类型：{suffix or '未知'}")
     text = "\n".join(line.strip() for line in text.splitlines() if line.strip())
+    if not page_texts:
+        page_texts = [{"page": 1, "text": text}]
+    else:
+        page_texts = [
+            {"page": item["page"], "text": "\n".join(line.strip() for line in item["text"].splitlines() if line.strip())}
+            for item in page_texts
+        ]
     if len(text) < 20:
         raise ValueError("文件中未提取到足够的文本内容")
-    return {"filename": filename, "format": suffix.lstrip("."), "language": language, "pageRange": page_range, "chars": len(text), "text": text}
+    return {
+        "filename": filename,
+        "format": suffix.lstrip("."),
+        "language": language,
+        "pageRange": page_range,
+        "chars": len(text),
+        "sha256": hashlib.sha256(data).hexdigest(),
+        "sizeBytes": len(data),
+        "pageCount": len(page_texts),
+        "pages": page_texts,
+        "text": text,
+    }
 
 
 def law_map() -> dict[str, dict]:
@@ -1182,6 +1356,8 @@ def semantic_detection(
     clauses: list[str],
     already_detected: set[str],
     laws_by_id: dict[str, dict],
+    document_type: str = "",
+    source_pages: list[dict] | None = None,
 ) -> list[dict]:
     risk_by_id = {risk["id"]: risk for risk in RISKS}
     candidates = []
@@ -1189,6 +1365,8 @@ def semantic_detection(
         if risk_id in already_detected:
             continue
         base = risk_by_id[risk_id]
+        if base.get("documentTypes") and document_type not in base["documentTypes"]:
+            continue
         pattern = re.compile(semantic_regex, re.IGNORECASE)
         for clause in clauses:
             match = pattern.search(clause)
@@ -1201,23 +1379,186 @@ def semantic_detection(
             item["matchText"] = match.group(0)
             item["lawItems"] = retrieve_laws(clause, base["lawIds"], laws_by_id, 4)
             item["detectionMode"] = "semantic"
+            item["location"] = locate_clause(clause, source_pages)
             candidates.append(item)
             break
     return candidates
 
 
 def split_clauses(text: str) -> list[str]:
-    return [part.strip() for part in re.split(r"[\n。；]+", text) if len(part.strip()) > 1]
+    normalized = re.sub(r"\s*\n\s*", "", text)
+    clauses: list[str] = []
+    for part in re.split(r"[。；;]+", normalized):
+        for segment in re.split(r"(?=第[一二三四五六七八九十百0-9]+条)", part):
+            segment = segment.strip()
+            if len(segment) > 1:
+                clauses.append(segment)
+    return clauses
 
 
-def deterministic_analysis(text: str, case_type: str, jurisdiction: str, language: str = "zh") -> dict:
+def detect_document_type(text: str, selected_type: str = "") -> str:
+    head = re.sub(r"\s+", "", text[:500])
+    if "实习协议" in head:
+        return "实习协议"
+    if "劳动合同" in head:
+        return "劳动合同"
+    internship_terms = ("实习协议", "实习补贴", "实习期", "实习内容", "实习期间", "学校学生", "派驻", "实习岗位")
+    labor_terms = ("劳动合同", "用人单位", "劳动者", "社会保险", "工资支付", "试用期")
+    internship_score = sum(1 for term in internship_terms if term in text)
+    labor_score = sum(1 for term in labor_terms if term in text)
+    if internship_score >= 2 and internship_score >= labor_score:
+        return "实习协议"
+    if labor_score >= 2:
+        return "劳动合同"
+    return selected_type or "其他材料"
+
+
+def extract_document_facts(text: str, document_type: str, selected_jurisdiction: str = "") -> dict:
+    def match(pattern: str, flags: int = re.IGNORECASE) -> str:
+        item = re.search(pattern, text, flags)
+        return item.group(1).strip() if item else ""
+
+    def clean(value: str) -> str:
+        return re.sub(r"\s+", "", value or "")
+
+    party_a = clean(match(r"(?:甲方|用人单位)\s*[:：]\s*([^\n（(]{2,60})"))
+    if not party_a:
+        party_a = clean(match(r"([^\n（(]{2,60}?)\s*[（(]\s*以下简称[^）)]*甲方[^）)]*[）)]"))
+    school = clean(match(r"([\u4e00-\u9fa5]{2,30}(?:学院|大学))[\s\S]{0,40}?学\s*生"))
+    if not school:
+        school = clean(match(r"(?:学校|院校)\s*[:：]\s*([^\n，,；;]{2,40})"))
+    actual_employer = clean(match(r"派驻至\s*([\s\S]{3,80}?)[，,。；]?\s*在"))
+    if not actual_employer:
+        actual_employer = clean(match(r"(?:实际用工单位|用工单位)\s*[:：]\s*([^\n，,；;]{2,60})"))
+    position = clean(match(r"在\s*([^\s，,。；;]{1,20})\s*(?:部门|岗位)"))
+    location_text = clean(match(r"(?:工作地点|实习地点|用工地点)\s*[:：]\s*([^\n，,；;]{2,40})"))
+    start_match = re.search(r"自\s*(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日\s*至", text)
+    end_match = re.search(r"至\s*(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日", text)
+    start_date = f"{start_match.group(1)}年{start_match.group(2)}月{start_match.group(3)}日" if start_match else ""
+    end_date = f"{end_match.group(1)}年{end_match.group(2)}月{end_match.group(3)}日" if end_match else ""
+    daily_pay_text = match(r"(\d+(?:\.\d+)?)\s*元\s*[/／]\s*天")
+    monthly_pay_text = match(r"(\d+(?:\.\d+)?)\s*元\s*[/／]\s*月")
+    work_hours = "标准工时制" if "标准工时" in text else ("综合计算工时制" if "综合计算工时" in text else ("不定时工作制" if "不定时工作" in text else ""))
+    insurance_terms = [term for term in ("意外伤害保险", "意外险", "实习责任保险", "工伤保险", "商业保险") if term in text]
+    school_signature = bool(re.search(r"学校[^。；\n]{0,20}(?:盖章|签字)|学校（盖章）|丙方[^。；\n]{0,20}(?:盖章|签字)", text))
+    has_dispute_clause = bool(re.search(r"争议|仲裁|人民法院|诉讼|管辖", text))
+    has_job_attachment = bool(re.search(r"岗位说明|实习任务书|实习任务|附件[一二三四五六七八九十0-9]?|附件清单", text))
+    third_party = bool(actual_employer and party_a and actual_employer not in party_a)
+    payer_window = match(r"委托([\s\S]{0,220}?)(?:发放|支付)")
+    payer_candidates = re.findall(r"[\u4e00-\u9fa5]{4,40}(?:有限公司|有限责任公司|分公司|集团)", payer_window)
+    payer = payer_candidates[-1] if payer_candidates else ""
+    payer = re.sub(r"^(?:其)?(?:依法)?(?:设立的?)?", "", payer)
+    relationship_features = [term for term in ("标准工时", "实际出勤", "绩效", "考勤", "部门", "按月", "派驻") if term in text]
+    city_names = ["深圳", "广州", "北京", "上海", "重庆", "成都", "杭州", "南京", "武汉", "西安", "苏州", "天津", "长沙", "郑州", "合肥", "厦门", "福州", "济南", "青岛", "大连", "沈阳", "哈尔滨", "昆明", "南昌", "贵阳", "南宁", "海口", "兰州", "太原", "石家庄", "乌鲁木齐", "呼和浩特", "银川", "西宁", "拉萨"]
+    work_location = location_text or actual_employer
+    work_city = next((city for city in city_names if city in work_location), "")
+    if not work_city and actual_employer:
+        work_city = next((city for city in city_names if city in actual_employer), "")
+    jurisdiction_map = {"深圳": "广东", "广州": "广东", "北京": "北京", "上海": "上海", "重庆": "重庆", "成都": "四川", "杭州": "浙江", "南京": "江苏", "武汉": "湖北", "西安": "陕西", "苏州": "江苏", "天津": "天津", "长沙": "湖南", "郑州": "河南", "合肥": "安徽", "厦门": "福建", "福州": "福建"}
+    jurisdiction_hint = jurisdiction_map.get(work_city, "")
+    hourly_equivalent = round(float(daily_pay_text) / 8, 2) if daily_pay_text else None
+    term_days = None
+    if start_match and end_match:
+        try:
+            start_value = datetime(int(start_match.group(1)), int(start_match.group(2)), int(start_match.group(3)))
+            end_value = datetime(int(end_match.group(1)), int(end_match.group(2)), int(end_match.group(3)))
+            term_days = max(0, (end_value - start_value).days)
+        except ValueError:
+            term_days = None
+    facts = {
+        "documentType": document_type,
+        "selectedCaseType": "",
+        "partyA": party_a,
+        "school": school,
+        "actualEmployer": actual_employer,
+        "position": position,
+        "workLocation": work_location,
+        "workCity": work_city,
+        "startDate": start_date,
+        "endDate": end_date,
+        "termDays": term_days,
+        "dailyPay": daily_pay_text,
+        "monthlyPay": monthly_pay_text,
+        "hourlyEquivalentAt8h": hourly_equivalent,
+        "workHours": work_hours,
+        "payer": payer if payer and payer != party_a else "",
+        "thirdPartyArrangement": third_party,
+        "hasSchoolSignature": school_signature,
+        "hasAccidentInsurance": bool(insurance_terms),
+        "insuranceTerms": insurance_terms,
+        "hasDisputeClause": has_dispute_clause,
+        "hasJobAttachment": has_job_attachment,
+        "relationshipFeatures": relationship_features,
+        "suggestedJurisdiction": jurisdiction_hint,
+        "factsToVerify": [],
+    }
+    if selected_jurisdiction == "全国规则" and jurisdiction_hint:
+        facts["factsToVerify"].append(f"已识别到工作地点可能在{jurisdiction_hint}（{work_city}），请切换或核验属地规则。")
+    if third_party:
+        facts["factsToVerify"].append("签约单位、实际用工单位和发薪主体可能不一致，需确认管理、报酬和事故责任主体。")
+    if document_type == "实习协议" and school and not school_signature:
+        facts["factsToVerify"].append("协议提到学校，但未识别到学校签署或盖章页。")
+    if document_type == "实习协议" and not has_dispute_clause:
+        facts["factsToVerify"].append("未识别到争议解决或管辖条款。")
+    if document_type == "实习协议" and not has_job_attachment:
+        facts["factsToVerify"].append("未识别到岗位说明书、实习任务书或具体工作内容附件。")
+    if document_type == "实习协议" and not insurance_terms:
+        facts["factsToVerify"].append("未识别到实习责任保险或意外伤害保险安排。")
+    if daily_pay_text:
+        facts["factsToVerify"].append(f"日补贴{daily_pay_text}元，按8小时折算约{hourly_equivalent}元/小时，需核对工作地最低工资和实际工时。")
+    return facts
+
+
+def locate_clause(clause: str, source_pages: list[dict] | None) -> dict:
+    def article_labels(value: str) -> list[str]:
+        labels = re.findall(r"(?m)^\s*(第[\s一二三四五六七八九十百0-9]+条)", value)
+        if not labels:
+            labels = re.findall(r"第[\s一二三四五六七八九十百0-9]+条", value)
+        return [re.sub(r"\s+", "", label) for label in labels]
+
+    needle = re.sub(r"\s+", "", clause[:90]).strip()
+    leading = re.match(r"\s*(第[\s一二三四五六七八九十百0-9]+条)", clause)
+    pages = source_pages or []
+    for page_index, page in enumerate(pages):
+        page_text = str(page.get("text", ""))
+        compact_chars = [(char, index) for index, char in enumerate(page_text) if not char.isspace()]
+        compact_page = "".join(char for char, _ in compact_chars)
+        compact_pos = compact_page.find(needle[:40]) if needle else -1
+        if compact_pos < 0:
+            continue
+        page_no = int(page.get("page", page_index + 1))
+        if leading:
+            return {"page": page_no, "clause": re.sub(r"\s+", "", leading.group(1))}
+        original_index = compact_chars[compact_pos][1]
+        prefix = page_text[:original_index]
+        clause_matches = article_labels(prefix)
+        if clause_matches:
+            return {"page": page_no, "clause": clause_matches[-1]}
+        for previous in reversed(pages[:page_index]):
+            previous_matches = article_labels(str(previous.get("text", "")))
+            if previous_matches:
+                return {"page": page_no, "clause": previous_matches[-1]}
+        return {"page": page_no, "clause": "未编号条款"}
+    clause_matches = article_labels(clause[:160])
+    return {"page": 1, "clause": clause_matches[-1] if clause_matches else "未编号条款"}
+
+
+def deterministic_analysis(text: str, case_type: str, jurisdiction: str, language: str = "zh", source_pages: list[dict] | None = None, source_document: dict | None = None) -> dict:
     started_at = time.perf_counter()
+    document_type = detect_document_type(text, case_type)
+    facts = extract_document_facts(text, document_type, jurisdiction)
+    facts["selectedCaseType"] = case_type
     jurisdiction_profile = JURISDICTIONS.get(jurisdiction, JURISDICTIONS["全国规则"])
     clauses = split_clauses(text)
     laws_by_id = law_map()
     detected: list[dict] = []
+    rule_hits = 0
 
     for risk in RISKS:
+        if risk.get("documentTypes") and document_type not in risk["documentTypes"]:
+            continue
+        if risk.get("factOnly"):
+            continue
         pattern = re.compile(risk["regex"], re.IGNORECASE)
         for clause in clauses:
             match = pattern.search(clause)
@@ -1230,27 +1571,116 @@ def deterministic_analysis(text: str, case_type: str, jurisdiction: str, languag
             item["matchText"] = match.group(0)
             item["lawItems"] = retrieve_laws(clause, risk["lawIds"], laws_by_id, 4)
             item["detectionMode"] = "deterministic"
+            item["location"] = locate_clause(clause, source_pages)
             detected.append(item)
+            rule_hits += 1
             break
 
-    detected.extend(semantic_detection(clauses, {item["id"] for item in detected}, laws_by_id))
+    def add_fact_risk(risk_id: str, match_text: str, anchor: str = "") -> None:
+        if any(item["id"] == risk_id for item in detected):
+            return
+        base = next((risk for risk in RISKS if risk["id"] == risk_id), None)
+        if not base:
+            return
+        item = dict(base)
+        item["clause"] = match_text
+        item["matchText"] = match_text
+        item["lawItems"] = retrieve_laws(match_text, base["lawIds"], laws_by_id, 4)
+        item["detectionMode"] = "fact"
+        location = locate_clause(anchor or match_text, source_pages)
+        if location.get("clause") == "未编号条款":
+            location["clause"] = "结构化事实"
+        item["location"] = location
+        detected.append(item)
+
+    if facts.get("thirdPartyArrangement"):
+        add_fact_risk("third_party_payor", "签约单位、实际用工单位或发薪主体不一致", "派驻至")
+    if document_type == "实习协议" and facts.get("relationshipFeatures"):
+        add_fact_risk("internship_relationship_mismatch", "标准工时、考勤、绩效或派驻等劳动用工特征", "标准工时")
+    if "延长工作时间" in text and "加班费" not in text and "加班工资" not in text:
+        add_fact_risk("overtime_without_compensation", "文本存在加班安排但未识别到加班费或调休", "延长工作时间")
+    if "绩效" in text and not any(item["id"] == "performance_unilateral" for item in detected):
+        if "岗位" in text and "调整" in text:
+            add_fact_risk("performance_unilateral", "绩效津贴可随岗位或表现变化", "绩效")
+    if "保密" in text and ("终止" in text or "后均有效" in text) and not any(item["id"] == "confidentiality_overbroad" for item in detected):
+        add_fact_risk("confidentiality_overbroad", "保密义务延续至协议终止后且范围不明确", "保密")
+    if document_type == "实习协议" and not facts.get("hasAccidentInsurance"):
+        add_fact_risk("internship_insurance_missing", "未识别到实习责任保险或意外伤害保险", "")
+
+    semantic = semantic_detection(
+        clauses,
+        {item["id"] for item in detected},
+        laws_by_id,
+        document_type=document_type,
+        source_pages=source_pages,
+    )
+    detected.extend(semantic)
+    semantic_hits = len(semantic)
+    fact_hits = sum(1 for item in detected if item.get("detectionMode") == "fact")
 
     review_items = []
     for rule in REVIEW_RULES:
         if re.search(rule["regex"], text, flags=re.IGNORECASE):
-            review_items.append({"id": rule["id"], "title": rule["title"], "detail": rule["detail"]})
+            review_items.append({"id": rule["id"], "title": rule["title"], "detail": rule["detail"], "source": "文本"})
     if jurisdiction != "全国规则":
         review_items.append({
             "id": "dynamic_local_policy",
             "title": "地区标准需要核验",
             "detail": f"当前选择“{jurisdiction}”政策模式，最低工资、社保缴费等动态标准必须使用当地最新有效版本。",
+            "source": "规则",
         })
+    for index, detail in enumerate(facts.get("factsToVerify", [])):
+        review_items.append({
+            "id": f"fact_verify_{index + 1}",
+            "title": "材料事实需要核实",
+            "detail": detail,
+            "source": "事实抽取",
+        })
+    if document_type == "实习协议" and facts.get("relationshipFeatures"):
+        review_items.append({
+            "id": "internship_relationship",
+            "title": "需核实是否仅构成实习关系",
+            "detail": "材料同时出现固定期限、标准工时、实际出勤、绩效或派驻等特征，需结合实际管理、报酬和学校安排判断是否可能构成劳动关系或派遣用工。",
+            "source": "规则",
+        })
+    if document_type == "实习协议" and facts.get("school") and not facts.get("hasSchoolSignature"):
+        review_items.append({
+            "id": "school_signature_missing",
+            "title": "学校签署或三方安排需核实",
+            "detail": "协议提到学校，但未识别到学校盖章或签字页；请补充学校实习安排、三方协议或指导教师信息。",
+            "source": "事实抽取",
+        })
+    if document_type == "实习协议" and not facts.get("hasDisputeClause"):
+        review_items.append({
+            "id": "dispute_clause_missing",
+            "title": "争议解决条款缺失",
+            "detail": "未识别到争议解决、仲裁或法院管辖安排，发生争议时责任和路径可能不明确。",
+            "source": "事实抽取",
+        })
+    if document_type == "实习协议" and not facts.get("hasJobAttachment"):
+        review_items.append({
+            "id": "job_attachment_missing",
+            "title": "岗位任务附件缺失",
+            "detail": "协议未识别到岗位说明书、实习任务书或具体工作内容附件，岗位边界和考核标准不明确。",
+            "source": "事实抽取",
+        })
+    # Remove duplicate review titles while keeping the first explanation.
+    deduped_reviews = []
+    seen_review_ids = set()
+    for item in review_items:
+        if item["id"] in seen_review_ids:
+            continue
+        seen_review_ids.add(item["id"])
+        deduped_reviews.append(item)
+    review_items = deduped_reviews
 
     high_count = sum(1 for item in detected if item["severity"] == "high")
     medium_count = sum(1 for item in detected if item["severity"] == "medium")
-    has_review = bool(review_items)
+    has_review = bool(review_items) or any(item["detectionMode"] == "llm_candidate" for item in detected)
     if detected:
-        risk_score = min(96, 22 + sum(item["weight"] for item in detected))
+        risk_score = min(98, 22 + sum(item["weight"] for item in detected))
+        if any(item["id"] == "internship_wage_forfeit" for item in detected):
+            risk_score = max(risk_score, 78)
         risk_level = "高风险" if risk_score >= 70 else "中风险" if risk_score >= 40 else "低风险"
     elif has_review:
         risk_score = 35
@@ -1261,29 +1691,35 @@ def deterministic_analysis(text: str, case_type: str, jurisdiction: str, languag
     unique_law_ids = list(dict.fromkeys(law_id for item in detected for law_id in item["lawIds"]))
     citations = [laws_by_id[law_id] for law_id in unique_law_ids if law_id in laws_by_id]
     citation_coverage = round(sum(1 for item in detected if item["lawItems"]) / len(detected) * 100) if detected else 100
-    questions = [item["action"] for item in detected[:6]] or ["请提供正式劳动合同文本并确认薪资、工时、社保和离职条款。"]
-    evidence_lines = [f"- {item['title']}：{item['action']}" for item in detected[:8]]
+    questions = [item["action"] for item in detected[:8]] or ["请提供正式合同文本、岗位说明和工资记录，并确认实际用工主体。"]
+    questions.extend(f"核实：{item['detail']}" for item in review_items[:8])
+    questions = list(dict.fromkeys(questions))[:14]
+    evidence_lines = [f"- {item['title']}：{item['action']}" for item in detected[:10]]
     complaint_lines = [
-        "劳动权益事项材料整理草稿",
+        "实习/劳动权益事项材料整理草稿",
         "",
         "一、诉求事项",
-        "请求核对并依法处理下列合同风险：" + "、".join(item["title"] for item in detected) + "。"
-        if detected else "当前未识别到需要生成投诉材料的明显风险。",
+        "请求核对并依法处理下列材料风险：" + "、".join(item["title"] for item in detected) + "。"
+        if detected else "当前未识别到需要生成材料的明显风险。",
         "",
         "二、可提交证据",
-        *(evidence_lines or ["- 保存 Offer、合同、岗位说明、考勤和工资记录。"]),
+        *(evidence_lines or ["- 保存协议、岗位说明、考勤、工资或补贴记录、沟通记录和学校实习安排。"]),
         "",
         "三、办理提示",
-        "建议先与用人单位书面沟通；协商不成时，可向用工所在地劳动保障监察机构、人社部门或公共法律服务平台咨询。",
+        "建议先与实际用工单位和签约单位书面沟通；协商不成时，可向用工所在地人社部门、劳动保障监察机构、公共法律服务平台或学校就业实习管理部门咨询。",
         "",
-        "本系统用于竞赛展示、普法教育和材料整理，不替代专业法律意见。",
+        "本系统用于风险提示、普法教育和材料整理，不替代专业法律意见。",
     ]
-
     return {
-        "caseType": case_type,
+        "caseType": document_type,
+        "selectedCaseType": case_type,
+        "documentType": document_type,
+        "documentTypeConfidence": min(0.99, 0.55 + 0.08 * len([term for term in ("实习协议", "实习补贴", "实习期", "派驻", "学校学生") if term in text])),
         "documentLanguage": language,
         "inputText": text,
         "jurisdiction": jurisdiction,
+        "facts": facts,
+        "sourceDocument": source_document or {},
         "generatedAt": datetime.now().isoformat(timespec="seconds"),
         "jurisdictionProfile": jurisdiction_profile,
         "clauses": clauses,
@@ -1296,26 +1732,31 @@ def deterministic_analysis(text: str, case_type: str, jurisdiction: str, languag
             else ("材料信息不足，暂不能给出确定结论" if has_review else "未发现明显高风险条款")
         ),
         "riskDescription": (
-            "以下结论来自确定性规则与法源匹配，并已列出需要人工核实的事项。"
-            if has_review
-            else "以下结论来自确定性规则与法源匹配。涉及地区政策和具体事实的结论仍需人工复核。"
+            f"已识别为{document_type}。以下结论来自确定性规则、法源匹配和模型候选，涉及实际用工关系、地方标准和事实的部分必须人工复核。"
         ),
         "reviewItems": review_items,
-        "requiresHumanReview": has_review,
+        "requiresHumanReview": has_review or document_type == "实习协议",
         "citations": citations,
         "citationCoverage": citation_coverage,
+        "analysisStats": {
+            "ruleHits": rule_hits,
+            "semanticHits": semantic_hits,
+            "factHits": fact_hits,
+            "modelCandidates": 0,
+            "totalRisks": len(detected),
+        },
         "processingMs": max(1, round((time.perf_counter() - started_at) * 1000)),
         "trace": [
-            {"title": "条款切分与事实抽取", "detail": f"识别 {len(clauses)} 个语义片段，抽取合同关键事实。"},
+            {"title": "文档类型判断", "detail": f"识别为{document_type}；用户选择为{case_type}。"},
+            {"title": "条款切分与事实抽取", "detail": f"识别 {len(clauses)} 个语义片段，并抽取主体、地点、期限、报酬和签署信息。"},
             {"title": "本地法源检索", "detail": f"风险规则关联 {len(citations)} 条核心法源，并结合条款关键词执行本地检索排序。"},
-            {"title": "规则引擎研判", "detail": f"执行 {len(RISKS)} 条规则，识别 {high_count} 项高风险、{medium_count} 项中风险。"},
+            {"title": "规则引擎研判", "detail": f"确定性规则命中 {rule_hits} 项，事实规则补充 {fact_hits} 项，语义规则补充 {semantic_hits} 项，共发现 {high_count} 项高风险、{medium_count} 项中风险。"},
             {"title": "交叉验证与拒答策略", "detail": f"发现 {len(review_items)} 项需要人工核实的事实；无可靠法源或关键信息不足时，系统停止输出确定结论。"},
         ],
         "questions": questions,
         "complaintDraft": "\n".join(complaint_lines),
         "engine": "deterministic-rules",
     }
-
 
 def extract_json_object(content: str) -> dict:
     content = content.strip()
@@ -1336,6 +1777,8 @@ def recompute_after_enhancement(result: dict) -> None:
     review_items = result.get("reviewItems", [])
     if detected:
         risk_score = min(96, 22 + sum(item["weight"] for item in detected))
+        if any(item["id"] == "internship_wage_forfeit" for item in detected):
+            risk_score = max(risk_score, 78)
         risk_level = "高风险" if risk_score >= 70 else "中风险" if risk_score >= 40 else "低风险"
         risk_headline = f"发现 {len(detected)} 项风险，其中 {high_count} 项高风险"
         risk_description = "以下结论来自规则、语义与模型候选，并经本地法源绑定；仍需人工复核具体事实。"
@@ -1355,6 +1798,8 @@ def recompute_after_enhancement(result: dict) -> None:
     citations = [laws_by_id[law_id] for law_id in law_ids if law_id in laws_by_id]
     citation_coverage = round(sum(1 for item in detected if item["lawItems"]) / len(detected) * 100) if detected else 100
     questions = [item.get("modelAction") or item["action"] for item in detected[:6]]
+    questions.extend(f"核实：{item['detail']}" for item in review_items[:8])
+    questions = list(dict.fromkeys(questions))[:14]
     if not questions:
         questions = ["请提供正式劳动合同文本并确认薪资、工时、社保和离职条款。"]
     evidence_lines = [f"- {item['title']}：{item.get('modelAction') or item['action']}" for item in detected[:8]]
@@ -1721,6 +2166,11 @@ def build_report_pdf(user: dict, case: dict, evidence: list[dict]) -> bytes | No
     font_name = "STSong-Light"
     pdfmetrics.registerFont(UnicodeCIDFont(font_name))
     result = case.get("result") or {}
+    facts = result.get("facts") or {}
+    source_doc = result.get("sourceDocument") or {}
+    stats = result.get("analysisStats") or {}
+    reviews = result.get("reviewItems") or []
+    risks = result.get("risks") or []
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -1734,32 +2184,83 @@ def build_report_pdf(user: dict, case: dict, evidence: list[dict]) -> bytes | No
     )
     base = getSampleStyleSheet()
     title_style = ParagraphStyle("CJKTitle", parent=base["Title"], fontName=font_name, fontSize=18, leading=26, alignment=TA_CENTER, textColor=colors.HexColor("#0d5c63"))
-    heading_style = ParagraphStyle("CJKHeading", parent=base["Heading2"], fontName=font_name, fontSize=13, leading=20, textColor=colors.HexColor("#0d5c63"), spaceBefore=10, spaceAfter=6)
+    heading_style = ParagraphStyle("CJKHeading", parent=base["Heading2"], fontName=font_name, fontSize=13, leading=20, textColor=colors.HexColor("#0d5c63"), spaceBefore=12, spaceAfter=6)
     body_style = ParagraphStyle("CJKBody", parent=base["BodyText"], fontName=font_name, fontSize=9.5, leading=15, alignment=TA_LEFT)
     small_style = ParagraphStyle("CJKSmall", parent=body_style, fontSize=7.5, leading=11, textColor=colors.HexColor("#475569"), wordWrap="CJK")
     story = [
-        Paragraph("职安盾 VeriWork 就业合同研判报告", title_style),
+        Paragraph("职安盾 VeriWork 就业材料研判报告", title_style),
         Paragraph(f"报告编号：VW-{int(case['id']):06d}　生成时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}", body_style),
         Spacer(1, 8),
-        Paragraph(f"用户：{html_escape(str(user.get('username', '')))}　材料类型：{html_escape(str(case.get('case_type', '')))}", body_style),
-        Paragraph(f"适用地区：{html_escape(str(case.get('jurisdiction', '')))}　文档语言：{html_escape(str(case.get('document_language', '')))}", body_style),
-        Paragraph(f"风险等级：{html_escape(str(case.get('risk_level', '')))}　风险分：{int(case.get('risk_score') or 0)}", body_style),
-        Paragraph("一、风险结论", heading_style),
+        Paragraph(f"用户：{html_escape(str(user.get('username', '')))}　识别材料：{html_escape(str(result.get('documentType') or case.get('case_type', '')))}　用户选择：{html_escape(str(case.get('case_type', '')))}", body_style),
+        Paragraph(f"适用地区：{html_escape(str(case.get('jurisdiction', '')))}　建议地区：{html_escape(str(facts.get('suggestedJurisdiction') or '待核实'))}", body_style),
+        Paragraph(f"风险等级：{html_escape(str(case.get('risk_level', '')))}　风险分：{int(case.get('risk_score') or 0)}　文档语言：{html_escape(str(case.get('document_language', '')))}", body_style),
+        Paragraph("一、基本事实", heading_style),
     ]
-    risks = result.get("risks") or []
+    fact_data = [[Paragraph("项目", small_style), Paragraph("抽取结果", small_style)]]
+    term_text = f"{facts.get('startDate') or '待核实'} 至 {facts.get('endDate') or '待核实'}"
+    if facts.get("termDays") is not None:
+        term_text += f"（约 {facts.get('termDays')} 天）"
+    pay_text = "待核实"
+    if facts.get("dailyPay"):
+        pay_text = f"{facts.get('dailyPay')} 元/天；按8小时约 {facts.get('hourlyEquivalentAt8h')} 元/小时"
+    elif facts.get("monthlyPay"):
+        pay_text = f"{facts.get('monthlyPay')} 元/月"
+    for label, value in [
+        ("甲方/签约单位", facts.get("partyA")),
+        ("学校", facts.get("school")),
+        ("实际用工单位", facts.get("actualEmployer")),
+        ("岗位/部门", facts.get("position")),
+        ("工作地点", facts.get("workLocation") or facts.get("workCity")),
+        ("期限", term_text),
+        ("补贴/工资", pay_text),
+        ("工时", facts.get("workHours") or "待核实"),
+        ("发薪主体", facts.get("payer") or "待核实"),
+        ("保险安排", "已识别：" + "、".join(facts.get("insuranceTerms") or []) if facts.get("hasAccidentInsurance") else "未识别到"),
+        ("争议条款", "已识别" if facts.get("hasDisputeClause") else "未识别到"),
+        ("岗位附件", "已识别" if facts.get("hasJobAttachment") else "未识别到"),
+        ("学校签署", "已识别" if facts.get("hasSchoolSignature") else "未识别到"),
+        ("原始文件", source_doc.get("filename") or "未记录"),
+        ("文件哈希", source_doc.get("sha256") or "未记录"),
+        ("文件信息", f"{source_doc.get('format') or '未知'} · {source_doc.get('pageCount') or '?'} 页 · {source_doc.get('chars') or '?'} 字" if source_doc else "未记录"),
+    ]:
+        fact_data.append([Paragraph(html_escape(str(label)), small_style), Paragraph(html_escape(str(value or "待核实")), small_style)])
+    fact_table = Table(fact_data, colWidths=[38 * mm, 140 * mm], repeatRows=1)
+    fact_table.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#cbd5e1")),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#eef4fb")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.extend([fact_table, Paragraph("二、风险结论", heading_style)])
     if not risks:
-        story.append(Paragraph("本次研判未发现明确高风险条款，仍需核对合同主体、工资、工时、社保和离职条款。", body_style))
+        story.append(Paragraph("本次研判未发现明确高风险条款，仍需核对合同主体、工资、工时、社保、保险和离职条款。", body_style))
     for index, item in enumerate(risks, 1):
         story.append(Paragraph(f"{index}. {html_escape(str(item.get('title', '风险项')))}（{html_escape(str(item.get('severity', '')))}）", body_style))
+        location = item.get("location") or {}
+        location_text = f"第{location.get('page') or 1}页 / {location.get('clause') or '未编号条款'}"
+        mode_text = {"deterministic": "确定性规则", "fact": "结构化事实", "semantic": "语义规则", "llm_candidate": "大模型候选"}.get(str(item.get("detectionMode")), "规则")
+        story.append(Paragraph(f"位置：{html_escape(location_text)}　来源：{html_escape(mode_text)}　置信度：{round(float(item.get('confidence') or 0) * 100)}%", small_style))
         story.append(Paragraph(f"原文片段：{html_escape(str(item.get('clause', '')))}", body_style))
         story.append(Paragraph(f"风险说明：{html_escape(str(item.get('modelReason') or item.get('reason') or ''))}", body_style))
         story.append(Paragraph(f"行动建议：{html_escape(str(item.get('modelAction') or item.get('action') or ''))}", body_style))
         story.append(Paragraph("法源依据：" + html_escape("；".join(str(law.get("source", "")) for law in item.get("lawItems", []))), body_style))
         story.append(Spacer(1, 5))
-    story.append(Paragraph("二、可信研判轨迹", heading_style))
+    story.append(Paragraph("三、待核实事项", heading_style))
+    if reviews:
+        for index, item in enumerate(reviews, 1):
+            story.append(Paragraph(f"{index}. {html_escape(str(item.get('title', '待核实')))}（{html_escape(str(item.get('source', '规则')))}）", body_style))
+            story.append(Paragraph(html_escape(str(item.get("detail", ""))), small_style))
+    else:
+        story.append(Paragraph("本次未生成额外待核实事项，仍建议由专业人员抽查实际管理、报酬和用工主体事实。", body_style))
+    story.append(Paragraph("四、可信研判轨迹", heading_style))
     for item in result.get("trace") or []:
         story.append(Paragraph(f"• {html_escape(str(item.get('title', '')))}：{html_escape(str(item.get('detail', '')))}", body_style))
-    story.append(Paragraph("三、证据文件清单", heading_style))
+    story.append(Paragraph(
+        f"研判来源统计：确定性规则 {int(stats.get('ruleHits') or 0)} 项；结构化事实 {int(stats.get('factHits') or 0)} 项；语义规则 {int(stats.get('semanticHits') or 0)} 项；大模型候选 {int(stats.get('modelCandidates') or 0)} 项；合计 {int(stats.get('totalRisks') or len(risks))} 项。",
+        small_style,
+    ))
+    story.append(Paragraph("五、证据文件清单", heading_style))
     table_data = [[
         Paragraph("文件", small_style), Paragraph("字节", small_style),
         Paragraph("SHA-256", small_style), Paragraph("上传时间", small_style),
@@ -1781,8 +2282,11 @@ def build_report_pdf(user: dict, case: dict, evidence: list[dict]) -> bytes | No
         ("LEFTPADDING", (0, 0), (-1, -1), 4),
         ("RIGHTPADDING", (0, 0), (-1, -1), 4),
     ]))
-    story.extend([table, Paragraph("四、后续行动", heading_style)])
-    for item in result.get("questions") or []:
+    story.extend([table, Paragraph("六、后续行动", heading_style)])
+    questions = result.get("questions") or []
+    if not questions:
+        questions = ["请补充正式协议、岗位说明、考勤和报酬记录，并确认签约主体、实际用工主体和发薪主体。"]
+    for item in questions:
         story.append(Paragraph(f"• {html_escape(str(item))}", body_style))
     story.extend([
         Spacer(1, 8),
@@ -1794,41 +2298,152 @@ def build_report_pdf(user: dict, case: dict, evidence: list[dict]) -> bytes | No
 
 def build_report_html(user: dict, case: dict, evidence: list[dict]) -> str:
     result = case.get("result") or {}
+    facts = result.get("facts") or {}
+    source_doc = result.get("sourceDocument") or {}
+    stats = result.get("analysisStats") or {}
     risks = result.get("risks") or []
+    reviews = result.get("reviewItems") or []
     trace = result.get("trace") or []
-    risk_cards = "".join(
-        f"""<section class="risk {html_escape(str(item.get('severity', 'low')))}">
-        <h3>{html_escape(str(item.get('title', '风险项')))} <small>{html_escape(str(item.get('category', '')))}</small></h3>
-        <p><b>原文片段：</b>{html_escape(str(item.get('clause', '')))}</p>
-        <p><b>风险说明：</b>{html_escape(str(item.get('modelReason') or item.get('reason') or ''))}</p>
-        <p><b>行动建议：</b>{html_escape(str(item.get('modelAction') or item.get('action') or ''))}</p>
-        <p><b>法源依据：</b>{html_escape('；'.join(str(law.get('source', '')) for law in item.get('lawItems', [])))}</p>
-        </section>"""
-        for item in risks
-    ) or "<p>本次研判未发现明确高风险条款，仍需核对合同主体、工资、工时、社保和离职条款。</p>"
-    trace_rows = "".join(
-        f"<li><b>{html_escape(str(item.get('title', '')))}</b>：{html_escape(str(item.get('detail', '')))}</li>"
-        for item in trace
+    questions = result.get("questions") or []
+
+    def esc(value) -> str:
+        return html_escape(str(value or ""))
+
+    term_text = f"{facts.get('startDate') or '待核实'} 至 {facts.get('endDate') or '待核实'}"
+    if facts.get("termDays") is not None:
+        term_text += f"（约 {facts.get('termDays')} 天）"
+    pay_text = "待核实"
+    if facts.get("dailyPay"):
+        pay_text = f"{facts.get('dailyPay')} 元/天；按8小时约 {facts.get('hourlyEquivalentAt8h')} 元/小时"
+    elif facts.get("monthlyPay"):
+        pay_text = f"{facts.get('monthlyPay')} 元/月"
+    fact_rows = [
+        ("甲方 / 签约单位", facts.get("partyA")),
+        ("学校", facts.get("school")),
+        ("实际用工单位", facts.get("actualEmployer")),
+        ("岗位 / 部门", facts.get("position")),
+        ("工作地点", facts.get("workLocation") or facts.get("workCity")),
+        ("期限", term_text),
+        ("补贴 / 工资", pay_text),
+        ("工时", facts.get("workHours")),
+        ("发薪主体", facts.get("payer")),
+        ("保险安排", "已识别：" + "、".join(facts.get("insuranceTerms") or []) if facts.get("hasAccidentInsurance") else "未识别到"),
+        ("争议条款", "已识别" if facts.get("hasDisputeClause") else "未识别到"),
+        ("岗位附件", "已识别" if facts.get("hasJobAttachment") else "未识别到"),
+        ("学校签署", "已识别" if facts.get("hasSchoolSignature") else "未识别到"),
+        ("原始文件", source_doc.get("filename")),
+        ("文件哈希", source_doc.get("sha256")),
+        ("文件信息", f"{source_doc.get('format') or '未知'} · {source_doc.get('pageCount') or '?'} 页 · {source_doc.get('chars') or '?'} 字" if source_doc else ""),
+    ]
+    fact_html = "".join(
+        f"<tr><th>{esc(label)}</th><td>{esc(value or '待核实')}</td></tr>"
+        for label, value in fact_rows
     )
+    mode_names = {"deterministic": "确定性规则", "fact": "结构化事实", "semantic": "语义规则", "llm_candidate": "大模型候选"}
+    risk_cards = "".join(
+        f"""<article class="risk {esc(item.get('severity', 'low'))}">
+        <div class="risk-head"><h3>{esc(item.get('title', '风险项'))}</h3><span>{esc(mode_names.get(str(item.get('detectionMode')), '规则'))}</span></div>
+        <p class="risk-meta">位置：第{(item.get('location') or {}).get('page') or 1}页 / {esc((item.get('location') or {}).get('clause') or '未编号条款')}　分类：{esc(item.get('category'))}　置信度：{round(float(item.get('confidence') or 0) * 100)}%</p>
+        <p><b>原文片段</b>{esc(item.get('clause'))}</p>
+        <p><b>风险说明</b>{esc(item.get('modelReason') or item.get('reason'))}</p>
+        <p><b>行动建议</b>{esc(item.get('modelAction') or item.get('action'))}</p>
+        <p class="laws"><b>法源依据</b>{esc('；'.join(str(law.get('source', '')) for law in item.get('lawItems', [])))}</p>
+        </article>"""
+        for item in risks
+    ) or "<p class=\"empty\">本次研判未发现明确高风险条款，仍需核对合同主体、工资、工时、社保、保险和离职条款。</p>"
+    review_html = "".join(
+        f"<li><strong>{esc(item.get('title', '待核实'))}</strong><span>{esc(item.get('source', '规则'))}</span><p>{esc(item.get('detail'))}</p></li>"
+        for item in reviews
+    ) or "<li><strong>未生成额外待核实事项</strong><p>仍建议由专业人员抽查实际管理、报酬和用工主体事实。</p></li>"
+    trace_html = "".join(
+        f"<li><b>{esc(item.get('title', ''))}</b><p>{esc(item.get('detail', ''))}</p></li>"
+        for item in trace
+    ) or "<li>该历史案例未保存完整轨迹。</li>"
     evidence_rows = "".join(
-        f"<tr><td>{html_escape(str(item['filename']))}</td><td>{int(item['size_bytes'])}</td><td class=hash>{html_escape(str(item['sha256']))}</td><td>{html_escape(str(item['created_at']))}</td></tr>"
+        f"<tr><td>{esc(item['filename'])}</td><td>{int(item['size_bytes'])}</td><td class=\"hash\">{esc(item['sha256'])}</td><td>{esc(item['created_at'])}</td></tr>"
         for item in evidence
-    ) or "<tr><td colspan=4>尚未上传证据文件</td></tr>"
-    disclaimer = html_escape(REPORT_DISCLAIMER)
+    ) or "<tr><td colspan=\"4\">尚未上传证据文件</td></tr>"
+    action_html = "".join(f"<li>{esc(item)}</li>" for item in questions) or "<li>请补充正式协议、岗位说明、考勤和报酬记录，并确认签约主体、实际用工主体和发薪主体。</li>"
+    disclaimer = esc(REPORT_DISCLAIMER)
     return f"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>职安盾研判报告 VW-{int(case['id']):06d}</title>
 <style>
-@page{{size:A4;margin:16mm}}*{{box-sizing:border-box}}body{{font-family:"Noto Serif CJK SC","Songti SC",serif;color:#172033;line-height:1.65;margin:0;background:#f4f6f8}}
-main{{max-width:940px;margin:24px auto;background:white;padding:42px 48px;box-shadow:0 8px 30px #0f172a18}}header{{border-bottom:3px solid #0d5c63;padding-bottom:18px;margin-bottom:24px}}h1{{font-size:28px;margin:0 0 8px}}h2{{font-size:19px;color:#0d5c63;margin-top:28px;border-left:4px solid #0d5c63;padding-left:10px}}h3{{font-size:16px;margin:0 0 10px}}small{{font-weight:400;color:#667085}}.meta{{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 24px;font-size:14px}}.score{{font-size:38px;font-weight:700;color:#a3342b}}.risk{{border:1px solid #d9dee7;border-radius:8px;padding:14px 16px;margin:12px 0;break-inside:avoid}}.risk.high{{border-left:5px solid #b42318}}.risk.medium{{border-left:5px solid #d97706}}.risk.low{{border-left:5px solid #15803d}}.risk p{{margin:6px 0;font-size:14px}}table{{width:100%;border-collapse:collapse;font-size:12px}}th,td{{border:1px solid #d9dee7;padding:8px;text-align:left;vertical-align:top}}.hash{{font-family:monospace;word-break:break-all}}ul{{font-size:14px}}.disclaimer{{margin-top:26px;padding:14px;background:#fff8e7;border:1px solid #f2d38c;font-size:13px}}.toolbar{{position:fixed;right:24px;top:20px}}button{{background:#0d5c63;color:white;border:0;border-radius:6px;padding:10px 16px;cursor:pointer}}@media print{{body{{background:white}}main{{margin:0;box-shadow:none;padding:0;max-width:none}}.toolbar{{display:none}}.risk{{break-inside:avoid}}}}
-</style></head><body><div class="toolbar"><button onclick="window.print()">打印 / 另存为 PDF</button></div>
-<main><header><h1>职安盾 VeriWork 就业合同研判报告</h1><div>报告编号：VW-{int(case['id']):06d}　生成时间：{html_escape(datetime.now().strftime('%Y-%m-%d %H:%M'))}</div></header>
-<section class="meta"><div>用户：{html_escape(str(user.get('username', '')))}</div><div>材料类型：{html_escape(str(case.get('case_type', '')))}</div><div>适用地区：{html_escape(str(case.get('jurisdiction', '')))}</div><div>文档语言：{html_escape(str(case.get('document_language', '')))}</div><div>风险等级：{html_escape(str(case.get('risk_level', '')))}</div><div>风险分：<span class="score">{int(case.get('risk_score') or 0)}</span></div></section>
-<h2>一、风险结论</h2>{risk_cards}
-<h2>二、可信研判轨迹</h2><ul>{trace_rows or '<li>该历史案例未保存完整轨迹。</li>'}</ul>
-<h2>三、证据文件清单</h2><table><thead><tr><th>文件</th><th>字节</th><th>SHA-256</th><th>上传时间</th></tr></thead><tbody>{evidence_rows}</tbody></table>
-<h2>四、后续行动</h2><ol>{''.join(f'<li>{html_escape(str(item))}</li>' for item in (result.get('questions') or [])) or '<li>请结合人工复核意见补充事实与证据。</li>'}</ol>
-<div class="disclaimer">{disclaimer}</div></main></body></html>"""
+@page{{size:A4;margin:16mm}}
+*{{box-sizing:border-box}}
+body{{margin:0;background:#eef1f4;color:#172033;font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif;line-height:1.7}}
+main{{max-width:980px;margin:28px auto;padding:46px 54px;background:#fff;box-shadow:0 12px 40px #16203318}}
+header{{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;padding-bottom:20px;border-bottom:3px solid #0d5c63}}
+.brand{{font-size:12px;letter-spacing:.16em;color:#0d5c63;font-weight:700}}
+h1{{margin:8px 0 6px;font-size:28px;line-height:1.3;font-family:Georgia,"Songti SC",serif;font-weight:600}}
+.sub{{font-size:12px;color:#667085}}
+.report-no{{min-width:190px;text-align:right;font-size:12px;color:#475569;line-height:1.9}}
+.meta{{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin:24px 0 6px;background:#dbe2e9;border:1px solid #dbe2e9}}
+.meta div{{padding:11px 14px;background:#f8fafb}}
+.meta span{{display:block;color:#7a8696;font-size:10px;letter-spacing:.08em}}
+.meta strong{{display:block;margin-top:3px;font-size:13px;font-weight:600}}
+.score{{font-size:26px;line-height:1.2;color:#a3342b}}
+h2{{margin:34px 0 12px;padding-left:11px;border-left:4px solid #0d5c63;font-size:18px;font-family:Georgia,"Songti SC",serif;font-weight:600}}
+h3{{margin:0;font-size:15px}}
+.stats{{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0 4px}}
+.stats span{{padding:4px 9px;border:1px solid #d8e0e8;border-radius:2px;background:#f8fafb;color:#435267;font-size:10px}}
+table{{width:100%;border-collapse:collapse;font-size:11px}}
+th,td{{padding:8px 9px;border:1px solid #dbe2e9;vertical-align:top;text-align:left}}
+thead th{{background:#eef4f5;color:#274b4f;font-weight:600}}
+tbody th{{width:132px;background:#f8fafb;color:#526173;font-weight:500}}
+.hash{{font-family:Consolas,monospace;font-size:10px;word-break:break-all}}
+.risk{{margin:12px 0;padding:15px 17px;border:1px solid #dbe2e9;border-left:4px solid #2e90fa;break-inside:avoid}}
+.risk.high{{border-left-color:#b42318}}
+.risk.medium{{border-left-color:#d97706}}
+.risk.low{{border-left-color:#15803d}}
+.risk-head{{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}}
+.risk-head span{{flex:0 0 auto;padding:2px 7px;background:#eef4f5;color:#315b60;font-size:9px}}
+.risk p{{margin:7px 0 0;font-size:12px;line-height:1.75}}
+.risk p b{{display:inline-block;min-width:68px;margin-right:8px;color:#526173;font-weight:600}}
+.risk-meta{{color:#667085;font-size:10.5px!important}}
+.risk .laws{{padding-top:7px;border-top:1px dashed #dbe2e9;color:#435267}}
+.reviews{{margin:0;padding:0;list-style:none;counter-reset:review}}
+.reviews li{{position:relative;margin:9px 0;padding:12px 14px 12px 42px;border:1px solid #e3e8ee;background:#fbfcfd;break-inside:avoid}}
+.reviews li::before{{counter-increment:review;content:counter(review);position:absolute;left:14px;top:13px;width:19px;height:19px;border-radius:50%;background:#0d5c63;color:#fff;font-size:10px;text-align:center;line-height:19px}}
+.reviews li span{{margin-left:8px;padding:1px 6px;background:#eef4f5;color:#526173;font-size:9px}}
+.reviews li p{{margin:5px 0 0;color:#526173;font-size:11.5px}}
+.trace{{margin:0;padding:0;list-style:none;border-left:1px solid #cfd8e2}}
+.trace li{{position:relative;margin:0 0 13px;padding-left:20px}}
+.trace li::before{{content:"";position:absolute;left:-4px;top:6px;width:7px;height:7px;border-radius:50%;background:#0d5c63}}
+.trace b{{font-size:12px}}
+.trace p{{margin:2px 0 0;color:#5b6878;font-size:11px}}
+.actions{{margin:0;padding-left:20px;font-size:12px}}
+.actions li{{margin:6px 0}}
+.empty{{color:#667085;font-size:12px}}
+.disclaimer{{margin-top:30px;padding:13px 15px;border:1px solid #ead9a9;background:#fffaf0;color:#6b5b35;font-size:11px}}
+.toolbar{{position:fixed;right:24px;top:20px}}
+button{{padding:10px 16px;border:0;background:#0d5c63;color:#fff;cursor:pointer;font-size:12px}}
+@media(max-width:760px){{main{{margin:0;padding:22px 14px;box-shadow:none}}.meta{{grid-template-columns:1fr 1fr}}header{{display:block}}.report-no{{margin-top:12px;text-align:left}}table{{table-layout:fixed;width:100%}}th,td{{padding:6px;word-break:break-word;overflow-wrap:anywhere}}tbody th{{width:92px}}.risk-head{{display:block}}.risk-head span{{display:inline-block;margin-top:6px}}.risk p b{{display:block;min-width:0;margin-right:0}}.stats span{{font-size:9px}}}}
+@media print{{body{{background:#fff}}main{{margin:0;padding:0;box-shadow:none;max-width:none}}.toolbar{{display:none}}.risk,.reviews li{{break-inside:avoid}}}}
+</style></head><body>
+<div class="toolbar"><button onclick="window.print()">打印 / 另存为 PDF</button></div>
+<main>
+<header><div><div class="brand">VERIWORK · 职安盾</div><h1>就业材料研判报告</h1><div class="sub">规则校验 · 法源检索 · 事实抽取 · 人工复核</div></div><div class="report-no">报告编号：VW-{int(case['id']):06d}<br>生成时间：{esc(datetime.now().strftime('%Y-%m-%d %H:%M'))}</div></header>
+<section class="meta">
+<div><span>用户</span><strong>{esc(user.get('username'))}</strong></div>
+<div><span>识别材料</span><strong>{esc(result.get('documentType') or case.get('case_type'))}</strong></div>
+<div><span>用户选择</span><strong>{esc(case.get('case_type'))}</strong></div>
+<div><span>适用地区</span><strong>{esc(case.get('jurisdiction'))}</strong></div>
+<div><span>建议地区</span><strong>{esc(facts.get('suggestedJurisdiction') or '待核实')}</strong></div>
+<div><span>风险等级</span><strong>{esc(case.get('risk_level'))}</strong></div>
+<div><span>风险分</span><strong class="score">{int(case.get('risk_score') or 0)}</strong></div>
+<div><span>文档语言</span><strong>{esc(case.get('document_language'))}</strong></div>
+<div><span>研判引擎</span><strong>{esc(result.get('engine') or 'rules+retrieval')}</strong></div>
+</section>
+<div class="stats"><span>确定性规则 {int(stats.get('ruleHits') or 0)}</span><span>结构化事实 {int(stats.get('factHits') or 0)}</span><span>语义规则 {int(stats.get('semanticHits') or 0)}</span><span>大模型候选 {int(stats.get('modelCandidates') or 0)}</span><span>合计 {int(stats.get('totalRisks') or len(risks))}</span></div>
+<h2>一、基本事实</h2><table><tbody>{fact_html}</tbody></table>
+<h2>二、风险结论</h2>{risk_cards}
+<h2>三、待核实事项</h2><ol class="reviews">{review_html}</ol>
+<h2>四、可信研判轨迹</h2><ul class="trace">{trace_html}</ul>
+<h2>五、证据文件清单</h2><table><thead><tr><th>文件</th><th>字节</th><th>SHA-256</th><th>上传时间</th></tr></thead><tbody>{evidence_rows}</tbody></table>
+<h2>六、后续行动</h2><ol class="actions">{action_html}</ol>
+<div class="disclaimer">{disclaimer}</div>
+</main></body></html>"""
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -2490,16 +3105,43 @@ class Handler(BaseHTTPRequestHandler):
             case_type = str(body.get("caseType", "劳动合同"))
             jurisdiction = str(body.get("jurisdiction", "全国规则"))
             language = str(body.get("language", "zh"))
+            source_pages = body.get("sourcePages") if isinstance(body.get("sourcePages"), list) else []
+            source_pages = [
+                {"page": int(item.get("page", 1)), "text": str(item.get("text", ""))}
+                for item in source_pages
+                if isinstance(item, dict)
+            ]
+            raw_source_document = body.get("sourceDocument") if isinstance(body.get("sourceDocument"), dict) else {}
+            source_document = {
+                key: raw_source_document.get(key)
+                for key in ("filename", "format", "chars", "sizeBytes", "sha256", "pageCount")
+                if raw_source_document.get(key) not in (None, "")
+            }
             result = deterministic_analysis(
                 text=text,
                 case_type=case_type,
                 jurisdiction=jurisdiction,
                 language=language,
+                source_pages=source_pages,
+                source_document=source_document,
             )
             result = enhance_with_llm(result)
-            case_id = save_case_record(user, result, case_type, jurisdiction, language)
+            for risk in result.get("risks", []):
+                if not risk.get("location"):
+                    risk["location"] = locate_clause(str(risk.get("clause", "")), source_pages)
+            stats = result.setdefault("analysisStats", {})
+            stats["modelCandidates"] = sum(1 for risk in result.get("risks", []) if risk.get("detectionMode") == "llm_candidate")
+            stats["totalRisks"] = len(result.get("risks", []))
+            case_id = save_case_record(user, result, result["documentType"], jurisdiction, language)
             result["caseId"] = case_id
-            audit_event(user["id"], "analyze_contract", "case", case_id, f"{case_type} / {jurisdiction}", self.client_ip())
+            audit_event(
+                user["id"],
+                "analyze_contract",
+                "case",
+                case_id,
+                f"{result['documentType']} / {jurisdiction} / rules={result.get('analysisStats', {}).get('ruleHits', 0)}",
+                self.client_ip(),
+            )
             self.send_json(result)
         except (ValueError, json.JSONDecodeError) as exc:
             self.send_json({"error": str(exc)}, 400)

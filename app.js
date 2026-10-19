@@ -6,6 +6,8 @@ const state = {
   currentCase: APP_DATA.demoCases[0],
   lastAnalysis: null,
   lastCaseId: null,
+  sourcePages: [],
+  sourceDocument: null,
   history: [],
   evidenceFiles: [],
   checklist: APP_DATA.evidenceChecklist.map((item) => ({ ...item })),
@@ -109,8 +111,19 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary);
 }
 
+async function sha256Hex(buffer) {
+  try {
+    const digest = await crypto.subtle.digest("SHA-256", buffer);
+    return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  } catch (error) {
+    console.warn("文件哈希计算失败", error);
+    return "";
+  }
+}
+
 async function extractDocumentViaApi(file) {
   const baseUrl = state.settings.apiBase.replace(/\/$/, "");
+  const buffer = await file.arrayBuffer();
   const response = await fetch(`${baseUrl}/api/extract`, {
     method: "POST",
     credentials: "include",
@@ -119,7 +132,7 @@ async function extractDocumentViaApi(file) {
       filename: file.name,
       language: $("#documentLanguage")?.value || "zh",
       pageRange: $("#pageRange")?.value.trim() || "",
-      content_base64: arrayBufferToBase64(await file.arrayBuffer())
+      content_base64: arrayBufferToBase64(buffer)
     })
   });
   const payload = await response.json();
@@ -129,7 +142,16 @@ async function extractDocumentViaApi(file) {
     throw new Error("登录已失效，请重新登录");
   }
   if (!response.ok || payload.error) throw new Error(payload.error || `API ${response.status}`);
-  return payload.text;
+  return {
+    text: String(payload.text || ""),
+    pages: Array.isArray(payload.pages) ? payload.pages : [],
+    filename: payload.filename || file.name,
+    format: payload.format || file.name.split(".").pop().toLowerCase(),
+    chars: Number(payload.chars) || String(payload.text || "").length,
+    sizeBytes: Number(payload.sizeBytes) || file.size,
+    sha256: payload.sha256 || await sha256Hex(buffer),
+    pageCount: Number(payload.pageCount) || (Array.isArray(payload.pages) ? payload.pages.length : 1)
+  };
 }
 
 function apiHeaders(extra = {}) {
@@ -524,14 +546,15 @@ function renderCaseQueue() {
 }
 
 function splitClauses(text) {
-  return text
-    .replace(/\r/g, "")
-    .split(/\n+|[。；]/)
+  const normalized = text.replace(/\r/g, "").replace(/\s*\n\s*/g, "");
+  return normalized
+    .split(/[。；;]+/)
+    .flatMap((part) => part.split(/(?=第[一二三四五六七八九十百0-9]+条)/))
     .map((item) => item.trim())
     .filter((item) => item.length > 1);
 }
 
-function semanticDetection(clauses, existingRisks) {
+function semanticDetection(clauses, existingRisks, documentType = "") {
   const existingIds = new Set(existingRisks.map((item) => item.id));
   const riskById = Object.fromEntries(APP_DATA.riskPatterns.map((risk) => [risk.id, risk]));
   const additions = [];
@@ -539,6 +562,7 @@ function semanticDetection(clauses, existingRisks) {
     if (existingIds.has(riskId)) return;
     const base = riskById[riskId];
     if (!base) return;
+    if (base.documentTypes && !base.documentTypes.includes(documentType)) return;
     const pattern = new RegExp(patternText, "i");
     for (const clause of clauses) {
       const match = clause.match(pattern);
@@ -557,14 +581,98 @@ function semanticDetection(clauses, existingRisks) {
   return additions;
 }
 
+function extractLocalFacts(text, documentType = "") {
+  const match = (pattern, flags = "i") => {
+    const item = text.match(new RegExp(pattern, flags));
+    return item ? String(item[1] || "").trim() : "";
+  };
+  const clean = (value) => String(value || "").replace(/\s+/g, "");
+  const partyA = clean(match("(?:甲方|用人单位)\\s*[:：]\\s*([^\\n（(]{2,60})"))
+    || clean(match("([^\\n（(]{2,60}?)\\s*[（(]\\s*以下简称[^）)]*甲方[^）)]*[）)]"));
+  const school = clean(match("([\\u4e00-\\u9fa5]{2,30}(?:学院|大学))[\\s\\S]{0,40}?学\\s*生"));
+  const actualEmployer = clean(match("派驻至\\s*([\\s\\S]{3,80}?)[，,。；]?\\s*在"))
+    || clean(match("(?:实际用工单位|用工单位)\\s*[:：]\\s*([^\\n，,；;]{2,60})"));
+  const position = clean(match("在\\s*([^\\s，,。；;]{1,20})\\s*(?:部门|岗位)"));
+  const startMatch = text.match(/自\s*(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日\s*至/);
+  const endMatch = text.match(/至\s*(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
+  const formatDate = (item) => item ? `${item[1]}年${Number(item[2])}月${Number(item[3])}日` : "";
+  const start = startMatch ? `${startMatch[1]}-${startMatch[2]}-${startMatch[3]}` : "";
+  const end = endMatch ? `${endMatch[1]}-${endMatch[2]}-${endMatch[3]}` : "";
+  const termDays = start && end ? Math.max(0, Math.round((new Date(end) - new Date(start)) / 86400000)) : null;
+  const dailyPay = match("(\\d+(?:\\.\\d+)?)\\s*元\\s*[/／]\\s*天");
+  const monthlyPay = match("(\\d+(?:\\.\\d+)?)\\s*元\\s*[/／]\\s*月");
+  const workHours = text.includes("标准工时") ? "标准工时制" : text.includes("综合计算工时") ? "综合计算工时制" : text.includes("不定时工作") ? "不定时工作制" : "";
+  const insuranceTerms = ["意外伤害保险", "意外险", "实习责任保险", "工伤保险", "商业保险"].filter((term) => text.includes(term));
+  const schoolSignature = /学校[^。；\n]{0,20}(?:盖章|签字)|学校（盖章）|丙方[^。；\n]{0,20}(?:盖章|签字)/.test(text);
+  const hasDisputeClause = /争议|仲裁|人民法院|诉讼|管辖/.test(text);
+  const hasJobAttachment = /岗位说明|实习任务书|实习任务|附件[一二三四五六七八九十0-9]?|附件清单/.test(text);
+  const payerWindow = match("委托([\\s\\S]{0,220}?)(?:发放|支付)");
+  const payerMatches = payerWindow.match(/[\u4e00-\u9fa5]{4,40}(?:有限公司|有限责任公司|分公司|集团)/g) || [];
+  const payer = (payerMatches[payerMatches.length - 1] || "").replace(/^(?:其)?(?:依法)?(?:设立的?)?/, "");
+  const relationshipFeatures = ["标准工时", "实际出勤", "绩效", "考勤", "部门", "按月", "派驻"].filter((term) => text.includes(term));
+  const cityNames = ["深圳", "广州", "北京", "上海", "重庆", "成都", "杭州", "南京", "武汉", "西安", "苏州", "天津", "长沙", "郑州", "合肥", "厦门", "福州", "济南", "青岛", "大连", "沈阳", "哈尔滨", "昆明", "南昌", "贵阳", "南宁", "海口", "兰州", "太原", "石家庄"];
+  const workCity = cityNames.find((city) => actualEmployer.includes(city)) || cityNames.find((city) => text.slice(0, 600).includes(city)) || "";
+  const jurisdictionMap = { "深圳": "广东", "广州": "广东", "北京": "北京", "上海": "上海", "重庆": "重庆", "成都": "四川", "杭州": "浙江", "南京": "江苏", "武汉": "湖北", "西安": "陕西", "苏州": "江苏", "天津": "天津", "长沙": "湖南", "郑州": "河南", "合肥": "安徽", "厦门": "福建", "福州": "福建" };
+  return {
+    documentType,
+    partyA,
+    school,
+    actualEmployer,
+    position,
+    workLocation: actualEmployer,
+    workCity,
+    startDate: formatDate(startMatch),
+    endDate: formatDate(endMatch),
+    termDays,
+    dailyPay,
+    monthlyPay,
+    hourlyEquivalentAt8h: dailyPay ? Math.round((Number(dailyPay) / 8) * 100) / 100 : null,
+    workHours,
+    payer: payer && payer !== partyA ? payer : "",
+    thirdPartyArrangement: Boolean(actualEmployer && partyA && actualEmployer !== partyA),
+    hasSchoolSignature: schoolSignature,
+    hasAccidentInsurance: insuranceTerms.length > 0,
+    insuranceTerms,
+    hasDisputeClause,
+    hasJobAttachment,
+    relationshipFeatures,
+    suggestedJurisdiction: jurisdictionMap[workCity] || "",
+    factsToVerify: []
+  };
+}
+
+function locateLocalClause(text, clause) {
+  const leading = clause.match(/^\s*(第[一二三四五六七八九十百0-9]+条)/);
+  if (leading) return { page: 1, clause: leading[1] };
+  const needle = clause.replace(/\s+/g, "").slice(0, 60);
+  const compactChars = [];
+  for (let index = 0; index < text.length; index += 1) {
+    if (!/\s/.test(text[index])) compactChars.push([text[index], index]);
+  }
+  const compact = compactChars.map((item) => item[0]).join("");
+  const compactIndex = needle ? compact.indexOf(needle.slice(0, 40)) : -1;
+  const originalIndex = compactIndex >= 0 ? compactChars[compactIndex][1] : text.indexOf(clause.slice(0, 30));
+  const prefix = originalIndex >= 0 ? text.slice(0, originalIndex) : "";
+  const lineStarts = [...prefix.matchAll(/^\s*(第[一二三四五六七八九十百0-9]+条)/gm)].map((item) => item[1]);
+  if (lineStarts.length) return { page: 1, clause: lineStarts[lineStarts.length - 1] };
+  const matches = [...prefix.matchAll(/第[一二三四五六七八九十百0-9]+条/g)];
+  return { page: 1, clause: matches.length ? matches[matches.length - 1][0] : "未编号条款" };
+}
+
+
 function analyzeContract(text, options = {}) {
   const startedAt = performance.now();
   const jurisdiction = options.jurisdiction || "全国规则";
   const jurisdictionProfile = APP_DATA.jurisdictionProfiles.find((item) => item.id === jurisdiction) || APP_DATA.jurisdictionProfiles[0];
+  const head = text.slice(0, 500).replace(/\s+/g, "");
+  const documentType = head.includes("实习协议") ? "实习协议" : head.includes("劳动合同") ? "劳动合同" : (options.caseType || "劳动合同");
+  const facts = extractLocalFacts(text, documentType);
   const clauses = splitClauses(text);
   const detected = [];
 
   APP_DATA.riskPatterns.forEach((risk) => {
+    if (risk.documentTypes && !risk.documentTypes.includes(documentType)) return;
+    if (risk.factOnly) return;
     const regex = new RegExp(risk.regex, "i");
     for (const clause of clauses) {
       const match = clause.match(regex);
@@ -574,13 +682,40 @@ function analyzeContract(text, options = {}) {
         ...risk,
         clause,
         matchText: match[0],
+        detectionMode: "deterministic",
+        location: locateLocalClause(text, clause),
         lawItems: retrieveLaws(clause, risk.lawIds, 4)
       });
       break;
     }
   });
 
-  detected.push(...semanticDetection(clauses, detected));
+  const semantic = semanticDetection(clauses, detected, documentType);
+  semantic.forEach((item) => {
+    if (!item.location) item.location = locateLocalClause(text, item.clause);
+  });
+  detected.push(...semantic);
+
+  const addFactRisk = (riskId, clause) => {
+    if (detected.some((item) => item.id === riskId)) return;
+    const base = getRisk(riskId);
+    if (!base) return;
+    detected.push({
+      ...base,
+      clause,
+      matchText: clause,
+      detectionMode: "fact",
+      location: { page: 1, clause: "结构化事实" },
+      lawItems: retrieveLaws(clause, base.lawIds, 4)
+    });
+  };
+
+  if (facts.thirdPartyArrangement) addFactRisk("third_party_payor", "签约单位、实际用工单位或发薪主体不一致");
+  if (documentType === "实习协议" && facts.relationshipFeatures.length) addFactRisk("internship_relationship_mismatch", "标准工时、考勤、绩效或派驻等劳动用工特征");
+  if (documentType === "实习协议" && !facts.hasAccidentInsurance) addFactRisk("internship_insurance_missing", "未识别到实习责任保险或意外伤害保险");
+  if (text.includes("延长工作时间") && !text.includes("加班费") && !text.includes("加班工资")) addFactRisk("overtime_without_compensation", "文本存在加班安排但未识别到加班费或调休");
+  if (text.includes("绩效") && text.includes("岗位") && text.includes("调整")) addFactRisk("performance_unilateral", "绩效津贴可随岗位或表现变化");
+  if (text.includes("保密") && (text.includes("终止") || text.includes("后均有效"))) addFactRisk("confidentiality_overbroad", "保密义务延续至协议终止后且范围不明确");
 
   const reviewItems = [];
   APP_DATA.reviewRules.forEach((rule) => {
@@ -593,12 +728,69 @@ function analyzeContract(text, options = {}) {
       detail: `当前选择“${jurisdiction}”政策模式，最低工资、社保缴费等动态标准必须使用当地最新有效版本。`
     });
   }
+  if (facts.suggestedJurisdiction && jurisdiction === "全国规则") {
+    reviewItems.push({
+      id: "suggested_jurisdiction",
+      title: "工作地点与适用地区不一致",
+      detail: `已识别到工作地点可能在${facts.suggestedJurisdiction}（${facts.workCity}），请切换或核验属地规则。`
+    });
+  }
+  if (facts.thirdPartyArrangement) {
+    reviewItems.push({
+      id: "third_party_arrangement",
+      title: "签约、用工与发薪主体需要核实",
+      detail: "签约单位、实际用工单位和发薪主体可能不一致，需确认管理、报酬和事故责任主体。"
+    });
+  }
+  if (documentType === "实习协议" && facts.school && !facts.hasSchoolSignature) {
+    reviewItems.push({
+      id: "school_signature_missing",
+      title: "学校签署或三方安排需核实",
+      detail: "协议提到学校，但未识别到学校盖章或签字页；请补充学校实习安排、三方协议或指导教师信息。"
+    });
+  }
+  if (documentType === "实习协议" && !facts.hasDisputeClause) {
+    reviewItems.push({
+      id: "dispute_clause_missing",
+      title: "争议解决条款缺失",
+      detail: "未识别到争议解决、仲裁或法院管辖安排，发生争议时责任和路径可能不明确。"
+    });
+  }
+  if (documentType === "实习协议" && !facts.hasJobAttachment) {
+    reviewItems.push({
+      id: "job_attachment_missing",
+      title: "岗位任务附件缺失",
+      detail: "协议未识别到岗位说明书、实习任务书或具体工作内容附件，岗位边界和考核标准不明确。"
+    });
+  }
+  if (documentType === "实习协议" && !facts.hasAccidentInsurance) {
+    reviewItems.push({
+      id: "insurance_missing",
+      title: "实习保险安排缺失",
+      detail: "未识别到实习责任保险或意外伤害保险安排，发生事故时责任和救治路径不清。"
+    });
+  }
+  if (facts.dailyPay) {
+    reviewItems.push({
+      id: "daily_pay_check",
+      title: "日补贴需要折算核验",
+      detail: `日补贴${facts.dailyPay}元，按8小时折算约${facts.hourlyEquivalentAt8h}元/小时，需核对工作地最低工资和实际工时。`
+    });
+  }
+  const dedupedReviews = [];
+  const seenReviews = new Set();
+  reviewItems.forEach((item) => {
+    if (seenReviews.has(item.id)) return;
+    seenReviews.add(item.id);
+    dedupedReviews.push(item);
+  });
 
   const highCount = detected.filter((item) => item.severity === "high").length;
   const mediumCount = detected.filter((item) => item.severity === "medium").length;
   const rawRisk = detected.reduce((sum, item) => sum + item.weight, 22);
-  const requiresHumanReview = reviewItems.length > 0;
-  const riskScore = detected.length ? Math.min(96, rawRisk) : requiresHumanReview ? 35 : 6;
+  const requiresHumanReview = dedupedReviews.length > 0 || documentType === "实习协议";
+  let riskScore = detected.length ? Math.min(96, rawRisk) : requiresHumanReview ? 35 : 6;
+  if (detected.some((item) => item.id === "internship_wage_forfeit")) riskScore = Math.max(riskScore, 78);
   const riskLevel = detected.length
     ? riskScore >= 70 ? "高风险" : riskScore >= 40 ? "中风险" : "低风险"
     : requiresHumanReview ? "待核实" : "低风险";
@@ -606,30 +798,35 @@ function analyzeContract(text, options = {}) {
     ? `发现 ${detected.length} 项风险，其中 ${highCount} 项高风险`
     : requiresHumanReview ? "材料信息不足，暂不能给出确定结论" : "未发现明显高风险条款";
   const riskDescription = detected.length
-    ? "以下结论来自确定性规则与法源匹配，并已列出需要人工核实的事项。"
+    ? `已识别为${documentType}。以下结论来自确定性规则、结构化事实和法源匹配，并已列出需要人工核实的事项。`
     : requiresHumanReview
-      ? "当前材料缺少决定性事实，系统将停止输出确定结论，请补充书面合同、工资和用工管理记录。"
-      : "当前规则未发现明显风险，但不代表合同在所有场景下均无争议，建议仍由专业人员复核。";
+      ? "当前材料缺少决定性事实，系统将停止输出确定结论，请补充书面协议、岗位说明、工资和用工管理记录。"
+      : "当前规则未发现明显风险，但不代表材料在所有场景下均无争议，建议仍由专业人员复核。";
 
   const lawIds = [...new Set(detected.flatMap((item) => item.lawIds))];
   const citations = lawIds.map(getLaw).filter(Boolean);
   const citedRisks = detected.filter((item) => item.lawItems.length > 0).length;
   const citationCoverage = detected.length ? Math.round((citedRisks / detected.length) * 100) : 100;
   const processingMs = Math.max(1, Math.round(performance.now() - startedAt));
+  const ruleHits = detected.filter((item) => item.detectionMode === "deterministic").length;
+  const semanticHits = detected.filter((item) => item.detectionMode === "semantic").length;
+  const factHits = detected.filter((item) => item.detectionMode === "fact").length;
 
   const trace = [
-    { title: "条款切分与事实抽取", detail: `识别 ${clauses.length} 个语义片段，抽取试用期、社保、薪酬、离职等关键事实。` },
+    { title: "文档类型判断", detail: `识别为${documentType}；用户选择为${options.caseType || "未指定"}。` },
+    { title: "条款切分与事实抽取", detail: `识别 ${clauses.length} 个语义片段，并抽取主体、地点、期限、报酬和签署信息。` },
     { title: "本地法源检索", detail: `风险规则关联 ${citations.length} 条核心法源，并结合条款关键词执行本地检索排序；地区模式为“${jurisdictionProfile.title}”。` },
-    { title: "规则引擎研判", detail: `执行 ${APP_DATA.riskPatterns.length} 条规则，识别 ${highCount} 项高风险、${mediumCount} 项中风险。` },
-    { title: "交叉验证与拒答策略", detail: `发现 ${reviewItems.length} 项需要人工核实的事实；无可靠法源或关键信息不足时，系统停止输出确定结论。` }
+    { title: "规则引擎研判", detail: `确定性规则命中 ${ruleHits} 项，事实规则补充 ${factHits} 项，语义规则补充 ${semanticHits} 项，共发现 ${highCount} 项高风险、${mediumCount} 项中风险。` },
+    { title: "交叉验证与拒答策略", detail: `发现 ${dedupedReviews.length} 项需要人工核实的事实；无可靠法源或关键信息不足时，系统停止输出确定结论。` }
   ];
 
   const questions = detected.length
-    ? detected.slice(0, 6).map((item, index) => `${index + 1}. ${item.action}`)
+    ? detected.slice(0, 8).map((item, index) => `${index + 1}. ${item.action}`)
     : ["1. 请提供正式劳动合同文本并确认薪资、工时、社保和离职条款。"];
+  dedupedReviews.slice(0, 8).forEach((item) => questions.push(`核实：${item.detail}`));
 
   const evidenceLines = detected.length
-    ? detected.slice(0, 8).map((item) => `- ${item.title}：${item.action}`)
+    ? detected.slice(0, 10).map((item) => `- ${item.title}：${item.action}`)
     : ["- 保存 Offer、合同、岗位说明、考勤和工资记录，以备后续核对。"];
 
   const complaintDraft = detected.length
@@ -641,7 +838,7 @@ function analyzeContract(text, options = {}) {
         `请求核对并依法处理下列合同风险：${detected.map((item) => item.title).join("、")}。`,
         "",
         "二、事实与条款",
-        ...detected.slice(0, 6).map((item, index) => `${index + 1}. ${item.clause}`),
+        ...detected.slice(0, 8).map((item, index) => `${index + 1}. ${item.clause}`),
         "",
         "三、可提交证据",
         ...evidenceLines,
@@ -655,8 +852,21 @@ function analyzeContract(text, options = {}) {
 
   return {
     ...options,
+    documentType,
+    caseType: documentType,
+    selectedCaseType: options.caseType || "",
+    facts,
+    sourcePages: options.sourcePages || [],
+    sourceDocument: options.sourceDocument || null,
+    analysisStats: {
+      ruleHits,
+      semanticHits,
+      factHits,
+      modelCandidates: 0,
+      totalRisks: detected.length
+    },
     jurisdictionProfile,
-    reviewItems,
+    reviewItems: dedupedReviews,
     requiresHumanReview,
     generatedAt: new Date().toISOString(),
     clauses,
@@ -734,7 +944,9 @@ async function runAnalysis() {
       jurisdiction: $("#jurisdiction").value,
       language: $("#documentLanguage")?.value || "zh",
       pageRange: $("#pageRange")?.value.trim() || "",
-      caseId: state.currentCase?.id || `manual_${Date.now()}`
+      caseId: state.currentCase?.id || `manual_${Date.now()}`,
+      sourcePages: state.sourcePages,
+      sourceDocument: state.sourceDocument
     };
     let result;
     if (state.settings.runMode === "api") {
@@ -771,46 +983,80 @@ function renderAnalysis(result) {
   $("#analysisResult").classList.remove("hidden");
   $("#riskGauge").style.setProperty("--risk", result.riskScore);
   $("#riskGauge strong").textContent = result.riskScore;
-  $("#riskLevel").textContent = `${result.riskLevel} · ${escapeHtml(result.caseType || "材料")}`;
+  $("#riskLevel").textContent = `${result.riskLevel} · ${result.documentType || result.caseType || "材料"}`;
   $("#riskHeadline").textContent = result.riskHeadline;
   $("#riskDescription").textContent = result.riskDescription;
+
+  const facts = result.facts || {};
+  const stats = result.analysisStats || {};
+  const sourceDoc = result.sourceDocument || {};
+  const modeLabels = { deterministic: "确定性规则", fact: "结构化事实", semantic: "语义规则", llm_candidate: "大模型候选" };
+  const factItems = [
+    ["识别材料", result.documentType || result.caseType || "待核实", result.selectedCaseType && result.selectedCaseType !== result.documentType ? `用户选择：${result.selectedCaseType}` : "自动识别"],
+    ["甲方 / 签约单位", facts.partyA || "待核实", ""],
+    ["学校", facts.school || "待核实", facts.hasSchoolSignature ? "已识别学校签署" : "未识别学校签署"],
+    ["实际用工单位", facts.actualEmployer || "待核实", facts.position ? `岗位：${facts.position}` : ""],
+    ["工作地点", facts.workLocation || facts.workCity || "待核实", facts.suggestedJurisdiction ? `建议地区：${facts.suggestedJurisdiction}` : ""],
+    ["期限", facts.startDate || facts.endDate ? `${facts.startDate || "待核实"} 至 ${facts.endDate || "待核实"}` : "待核实", facts.termDays ? `约 ${facts.termDays} 天` : ""],
+    ["补贴 / 工资", facts.dailyPay ? `${facts.dailyPay} 元/天` : facts.monthlyPay ? `${facts.monthlyPay} 元/月` : "待核实", facts.hourlyEquivalentAt8h ? `按8小时约 ${facts.hourlyEquivalentAt8h} 元/小时` : ""],
+    ["发薪主体", facts.payer || "待核实", facts.thirdPartyArrangement ? "签约、用工与发薪主体不一致" : ""],
+    ["保险 / 争议条款", `${facts.hasAccidentInsurance ? "已识别保险" : "未识别保险"} · ${facts.hasDisputeClause ? "有争议条款" : "无争议条款"}`, facts.hasJobAttachment ? "已识别岗位附件" : "岗位附件缺失"],
+    ["工时 / 关系特征", facts.workHours || "待核实", (facts.relationshipFeatures || []).length ? `含${facts.relationshipFeatures.slice(0, 3).join("、")}等特征` : ""]
+  ];
+  const factPanel = `
+    <section class="analysis-facts">
+      <div class="facts-head"><div><span class="section-kicker">材料识别</span><h4>基本事实与适用边界</h4></div><span class="type-badge">${escapeHtml(result.documentType || result.caseType || "待核实")}</span></div>
+      <div class="fact-grid">${factItems.map(([label, value, note]) => `<div class="fact-item"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>${note ? `<small>${escapeHtml(note)}</small>` : ""}</div>`).join("")}</div>
+      <div class="analysis-stats">
+        <span>规则 ${stats.ruleHits || 0}</span><span>事实 ${stats.factHits || 0}</span><span>语义 ${stats.semanticHits || 0}</span><span>模型候选 ${stats.modelCandidates || 0}</span><span>待核实 ${(result.reviewItems || []).length}</span>
+      </div>
+      ${sourceDoc.filename ? `<p class="source-line">原始文件：${escapeHtml(sourceDoc.filename)} · ${escapeHtml(sourceDoc.format || "")} · ${sourceDoc.pageCount || "?"} 页 · SHA-256 ${escapeHtml(String(sourceDoc.sha256 || "未记录").slice(0, 24))}${sourceDoc.sha256 ? "…" : ""}</p>` : `<p class="source-line">当前为粘贴文本，无原始文件哈希。</p>`}
+    </section>`;
 
   const reviewNotice = $("#reviewNotice");
   if (result.reviewItems?.length) {
     reviewNotice.classList.remove("hidden");
-    reviewNotice.innerHTML = `<strong>需要人工核实 ${result.reviewItems.length} 项事实</strong>${result.reviewItems.map((item) => `<span>${escapeHtml(item.title)}</span>`).join("")}<p>${escapeHtml(result.reviewItems.map((item) => item.detail).join("；"))}</p>`;
+    reviewNotice.innerHTML = `<strong>需要人工核实 ${result.reviewItems.length} 项事实</strong>${result.reviewItems.slice(0, 3).map((item) => `<span>${escapeHtml(item.title)}</span>`).join("")}<p>${escapeHtml(result.reviewItems.slice(0, 2).map((item) => item.detail).join("；"))}${result.reviewItems.length > 2 ? "；更多事项见可信轨迹。" : ""}</p>`;
   } else {
     reviewNotice.classList.add("hidden");
     reviewNotice.innerHTML = "";
   }
 
-  $("#result-risks").innerHTML = result.risks.length
-    ? `<div class="risk-list">${result.risks.map((risk) => `
+  const riskCards = result.risks.length
+    ? `<div class="risk-list">${result.risks.map((risk) => {
+        const location = risk.location || {};
+        const locationText = `第${location.page || 1}页 / ${location.clause || "未编号条款"}`;
+        const laws = risk.lawItems || [];
+        return `
         <article class="risk-card ${risk.severity}" data-risk-id="${risk.id}">
           <div class="risk-card-head">
             <h4>${escapeHtml(risk.title)}</h4>
-            <span class="confidence">置信度 ${Math.round(risk.confidence * 100)}%</span>
+            <span class="confidence">置信度 ${Math.round((risk.confidence || 0) * 100)}%</span>
           </div>
+          <div class="risk-location"><span>${escapeHtml(locationText)}</span><span>${escapeHtml(modeLabels[risk.detectionMode] || "规则")}</span><span>${escapeHtml(risk.category)}</span></div>
           <p>${escapeHtml(risk.modelReason || risk.reason)}</p><div class="risk-action"><b>建议</b>${escapeHtml(risk.modelAction || risk.action)}</div>
           <div class="risk-tags">
             <span>${severityText(risk.severity)}</span>
-            <span>${risk.detectionMode === "llm_candidate" ? "模型候选" : risk.detectionMode === "semantic" ? "语义匹配" : "确定性规则"}</span>
-            <span>${escapeHtml(risk.category)}</span>
-            ${risk.lawItems.slice(0, 2).map((law) => `<span>${escapeHtml(law.source)}</span>`).join("")}
+            ${laws.slice(0, 2).map((law) => `<span>${escapeHtml(law.source)}</span>`).join("")}
           </div>
-        </article>
-      `).join("")}</div>`
-    : `<div class="empty-result"><h3>未发现明显高风险</h3><p>系统仍建议核对合同主体、工资、工时和离职条款。</p></div>`;
+        </article>`;
+      }).join("")}</div>`
+    : `<div class="empty-result"><h3>未发现明显高风险</h3><p>系统仍建议核对合同主体、工资、工时、社保、保险和离职条款。</p></div>`;
+  $("#result-risks").innerHTML = `${factPanel}${riskCards}`;
 
   $("#result-clauses").innerHTML = result.risks.length
     ? `<div class="clause-list">${result.risks.map((risk) => {
-        const escapedClause = escapeHtml(risk.clause);
-        const escapedMatch = escapeHtml(risk.matchText);
-        const highlighted = escapedClause.replace(escapedMatch, `<mark>${escapedMatch}</mark>`);
-        return `<div class="clause-item"><strong>${escapeHtml(risk.title)}</strong><br>${highlighted}</div>`;
+        const escapedClause = escapeHtml(risk.clause || "");
+        const escapedMatch = escapeHtml(risk.matchText || "");
+        const highlighted = escapedMatch ? escapedClause.replace(escapedMatch, `<mark>${escapedMatch}</mark>`) : escapedClause;
+        const location = risk.location || {};
+        return `<div class="clause-item"><div class="clause-head"><strong>${escapeHtml(risk.title)}</strong><span>第${location.page || 1}页 / ${escapeHtml(location.clause || "未编号条款")}</span></div>${highlighted}</div>`;
       }).join("")}</div>`
     : "<p class='soft-label'>未定位到需要高亮的风险片段。</p>";
 
+  const reviewList = (result.reviewItems || []).length
+    ? `<div class="review-panel"><h4>待核实事项</h4><ul>${result.reviewItems.map((item) => `<li><strong>${escapeHtml(item.title)}</strong>${item.source ? `<span>${escapeHtml(item.source)}</span>` : ""}<p>${escapeHtml(item.detail)}</p></li>`).join("")}</ul></div>`
+    : "";
   $("#result-trust").innerHTML = `
     <div class="trust-trace">
       ${result.trace.map((item, index) => `
@@ -818,6 +1064,7 @@ function renderAnalysis(result) {
       `).join("")}
       <div class="trace-step"><b>盾</b><div><strong>人工复核提示</strong><p>法源覆盖率 ${result.citationCoverage}%。${escapeHtml(result.jurisdictionProfile?.note || "地方最低工资、实习关系认定和个案事实仍需以最新政策和主管部门意见为准。")}</p></div></div>
     </div>
+    ${reviewList}
   `;
 
   $$(".risk-card").forEach((element) => {
@@ -835,6 +1082,8 @@ function switchResultTab(tabName) {
 
 function loadCase(item, shouldAnalyze = false) {
   state.currentCase = item;
+  state.sourcePages = [];
+  state.sourceDocument = null;
   $("#contractInput").value = item.text;
   $("#caseType").value = item.type;
   $("#charCount").textContent = `${item.text.length} 字`;
@@ -1695,31 +1944,66 @@ async function deleteAccount() {
 
 function buildReport(result) {
   if (!result) return "尚无研判结果。";
-  return [
-    "职安盾 VeriWork 研判报告",
-    `生成时间：${formatDate()}`,
-    `材料类型：${result.caseType || "未指定"}`,
-    `适用地区：${result.jurisdiction || "全国规则"}`,
-    `风险分：${result.riskScore}（${result.riskLevel}）`,
-    "",
-    "一、风险清单",
-    ...result.risks.map((risk, index) => [
+  const facts = result.facts || {};
+  const sourceDoc = result.sourceDocument || {};
+  const stats = result.analysisStats || {};
+  const modeLabels = { deterministic: "确定性规则", fact: "结构化事实", semantic: "语义规则", llm_candidate: "大模型候选" };
+  const factLines = [
+    `甲方/签约单位：${facts.partyA || "待核实"}`,
+    `学校：${facts.school || "待核实"}`,
+    `实际用工单位：${facts.actualEmployer || "待核实"}`,
+    `岗位/部门：${facts.position || "待核实"}`,
+    `工作地点：${facts.workLocation || facts.workCity || "待核实"}`,
+    `期限：${facts.startDate || "待核实"} 至 ${facts.endDate || "待核实"}${facts.termDays ? `（约 ${facts.termDays} 天）` : ""}`,
+    `补贴/工资：${facts.dailyPay ? `${facts.dailyPay} 元/天；按8小时约 ${facts.hourlyEquivalentAt8h} 元/小时` : facts.monthlyPay ? `${facts.monthlyPay} 元/月` : "待核实"}`,
+    `工时：${facts.workHours || "待核实"}`,
+    `发薪主体：${facts.payer || "待核实"}`,
+    `保险安排：${facts.hasAccidentInsurance ? (facts.insuranceTerms || []).join("、") : "未识别到"}`,
+    `争议条款：${facts.hasDisputeClause ? "已识别" : "未识别到"}`,
+    `岗位附件：${facts.hasJobAttachment ? "已识别" : "未识别到"}`,
+    `学校签署：${facts.hasSchoolSignature ? "已识别" : "未识别到"}`
+  ];
+  const riskLines = result.risks.map((risk, index) => {
+    const location = risk.location || {};
+    return [
       `${index + 1}. [${severityText(risk.severity)}] ${risk.title}`,
+      `位置：第${location.page || 1}页 / ${location.clause || "未编号条款"}　来源：${modeLabels[risk.detectionMode] || "规则"}`,
       `原文：${risk.clause}`,
       `说明：${risk.modelReason || risk.reason}`,
       `建议：${risk.modelAction || risk.action}`,
-      `法源：${risk.lawItems.map((law) => law.source).join("；")}`
-    ].join("\n")),
+      `法源：${(risk.lawItems || []).map((law) => law.source).join("；")}`
+    ].join("\n");
+  });
+  return [
+    "职安盾 VeriWork 就业材料研判报告",
+    `生成时间：${formatDate()}`,
+    `识别材料：${result.documentType || result.caseType || "未指定"}`,
+    `用户选择：${result.selectedCaseType || result.caseType || "未指定"}`,
+    `适用地区：${result.jurisdiction || "全国规则"}　建议地区：${facts.suggestedJurisdiction || "待核实"}`,
+    `风险分：${result.riskScore}（${result.riskLevel}）`,
+    `原始文件：${sourceDoc.filename || "未记录"}${sourceDoc.sha256 ? `\nSHA-256：${sourceDoc.sha256}` : ""}`,
     "",
-    "二、可信轨迹",
+    "一、基本事实",
+    ...factLines,
+    "",
+    "二、风险清单",
+    ...(riskLines.length ? riskLines : ["未发现明显高风险条款，仍需核对合同主体、工资、工时、社保、保险和离职条款。"]),
+    "",
+    "三、待核实事项",
+    ...((result.reviewItems || []).length ? result.reviewItems.map((item, index) => `${index + 1}. ${item.title}：${item.detail}`) : ["未生成额外待核实事项。"]),
+    "",
+    "四、研判来源统计",
+    `确定性规则 ${stats.ruleHits || 0} 项；结构化事实 ${stats.factHits || 0} 项；语义规则 ${stats.semanticHits || 0} 项；大模型候选 ${stats.modelCandidates || 0} 项；合计 ${stats.totalRisks || result.risks.length} 项。`,
+    "",
+    "五、可信轨迹",
     ...result.trace.map((item, index) => `${index + 1}. ${item.title}：${item.detail}`),
     "",
-    "三、后续行动",
+    "六、后续行动",
     ...result.questions,
     "",
-    "四、合规声明",
+    "七、合规声明",
     APP_DATA.meta.disclaimer
-  ].join("\n\n");
+  ].join("\n");
 }
 
 function initCarousel() {
@@ -1744,10 +2028,14 @@ function bindEvents() {
 
   $("#quickDemo").addEventListener("click", () => loadCase(APP_DATA.demoCases[0], true));
   $("#loadSampleButton").addEventListener("click", () => {
+    state.sourcePages = [];
+    state.sourceDocument = null;
     $("#contractInput").value = APP_DATA.demoCases[0].text;
     $("#contractInput").dispatchEvent(new Event("input"));
   });
   $("#clearButton").addEventListener("click", () => {
+    state.sourcePages = [];
+    state.sourceDocument = null;
     $("#contractInput").value = "";
     $("#contractInput").dispatchEvent(new Event("input"));
     $("#analysisResult").classList.add("hidden");
@@ -1756,6 +2044,10 @@ function bindEvents() {
   });
   $("#contractInput").addEventListener("input", (event) => {
     $("#charCount").textContent = `${event.target.value.length} 字`;
+    if (event.isTrusted) {
+      state.sourcePages = [];
+      state.sourceDocument = null;
+    }
   });
   $("#fileInput").addEventListener("change", async (event) => {
     const file = event.target.files[0];
@@ -1769,18 +2061,39 @@ function bindEvents() {
     }
     const extension = `.${file.name.split(".").pop().toLowerCase()}`;
     try {
-      let text;
+      let extracted;
       if ([".pdf", ".docx"].includes(extension)) {
         if (state.settings.runMode !== "api") {
           throw new Error("PDF和Word解析需要后端服务，请启动完整服务后重试");
         }
-        text = await extractDocumentViaApi(file);
+        extracted = await extractDocumentViaApi(file);
       } else {
-        text = await file.text();
+        const buffer = await file.arrayBuffer();
+        const text = new TextDecoder("utf-8").decode(buffer);
+        extracted = {
+          text,
+          pages: [{ page: 1, text }],
+          filename: file.name,
+          format: extension.replace(".", ""),
+          chars: text.length,
+          sizeBytes: file.size,
+          sha256: await sha256Hex(buffer),
+          pageCount: 1
+        };
       }
+      const text = extracted.text;
       $("#contractInput").value = text;
-      $("#contractInput").dispatchEvent(new Event("input"));
-      toast(`已载入 ${file.name}，共 ${text.length} 字`);
+      $("#charCount").textContent = `${text.length} 字`;
+      state.sourcePages = extracted.pages || [{ page: 1, text }];
+      state.sourceDocument = {
+        filename: extracted.filename,
+        format: extracted.format,
+        chars: extracted.chars,
+        sizeBytes: extracted.sizeBytes,
+        sha256: extracted.sha256,
+        pageCount: extracted.pageCount
+      };
+      toast(`已载入 ${file.name}，共 ${text.length} 字${extracted.sha256 ? "，已记录文件哈希" : ""}`);
     } catch (error) {
       toast(`文件读取失败：${error.message}`);
     } finally {
