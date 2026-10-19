@@ -1438,3 +1438,29 @@ table th { color: #586474; background: #f8f9fa; }
 }
 .admin-login-mode .app-shell { display: none !important; }
 .admin-login-mode #adminLoginPage { display: grid; }
+/* 右上角账户操作栏 */
+.account-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.account-bar .user-chip { order: 1; }
+.account-bar .topbar-settings { order: 2; }
+.account-bar .platform-version { order: 3; }
+@media (max-width: 768px) {
+  .account-bar {
+    grid-column: 1 / -1;
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+@media (max-width: 480px) {
+  .account-bar {
+    justify-content: stretch;
+  }
+  .account-bar > * { flex: 1 1 auto; justify-content: center; }
+}
+

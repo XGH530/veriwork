@@ -412,7 +412,7 @@ def health_payload() -> dict:
     return {
         "ok": database_ok,
         "name": "职安盾 VeriWork",
-        "version": "1.5.0",
+        "version": "1.6.0",
         "uptimeSeconds": int(time.time() - STARTED_AT),
         "databaseOk": database_ok,
         "evidenceStorageOk": EVIDENCE_DIR.is_dir() and os.access(EVIDENCE_DIR, os.W_OK),
