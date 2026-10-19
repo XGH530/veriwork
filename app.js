@@ -439,7 +439,7 @@ function updateUserUI() {
   const chip = $("#userChip");
   if (!chip) return;
   if (state.user) {
-    chip.innerHTML = `<span>用户：<strong>${escapeHtml(state.user.username)}</strong> · ${escapeHtml(state.user.role)}</span><button id="logoutButton" class="link-button">退出</button>`;
+    chip.innerHTML = `<span>用户：<strong>${escapeHtml(state.user.username)}</strong></span><button id="logoutButton" class="link-button">退出</button>`;
     $("#logoutButton")?.addEventListener("click", logoutAccount);
   } else {
     chip.innerHTML = '<span>未登录</span><button id="openAuth" class="link-button">登录</button>';
