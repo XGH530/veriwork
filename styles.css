@@ -1463,4 +1463,42 @@ table th { color: #586474; background: #f8f9fa; }
   }
   .account-bar > * { flex: 1 1 auto; justify-content: center; }
 }
+/* 账户控件移入黑色导航栏 */
+.sidebar .account-bar {
+  margin-left: auto;
+  padding-left: 16px;
+  border-left: 1px solid #344457;
+  gap: 7px;
+  flex-wrap: nowrap;
+}
+.sidebar .account-bar .user-chip {
+  padding: 6px 9px;
+  color: #c4cfda;
+  background: rgba(255,255,255,.05);
+  border-color: #344457;
+}
+.sidebar .account-bar .user-chip strong { color: #ffffff; }
+.sidebar .account-bar .user-chip .link-button { color: #a9cae3; }
+.sidebar .account-bar .topbar-settings {
+  color: #d8e3ec;
+  background: rgba(255,255,255,.04);
+  border-color: #344457;
+}
+.sidebar .account-bar .platform-version {
+  color: #aebbc9;
+  background: rgba(255,255,255,.04);
+  border-color: #344457;
+}
+.sidebar .account-bar .platform-version strong { color: #dbe6ef; }
+@media (max-width: 768px) {
+  .sidebar .account-bar {
+    order: 4;
+    width: 100%;
+    margin-left: 0;
+    padding: 7px 0 0;
+    border-left: 0;
+    border-top: 1px solid #344457;
+    justify-content: flex-end;
+  }
+}
 
