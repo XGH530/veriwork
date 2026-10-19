@@ -1504,6 +1504,13 @@ def ocr_image_text(data: bytes, language: str = "zh") -> str:
                 cleaned = fallback
         if len(cleaned) < 10:
             raise ValueError("图片中没有识别到足够的文字")
+        for source, target in (
+            ("QA：", "乙方："), ("QA:", "乙方："),
+            ("An：", "丙方："), ("An:", "丙方："),
+            ("Z方", "乙方"), ("甲方:", "甲方："),
+            ("乙方:", "乙方："), ("丙方:", "丙方："),
+        ):
+            cleaned = cleaned.replace(source, target)
         return cleaned
     except ValueError:
         raise

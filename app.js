@@ -150,7 +150,9 @@ async function extractDocumentViaApi(file) {
     chars: Number(payload.chars) || String(payload.text || "").length,
     sizeBytes: Number(payload.sizeBytes) || file.size,
     sha256: payload.sha256 || await sha256Hex(buffer),
-    pageCount: Number(payload.pageCount) || (Array.isArray(payload.pages) ? payload.pages.length : 1)
+    pageCount: Number(payload.pageCount) || (Array.isArray(payload.pages) ? payload.pages.length : 1),
+    ocr: Boolean(payload.ocr),
+    ocrLanguage: payload.ocrLanguage || ""
   };
 }
 
@@ -1057,7 +1059,7 @@ function renderAnalysis(result) {
       <div class="analysis-stats">
         <span>规则 ${stats.ruleHits || 0}</span><span>事实 ${stats.factHits || 0}</span><span>语义 ${stats.semanticHits || 0}</span><span>模型候选 ${stats.modelCandidates || 0}</span><span>待核实 ${(result.reviewItems || []).length}</span>
       </div>
-      ${sourceDoc.filename ? `<p class="source-line">原始文件：${escapeHtml(sourceDoc.filename)} · ${escapeHtml(sourceDoc.format || "")} · ${sourceDoc.pageCount || "?"} 页 · SHA-256 ${escapeHtml(String(sourceDoc.sha256 || "未记录").slice(0, 24))}${sourceDoc.sha256 ? "…" : ""}</p>` : `<p class="source-line">当前为粘贴文本，无原始文件哈希。</p>`}
+      ${sourceDoc.filename ? `<p class="source-line">原始文件：${escapeHtml(sourceDoc.filename)} · ${escapeHtml(sourceDoc.format || "")}${sourceDoc.ocr ? " · OCR" : ""} · ${sourceDoc.pageCount || "?"} 页 · SHA-256 ${escapeHtml(String(sourceDoc.sha256 || "未记录").slice(0, 24))}${sourceDoc.sha256 ? "…" : ""}${sourceDoc.ocr ? " · OCR识别结果建议在文本框人工校对" : ""}</p>` : `<p class="source-line">当前为粘贴文本，无原始文件哈希。</p>`}
     </section>`;
 
   const reviewNotice = $("#reviewNotice");

@@ -48,6 +48,19 @@
 
 未登录用户可以浏览页面和运行纯前端演示，但后端合同研判和PDF/Word解析需要登录。密码使用PBKDF2-SHA256加盐存储，API密钥不会进入浏览器。
 
+## 图片与聊天截图 OCR
+
+支持 PNG、JPG、JPEG、WEBP、BMP 图片，可直接拖入微信、QQ聊天截图或按 Ctrl+V 粘贴。服务端使用 Tesseract OCR，识别语言随文档语言选择：中文 `chi_sim+eng`、英文 `eng`、日文 `jpn+eng`。
+
+Ubuntu/Debian 安装：
+
+```bash
+sudo apt-get install -y tesseract-ocr tesseract-ocr-chi-sim tesseract-ocr-chi-tra tesseract-ocr-eng tesseract-ocr-jpn
+python3 -m pip install pillow pytesseract
+```
+
+OCR 结果只能在文本框中人工校对后作为最终材料；图片质量、截图缩放和聊天气泡会直接影响识别效果。
+
 ## 多语言与PDF页码
 
 合同研判页支持选择中文、英文和日文文档。PDF可以填写单页或页码范围，例如 `1-3,5`；Word和文本文件不限制页码。非中文材料主要依赖受限大模型候选分析，硬规则仍以中文法律规则为主。
