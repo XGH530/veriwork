@@ -262,8 +262,8 @@ init_auth_db()
 
 def register_user(username: str, password: str, role: str = "student", email: str = "") -> dict:
     username = username.strip()
-    if not (3 <= len(username) <= 32):
-        raise ValueError("用户名长度应为3至32位")
+    if not username:
+        raise ValueError("用户名不能为空")
     if len(password) < 8:
         raise ValueError("密码至少8位")
     email = normalize_email(email) if str(email or "").strip() else None
@@ -412,7 +412,7 @@ def health_payload() -> dict:
     return {
         "ok": database_ok,
         "name": "职安盾 VeriWork",
-        "version": "1.7.0",
+        "version": "1.8.0",
         "uptimeSeconds": int(time.time() - STARTED_AT),
         "databaseOk": database_ok,
         "evidenceStorageOk": EVIDENCE_DIR.is_dir() and os.access(EVIDENCE_DIR, os.W_OK),

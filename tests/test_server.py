@@ -129,6 +129,12 @@ class RuleEngineTests(unittest.TestCase):
         self.assertNotIn("13800138000", deposit.get("modelReason", ""))
         self.assertNotIn("test@example.com", deposit.get("modelAction", ""))
 
+    def test_single_character_username_is_allowed(self):
+        user = server.register_user("a", "Password!2345")
+        self.assertEqual("a", user["username"])
+        with self.assertRaises(ValueError):
+            server.register_user("   ", "Password!2345")
+
     def test_email_challenge_round_trip(self):
         username = f"emailtest_{os.getpid()}"
         user = server.register_user(username, "EmailTest!2345", email="tester@example.com")
