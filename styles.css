@@ -1752,3 +1752,79 @@ input[type="password"]::-ms-clear {
   animation: drop-spin .75s linear infinite;
 }
 @keyframes drop-spin { to { transform: rotate(360deg); } }
+
+
+/* 研判进度与动态时间线 */
+.analysis-progress {
+  margin: -4px 0 14px;
+  padding: 12px 13px;
+  border: 1px solid #d7e2ee;
+  border-radius: 8px;
+  background: #f6f9fc;
+}
+.analysis-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #173f6d;
+  font-size: 11px;
+  font-weight: 700;
+}
+.analysis-progress-head strong {
+  color: #1f4f86;
+  font-family: "Bahnschrift", "Microsoft YaHei UI", sans-serif;
+  font-size: 12px;
+}
+.analysis-progress-track {
+  height: 7px;
+  margin: 9px 0 8px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #dfe8f2;
+}
+.analysis-progress-track i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1f4f86, #2f7fc4);
+  transition: width .22s ease;
+}
+.analysis-progress p {
+  margin: 0;
+  color: #63758a;
+  font-size: 10px;
+  line-height: 1.55;
+}
+.analysis-progress.done {
+  border-color: #b9dfcd;
+  background: #f2faf6;
+}
+.analysis-progress.done .analysis-progress-head,
+.analysis-progress.done .analysis-progress-head strong {
+  color: #176b45;
+}
+.analysis-progress.done .analysis-progress-track i {
+  background: linear-gradient(90deg, #178353, #38a26d);
+}
+.analysis-progress.error {
+  border-color: #e7c4bd;
+  background: #fff7f5;
+}
+.analysis-progress.error .analysis-progress-head,
+.analysis-progress.error .analysis-progress-head strong {
+  color: #9b3f31;
+}
+.analysis-progress.error .analysis-progress-track i {
+  background: #b84f40;
+}
+.timeline-empty {
+  padding: 22px 14px;
+  color: #7b8999;
+  border: 1px dashed #ccd8e5;
+  border-radius: 7px;
+  background: #fafcfe;
+  font-size: 11px;
+  line-height: 1.7;
+}

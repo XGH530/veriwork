@@ -1,6 +1,9 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
 
+let analysisProgressTimer = null;
+let analysisProgressStartedAt = 0;
+
 const state = {
   currentPage: "dashboard",
   currentCase: APP_DATA.demoCases[0],
@@ -958,6 +961,81 @@ function setProgress(activeStep = "", completed = []) {
   });
 }
 
+function setAnalysisProgress(percent, label, detail) {
+  const value = Math.max(0, Math.min(100, Math.round(percent)));
+  const panel = $("#analysisProgress");
+  if (!panel) return;
+  panel.classList.remove("hidden");
+  panel.classList.toggle("done", value >= 100);
+  $("#analysisProgressLabel").textContent = label;
+  $("#analysisProgressPercent").textContent = `${value}%`;
+  $("#analysisProgressBar").style.width = `${value}%`;
+  $("#analysisProgressDetail").textContent = detail;
+  const track = panel.querySelector(".analysis-progress-track");
+  if (track) track.setAttribute("aria-valuenow", String(value));
+}
+
+function stopAnalysisProgress() {
+  if (analysisProgressTimer) window.clearInterval(analysisProgressTimer);
+  analysisProgressTimer = null;
+}
+
+function startAnalysisProgress() {
+  stopAnalysisProgress();
+  analysisProgressStartedAt = Date.now();
+  setAnalysisProgress(3, "正在启动可信链路", "准备文本、规则版本和法源索引。");
+  setProgress("extract", []);
+  analysisProgressTimer = window.setInterval(() => {
+    const elapsed = Date.now() - analysisProgressStartedAt;
+    let percent;
+    let step;
+    let label;
+    let detail;
+    if (elapsed < 1400) {
+      percent = 6 + (elapsed / 1400) * 18;
+      step = "extract";
+      label = "正在抽取合同条款";
+      detail = "识别材料类型、关键事实和需要核验的风险表达。";
+    } else if (elapsed < 3800) {
+      percent = 24 + ((elapsed - 1400) / 2400) * 27;
+      step = "retrieve";
+      label = "正在匹配法源";
+      detail = "检索规则版本、法规条文和地方政策依据。";
+    } else if (elapsed < 8500) {
+      percent = 51 + ((elapsed - 3800) / 4700) * 31;
+      step = "reason";
+      label = "正在执行规则与模型研判";
+      detail = "规则引擎和大模型候选风险正在交叉比对。";
+    } else {
+      percent = Math.min(94, 82 + ((elapsed - 8500) / 30000) * 12);
+      step = "verify";
+      label = "正在核验结论与法源";
+      detail = "检查原文引用、法源覆盖、冲突项和人工复核边界。";
+    }
+    const completed = ["extract", "retrieve", "reason", "verify"].slice(0, Math.max(0, ["extract", "retrieve", "reason", "verify"].indexOf(step)));
+    setProgress(step, completed);
+    setAnalysisProgress(percent, label, detail);
+  }, 220);
+}
+
+function finishAnalysisProgress(result) {
+  stopAnalysisProgress();
+  const elapsedSeconds = Math.max(0.1, (Date.now() - analysisProgressStartedAt) / 1000);
+  const riskCount = Array.isArray(result?.risks) ? result.risks.length : 0;
+  setAnalysisProgress(
+    100,
+    "可信研判已完成",
+    `已生成 ${riskCount} 项风险结论，用时 ${elapsedSeconds.toFixed(1)} 秒。`
+  );
+  setProgress("", ["extract", "retrieve", "reason", "verify"]);
+}
+
+function failAnalysisProgress(message) {
+  stopAnalysisProgress();
+  setAnalysisProgress(100, "研判未完成", message || "请检查材料或稍后重试。");
+  $("#analysisProgress")?.classList.add("error");
+}
+
 async function runAnalysis() {
   const text = $("#contractInput").value.trim();
   if (text.length < 20) {
@@ -979,11 +1057,8 @@ async function runAnalysis() {
   $("#emptyResult").classList.add("hidden");
   $("#analysisResult").classList.add("hidden");
 
-  const steps = ["extract", "retrieve", "reason", "verify"];
-  for (let index = 0; index < steps.length; index += 1) {
-    setProgress(steps[index], steps.slice(0, index));
-    await new Promise((resolve) => window.setTimeout(resolve, 180));
-  }
+  $("#analysisProgress")?.classList.remove("error");
+  startAnalysisProgress();
 
   try {
     const options = {
@@ -1010,13 +1085,15 @@ async function runAnalysis() {
     }
     state.lastAnalysis = result;
     state.lastCaseId = result.caseId || null;
-    setProgress("", steps);
+    finishAnalysisProgress(result);
     renderAnalysis(result);
+    syncTimelineFromAnalysis(result);
     if (result.caseId) refreshHistory();
     updateEvidenceDocuments(result);
     $("#resultStatus").textContent = `${result.processingMs} ms 完成`;
   } catch (error) {
     console.error(error);
+    failAnalysisProgress(error.message);
     toast(`研判失败：${error.message}`);
     $("#emptyResult").classList.remove("hidden");
     $("#resultStatus").textContent = "研判失败";
@@ -1172,6 +1249,10 @@ function syncEvidenceFromAnalysis(result, options = {}) {
   if (added) {
     renderEvidence();
     updateEvidenceScore();
+    appendTimelineEvent({
+      title: "研判风险已写入证据链",
+      detail: `已新增 ${added} 项证据任务，并关联本次研判结论。`
+    });
     const status = $("#evidenceChainStatus");
     if (status) status.textContent = `已从本次研判同步 ${added} 项证据任务，请逐项核对并保存材料。`;
     if (!options.silent) toast(`已同步 ${added} 项证据任务。`);
@@ -1179,6 +1260,75 @@ function syncEvidenceFromAnalysis(result, options = {}) {
     toast("本次研判的证据任务已在证据链中。");
   }
   return added;
+}
+
+function formatTimelineDate(date = new Date()) {
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function renderTimeline() {
+  const container = $("#timeline");
+  if (!container) return;
+  const events = Array.isArray(state.timeline) ? state.timeline : [];
+  if (!events.length) {
+    container.innerHTML = '<div class="timeline-empty">完成一次研判或上传证据后，这里会自动生成案件时间线。</div>';
+    return;
+  }
+  container.innerHTML = events.map((item) => `
+    <div class="timeline-item">
+      <time>${escapeHtml(item.date)}</time>
+      <strong>${escapeHtml(item.title)}</strong>
+      <p>${escapeHtml(item.detail)}</p>
+    </div>
+  `).join("");
+}
+
+function appendTimelineEvent(event) {
+  if (!event?.title) return;
+  state.timeline.push({
+    date: event.date || formatTimelineDate(),
+    title: event.title,
+    detail: event.detail || ""
+  });
+  renderTimeline();
+}
+
+function syncTimelineFromAnalysis(result) {
+  if (!result) return;
+  const now = formatTimelineDate();
+  const text = $("#contractInput")?.value || "";
+  const materialName = state.sourceDocument?.filename || result.documentType || result.caseType || "待研判材料";
+  const risks = Array.isArray(result.risks) ? result.risks : [];
+  const highCount = risks.filter((risk) => risk.severity === "high").length;
+  const mediumCount = risks.filter((risk) => risk.severity === "medium").length;
+  const stats = result.analysisStats || {};
+  state.timeline = [
+    {
+      date: now,
+      title: "待研判材料已载入",
+      detail: `${materialName}，共 ${text.length} 字；已保留来源信息与材料指纹。`
+    },
+    {
+      date: now,
+      title: "条款抽取与法源检索完成",
+      detail: `系统执行 ${Number(stats.ruleHits || 0)} 次规则命中检查，并完成法规来源匹配。`
+    },
+    {
+      date: now,
+      title: "可信研判结果已生成",
+      detail: `识别 ${risks.length} 项风险，其中高风险 ${highCount} 项、中风险 ${mediumCount} 项；风险分 ${result.riskScore ?? "--"}。`
+    }
+  ];
+  if (risks.length) {
+    const highlights = risks.slice(0, 3).map((risk) => risk.title).filter(Boolean).join("；");
+    state.timeline.push({
+      date: now,
+      title: "重点风险事项已纳入证据计划",
+      detail: highlights || "已生成待核实风险事项。"
+    });
+  }
+  renderTimeline();
 }
 
 function renderEvidence() {
@@ -1198,14 +1348,7 @@ function renderEvidence() {
     });
   });
 
-  $("#timeline").innerHTML = state.timeline.map((item) => `
-    <div class="timeline-item">
-      <time>${escapeHtml(item.date)}</time>
-      <strong>${escapeHtml(item.title)}</strong>
-      <p>${escapeHtml(item.detail)}</p>
-    </div>
-  `).join("");
-
+  renderTimeline();
   updateEvidenceScore();
 }
 
@@ -1222,6 +1365,7 @@ function addEvidence() {
   state.checklist.push({ id: `custom_${Date.now()}`, label: value, done: true, level: "自定" });
   input.value = "";
   renderEvidence();
+  appendTimelineEvent({ title: "手动补充证据事项", detail: value });
   toast("已加入证据清单。");
 }
 
@@ -1665,7 +1809,7 @@ async function uploadEvidenceFile() {
   button.textContent = "上传并计算哈希中…";
   try {
     const attachCase = $("#evidenceAttachCase")?.checked && state.lastCaseId;
-    await apiRequest("/api/evidence/upload", {
+    const uploaded = await apiRequest("/api/evidence/upload", {
       method: "POST",
       body: JSON.stringify({
         filename: file.name,
@@ -1674,6 +1818,10 @@ async function uploadEvidenceFile() {
       })
     });
     input.value = "";
+    appendTimelineEvent({
+      title: "证据原件已归档",
+      detail: `${file.name} 已写入证据链${uploaded?.evidence?.sha256 ? `，SHA-256 ${uploaded.evidence.sha256.slice(0, 16)}…` : ""}。`
+    });
     toast("证据文件已保存，并生成 SHA-256 哈希。");
     refreshEvidenceFiles();
   } catch (error) {

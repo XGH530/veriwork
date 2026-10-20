@@ -6,7 +6,7 @@
   <meta name="description" content="职安盾 VeriWork——面向高校毕业生就业合同的可验证 AI 风险评估与证据链系统">
   <title>职安盾 VeriWork · 可信就业风险决策</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <link rel="stylesheet" href="styles.css?v=20261019r19">
+  <link rel="stylesheet" href="styles.css?v=20261019r20">
 </head>
 <body>
   
@@ -268,6 +268,16 @@
               <div data-step="retrieve"><b>2</b><span>法源检索</span></div>
               <div data-step="reason"><b>3</b><span>规则研判</span></div>
               <div data-step="verify"><b>4</b><span>交叉验证</span></div>
+            </div>
+            <div id="analysisProgress" class="analysis-progress hidden" aria-live="polite">
+              <div class="analysis-progress-head">
+                <span id="analysisProgressLabel">准备可信研判</span>
+                <strong id="analysisProgressPercent">0%</strong>
+              </div>
+              <div class="analysis-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <i id="analysisProgressBar"></i>
+              </div>
+              <p id="analysisProgressDetail">正在准备材料、规则与法源。</p>
             </div>
 
             <div id="emptyResult" class="empty-result">
@@ -800,7 +810,7 @@
     </form>
   </dialog>
 
-  <script src="data.js?v=20261019r19"></script>
-  <script src="app.js?v=20261019r19"></script>
+  <script src="data.js?v=20261019r20"></script>
+  <script src="app.js?v=20261019r20"></script>
 </body>
 </html>
