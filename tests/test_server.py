@@ -221,6 +221,7 @@ class TripartiteAgreementTests(unittest.TestCase):
             result = server.extract_document("chat.png", png, language="zh")
         self.assertTrue(result["ocr"])
         self.assertEqual("chi_sim+eng", result["ocrLanguage"])
+        self.assertGreaterEqual(result["ocrMs"], 1)
         self.assertEqual(1, result["pageCount"])
         self.assertIn("三方协议", result["text"])
 

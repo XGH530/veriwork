@@ -1488,17 +1488,21 @@ def ocr_image_text(data: bytes, language: str = "zh") -> str:
         image = ImageOps.exif_transpose(image)
         if image.mode not in ("L", "RGB"):
             image = image.convert("RGB")
-        if image.width < 1200:
-            scale = 1200 / max(1, image.width)
+        if image.width < 1000:
+            scale = 1000 / max(1, image.width)
             resampling = getattr(Image, "Resampling", Image).LANCZOS
             image = image.resize((max(1, int(image.width * scale)), max(1, int(image.height * scale))), resampling)
+        elif image.width > 2200:
+            scale = 2200 / image.width
+            resampling = getattr(Image, "Resampling", Image).LANCZOS
+            image = image.resize((2200, max(1, int(image.height * scale))), resampling)
         gray = ImageOps.grayscale(image)
         gray = ImageOps.autocontrast(gray)
         lang = OCR_LANGUAGE_MAP.get(language, "chi_sim+eng")
-        text = pytesseract.image_to_string(gray, lang=lang, config="--psm 6")
+        text = pytesseract.image_to_string(gray, lang=lang, config="--oem 1 --psm 6 -c preserve_interword_spaces=1")
         cleaned = "\n".join(line.strip() for line in text.splitlines() if line.strip())
         if len(cleaned) < 15:
-            fallback = pytesseract.image_to_string(gray, lang=lang, config="--psm 3")
+            fallback = pytesseract.image_to_string(gray, lang=lang, config="--oem 1 --psm 3 -c preserve_interword_spaces=1")
             fallback = "\n".join(line.strip() for line in fallback.splitlines() if line.strip())
             if len(fallback) > len(cleaned):
                 cleaned = fallback
@@ -1521,6 +1525,7 @@ def ocr_image_text(data: bytes, language: str = "zh") -> str:
 def extract_document(filename: str, data: bytes, language: str = "zh", page_range: str = "") -> dict:
     suffix = Path(filename).suffix.lower()
     text = ""
+    ocr_ms = 0
     page_texts: list[dict] = []
     if suffix == ".pdf":
         try:
@@ -1534,7 +1539,9 @@ def extract_document(filename: str, data: bytes, language: str = "zh", page_rang
             page_texts.append({"page": index + 1, "text": page_text})
         text = "\n".join(item["text"] for item in page_texts)
     elif suffix in {".png", ".jpg", ".jpeg", ".webp", ".bmp"}:
+        ocr_started = time.perf_counter()
         text = ocr_image_text(data, language=language)
+        ocr_ms = max(1, round((time.perf_counter() - ocr_started) * 1000))
         page_texts = [{"page": 1, "text": text}]
     elif suffix == ".docx":
         try:
@@ -1574,6 +1581,7 @@ def extract_document(filename: str, data: bytes, language: str = "zh", page_rang
         "pageCount": len(page_texts),
         "ocr": suffix in {".png", ".jpg", ".jpeg", ".webp", ".bmp"},
         "ocrLanguage": OCR_LANGUAGE_MAP.get(language, "chi_sim+eng") if suffix in {".png", ".jpg", ".jpeg", ".webp", ".bmp"} else "",
+        "ocrMs": ocr_ms,
         "pages": page_texts,
         "text": text,
     }

@@ -1732,3 +1732,23 @@ input[type="password"]::-ms-reveal,
 input[type="password"]::-ms-clear {
   display: none;
 }
+
+/* 文件识别中的即时反馈 */
+.drop-zone.loading {
+  border-color: #d6a84b;
+  background: #fffaf0;
+  cursor: wait;
+}
+.drop-zone.loading strong { color: #8a4b08; }
+.drop-zone.loading::after {
+  content: "";
+  align-self: flex-start;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  border: 2px solid #d6a84b;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: drop-spin .75s linear infinite;
+}
+@keyframes drop-spin { to { transform: rotate(360deg); } }

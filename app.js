@@ -8,6 +8,7 @@ const state = {
   lastCaseId: null,
   sourcePages: [],
   sourceDocument: null,
+  fileLoading: false,
   history: [],
   evidenceFiles: [],
   checklist: APP_DATA.evidenceChecklist.map((item) => ({ ...item })),
@@ -152,7 +153,8 @@ async function extractDocumentViaApi(file) {
     sha256: payload.sha256 || await sha256Hex(buffer),
     pageCount: Number(payload.pageCount) || (Array.isArray(payload.pages) ? payload.pages.length : 1),
     ocr: Boolean(payload.ocr),
-    ocrLanguage: payload.ocrLanguage || ""
+    ocrLanguage: payload.ocrLanguage || "",
+    ocrMs: Number(payload.ocrMs) || 0
   };
 }
 
@@ -507,7 +509,10 @@ function navigate(page) {
   if (page === "admin") refreshAdminPage();
   if (page === "history") refreshHistory();
   if (page === "account") refreshAccountCenter();
-  if (page === "evidence") refreshEvidenceFiles();
+  if (page === "evidence") {
+    refreshEvidenceFiles();
+    if (state.lastAnalysis) syncEvidenceFromAnalysis(state.lastAnalysis, { silent: true });
+  }
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -1147,12 +1152,41 @@ function updateEvidenceDocuments(result) {
   $("#complaintText").textContent = result?.complaintDraft || "尚未完成研判。";
 }
 
+function syncEvidenceFromAnalysis(result, options = {}) {
+  if (!result?.risks?.length) return 0;
+  const existing = new Set(state.checklist.map((item) => item.id));
+  let added = 0;
+  result.risks.forEach((risk) => {
+    const id = `analysis_${risk.id}`;
+    if (existing.has(id)) return;
+    state.checklist.unshift({
+      id,
+      label: `${risk.title}：${risk.modelAction || risk.action}`,
+      done: false,
+      level: severityText(risk.severity),
+      source: "研判同步"
+    });
+    existing.add(id);
+    added += 1;
+  });
+  if (added) {
+    renderEvidence();
+    updateEvidenceScore();
+    const status = $("#evidenceChainStatus");
+    if (status) status.textContent = `已从本次研判同步 ${added} 项证据任务，请逐项核对并保存材料。`;
+    if (!options.silent) toast(`已同步 ${added} 项证据任务。`);
+  } else if (!options.silent) {
+    toast("本次研判的证据任务已在证据链中。");
+  }
+  return added;
+}
+
 function renderEvidence() {
   $("#evidenceChecklist").innerHTML = state.checklist.map((item) => `
     <label class="check-item">
       <input type="checkbox" data-evidence-id="${item.id}" ${item.done ? "checked" : ""}>
       <span>${escapeHtml(item.label)}</span>
-      <small>${escapeHtml(item.level)}</small>
+      <small>${escapeHtml(item.level)}${item.source ? ` · ${escapeHtml(item.source)}` : ""}</small>
     </label>
   `).join("");
 
@@ -2071,7 +2105,55 @@ function initCarousel() {
   $("#heroCarousel")?.addEventListener("mouseleave", () => { timer = window.setInterval(() => show(index + 1), 5200); });
 }
 
+function setFileLoading(active, message = "") {
+  const zone = $("#dropZone");
+  if (!zone) return;
+  zone.classList.toggle("loading", active);
+  zone.setAttribute("aria-busy", active ? "true" : "false");
+  const strong = zone.querySelector("strong");
+  const span = zone.querySelector("span");
+  if (!strong || !span) return;
+  if (active) {
+    strong.textContent = message || "正在识别文件…";
+    span.textContent = "图片 OCR 需要几秒钟，请勿重复拖入或刷新页面。";
+  } else {
+    strong.textContent = "拖入文件，或从微信 / QQ 直接拖入聊天截图";
+    span.textContent = "支持 PDF、Word、TXT、PNG、JPG、WEBP；图片会自动 OCR。也可以按 Ctrl+V 粘贴截图。";
+  }
+}
+
+async function prepareImageForUpload(file) {
+  if (!file.type.startsWith("image/") || typeof createImageBitmap !== "function") return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const maxSide = 1800;
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    if (scale === 1 && file.size < 3 * 1024 * 1024) {
+      bitmap.close?.();
+      return file;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext("2d", { alpha: false });
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+    if (!blob) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+  } catch (error) {
+    console.warn("图片预处理失败，使用原文件", error);
+    return file;
+  }
+}
+
 async function handleFiles(fileList) {
+  if (state.fileLoading) {
+    toast("正在识别，请稍候…");
+    return;
+  }
   const files = Array.from(fileList || []).filter(Boolean);
   if (!files.length) return;
   if (state.settings.runMode === "api" && !state.user) {
@@ -2080,67 +2162,81 @@ async function handleFiles(fileList) {
     toast("文件解析需要登录，请先登录或注册账号。");
     return;
   }
+  state.fileLoading = true;
+  setFileLoading(true, `正在识别 ${files.length} 个文件…`);
+  await new Promise((resolve) => requestAnimationFrame(resolve));
   const documents = [];
   const errors = [];
-  for (const file of files) {
-    const extension = `.${file.name.split(".").pop().toLowerCase()}`;
-    try {
-      if ([".pdf", ".docx", ".png", ".jpg", ".jpeg", ".webp", ".bmp"].includes(extension)) {
-        if (state.settings.runMode !== "api") {
-          throw new Error("PDF、Word 和图片解析需要后端服务，请启动完整服务后重试");
+  try {
+    for (const file of files) {
+      const extension = `.${file.name.split(".").pop().toLowerCase()}`;
+      try {
+        if ([".pdf", ".docx", ".png", ".jpg", ".jpeg", ".webp", ".bmp"].includes(extension)) {
+          if (state.settings.runMode !== "api") {
+            throw new Error("PDF、Word 和图片解析需要后端服务，请启动完整服务后重试");
+          }
+          const uploadFile = file.type.startsWith("image/") ? await prepareImageForUpload(file) : file;
+          documents.push(await extractDocumentViaApi(uploadFile));
+        } else {
+          const buffer = await file.arrayBuffer();
+          const text = new TextDecoder("utf-8").decode(buffer);
+          documents.push({
+            text,
+            pages: [{ page: 1, text }],
+            filename: file.name,
+            format: extension.replace(".", ""),
+            chars: text.length,
+            sizeBytes: file.size,
+            sha256: await sha256Hex(buffer),
+            pageCount: 1
+          });
         }
-        documents.push(await extractDocumentViaApi(file));
-      } else {
-        const buffer = await file.arrayBuffer();
-        const text = new TextDecoder("utf-8").decode(buffer);
-        documents.push({
-          text,
-          pages: [{ page: 1, text }],
-          filename: file.name,
-          format: extension.replace(".", ""),
-          chars: text.length,
-          sizeBytes: file.size,
-          sha256: await sha256Hex(buffer),
-          pageCount: 1
-        });
+      } catch (error) {
+        errors.push(`${file.name}: ${error.message}`);
       }
-    } catch (error) {
-      errors.push(`${file.name}: ${error.message}`);
     }
-  }
-  if (!documents.length) {
-    toast(`文件读取失败：${errors.join("；")}`);
-    return;
-  }
-  const pages = [];
-  const textParts = [];
-  let pageOffset = 0;
-  for (const document of documents) {
-    const documentPages = Array.isArray(document.pages) && document.pages.length ? document.pages : [{ page: 1, text: document.text }];
-    for (const page of documentPages) {
-      pages.push({ page: pageOffset + Number(page.page || 1), text: String(page.text || ""), source: document.filename });
+    if (!documents.length) {
+      toast(`文件读取失败：${errors.join("；")}`);
+      return;
     }
-    pageOffset += Number(document.pageCount) || documentPages.length;
-    textParts.push(documents.length > 1 ? `【文件：${document.filename}】\n${document.text}` : document.text);
+    const pages = [];
+    const textParts = [];
+    let pageOffset = 0;
+    for (const document of documents) {
+      const documentPages = Array.isArray(document.pages) && document.pages.length ? document.pages : [{ page: 1, text: document.text }];
+      for (const page of documentPages) {
+        pages.push({ page: pageOffset + Number(page.page || 1), text: String(page.text || ""), source: document.filename });
+      }
+      pageOffset += Number(document.pageCount) || documentPages.length;
+      textParts.push(documents.length > 1 ? `【文件：${document.filename}】\n${document.text}` : document.text);
+    }
+    const text = textParts.join("\n\n");
+    $("#contractInput").value = text;
+    $("#charCount").textContent = `${text.length} 字`;
+    state.sourcePages = pages;
+    const hashParts = documents.map((document) => document.sha256 || "").join(":");
+    const combinedHash = documents.length === 1
+      ? (documents[0].sha256 || "")
+      : ((await sha256Hex(new TextEncoder().encode(hashParts))) || hashParts);
+    const ocrMs = documents.reduce((sum, document) => sum + Number(document.ocrMs || 0), 0);
+    state.sourceDocument = {
+      filename: documents.length === 1 ? documents[0].filename : `${documents.length} 个文件：${documents.map((document) => document.filename).join("、")}`,
+      format: documents.length === 1 ? documents[0].format : "mixed",
+      chars: text.length,
+      sizeBytes: documents.reduce((sum, document) => sum + Number(document.sizeBytes || 0), 0),
+      sha256: combinedHash,
+      pageCount: pages.length,
+      ocr: documents.some((document) => document.ocr),
+      ocrLanguage: documents.find((document) => document.ocrLanguage)?.ocrLanguage || "",
+      ocrMs
+    };
+    const ocrSeconds = ocrMs ? `，OCR ${(ocrMs / 1000).toFixed(1)} 秒` : "";
+    toast(`已载入 ${documents.length} 个文件，共 ${text.length} 字${ocrSeconds}${errors.length ? `；${errors.length} 个失败` : ""}`);
+    if (errors.length) console.warn("部分文件读取失败", errors);
+  } finally {
+    state.fileLoading = false;
+    setFileLoading(false);
   }
-  const text = textParts.join("\n\n");
-  $("#contractInput").value = text;
-  $("#charCount").textContent = `${text.length} 字`;
-  state.sourcePages = pages;
-  const hashParts = documents.map((document) => document.sha256 || "").join(":");
-  const combinedHash = documents.length === 1
-    ? (documents[0].sha256 || "")
-    : ((await sha256Hex(new TextEncoder().encode(hashParts))) || hashParts);
-  state.sourceDocument = {
-    filename: documents.length === 1 ? documents[0].filename : `${documents.length} 个文件：${documents.map((document) => document.filename).join("、")}`,
-    format: documents.length === 1 ? documents[0].format : "mixed",
-    chars: text.length,
-    sizeBytes: documents.reduce((sum, document) => sum + Number(document.sizeBytes || 0), 0),
-    sha256: combinedHash,
-    pageCount: pages.length
-  };
-  toast(`已载入 ${documents.length} 个文件，共 ${text.length} 字${errors.length ? `；${errors.length} 个失败` : ""}`);
-  if (errors.length) console.warn("部分文件读取失败", errors);
 }
 
 function bindEvents() {
@@ -2231,8 +2327,12 @@ function bindEvents() {
   $("#analyzeButton").addEventListener("click", runAnalysis);
   $$(".result-tabs .tab").forEach((element) => element.addEventListener("click", () => switchResultTab(element.dataset.resultTab)));
   $("#sendToEvidence").addEventListener("click", () => {
+    if (!state.lastAnalysis) {
+      toast("请先完成一次研判，再同步到证据链。");
+      return;
+    }
+    syncEvidenceFromAnalysis(state.lastAnalysis);
     navigate("evidence");
-    toast("风险行动建议已同步到证据链。");
   });
   $("#exportReport").addEventListener("click", () => {
     if (!state.lastAnalysis) {
