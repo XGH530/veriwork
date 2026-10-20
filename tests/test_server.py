@@ -169,7 +169,7 @@ class TripartiteAgreementTests(unittest.TestCase):
         return """全国普通高等学校毕业生就业协议书（三方协议）
 甲方（用人单位）名称：深圳某科技有限公司
 乙方（毕业生）姓名：张某
-丙方（学校）名称：重庆某学院
+丙方（学校）名称：示例学院
 第一条 乙方到甲方报到时间为2026年7月1日，工作地点为深圳市南山区，岗位为测试工程师。
 第二条 试用期六个月，月工资5000元，岗位职责另行约定，薪资以实际发放为准。
 第三条 甲方有权根据经营需要调整岗位；乙方未满服务期离职的，应支付违约金20000元。
@@ -185,7 +185,7 @@ class TripartiteAgreementTests(unittest.TestCase):
         facts = result["facts"]
         self.assertTrue(facts["isTripartite"])
         self.assertEqual("深圳某科技有限公司", facts["partyA"])
-        self.assertEqual("重庆某学院", facts["school"])
+        self.assertEqual("示例学院", facts["school"])
         self.assertEqual("测试工程师", facts["position"])
         self.assertEqual("深圳市南山区", facts["workLocation"])
         self.assertEqual("深圳", facts["workCity"])
@@ -217,7 +217,7 @@ class TripartiteAgreementTests(unittest.TestCase):
         png = base64.b64decode(
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII="
         )
-        with patch("server.ocr_image_text", return_value="三方协议\n甲方：深圳某科技有限公司\n乙方：张某\n丙方：重庆某学院"):
+        with patch("server.ocr_image_text", return_value="三方协议\n甲方：深圳某科技有限公司\n乙方：张某\n丙方：示例学院"):
             result = server.extract_document("chat.png", png, language="zh")
         self.assertTrue(result["ocr"])
         self.assertEqual("chi_sim+eng", result["ocrLanguage"])
@@ -228,7 +228,7 @@ class TripartiteAgreementTests(unittest.TestCase):
 class InternshipAgreementTests(unittest.TestCase):
     def internship_text(self) -> str:
         return """实习协议
-湖南某人才服务有限公司（以下简称“甲方”），同意 重庆某学院 学校学生 张某，在甲方实习。双方协商一致，共同订立本协议。
+湖南某人才服务有限公司（以下简称“甲方”），同意 示例学院 学校学生 张某，在甲方实习。双方协商一致，共同订立本协议。
 第一条 乙方自 2026 年 6 月 16 日至 2026 年 12 月 15 日，被派驻至深圳市某科技有限公司，在测试部门实习，具体实习内容另行规定。
 第二条 经双方协商，乙方的工作时间执行标准工时制，乙方应按规定时间准时上班。
 第三条 乙方同意，甲方因生产（工作）需要，可依法安排乙方延长工作时间、休息日或节假日加班。
@@ -250,7 +250,7 @@ class InternshipAgreementTests(unittest.TestCase):
         self.assertEqual("劳动合同", result["selectedCaseType"])
         facts = result["facts"]
         self.assertEqual("湖南某人才服务有限公司", facts["partyA"])
-        self.assertEqual("重庆某学院", facts["school"])
+        self.assertEqual("示例学院", facts["school"])
         self.assertEqual("深圳市某科技有限公司", facts["actualEmployer"])
         self.assertEqual("测试", facts["position"])
         self.assertEqual("2026年6月16日", facts["startDate"])
