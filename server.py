@@ -3090,7 +3090,7 @@ class Handler(BaseHTTPRequestHandler):
                         (challenge_id,),
                     ).fetchone()
                 user = get_user_record(int(challenge["user_id"])) if challenge else None
-                if not user or user.get("role") != "admin" or user.get("status") != "active" or not user.get("emailVerified"):
+                if not user or user.get("role") != "admin" or user.get("status") != "active" or not user.get("email_verified_at"):
                     self.send_json({"error": "验证码请求已失效，请重新登录"}, 404)
                     return
                 try:
