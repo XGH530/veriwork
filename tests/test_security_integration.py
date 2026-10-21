@@ -99,6 +99,13 @@ class SecurityIntegrationTests(unittest.TestCase):
                 with urllib.request.urlopen(self.base + path, timeout=5) as response:
                     self.assertEqual(200, response.status)
 
+    def test_business_api_requires_login(self):
+        for path in ("/api/laws", "/api/cases", "/api/evidence"):
+            with self.subTest(path=path):
+                with self.assertRaises(urllib.error.HTTPError) as caught:
+                    urllib.request.urlopen(self.base + path, timeout=5)
+                self.assertEqual(401, caught.exception.code)
+
     def test_cookie_session_hashed_in_database_and_role_boundary(self):
         student = self.opener()
         with self.request(student, "/api/auth/register", {"username": "student01", "password": "Student!2345"}) as response:

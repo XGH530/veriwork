@@ -2268,13 +2268,38 @@ def recompute_after_enhancement(result: dict) -> None:
     })
 
 
+_COMPOUND_SURNAMES = {
+    "欧阳", "司马", "上官", "诸葛", "东方", "皇甫", "尉迟", "公孙", "慕容", "长孙",
+    "宇文", "司徒", "夏侯", "轩辕", "令狐", "钟离", "南宫", "独孤", "西门", "百里",
+}
+
+
+def mask_phone_value(value: str) -> str:
+    digits = str(value or "").strip()
+    if len(digits) < 8:
+        return "XXXX"
+    return f"{digits[:3]}{'X' * max(1, len(digits) - 7)}{digits[-4:]}"
+
+
+def mask_name_value(value: str) -> str:
+    name = str(value or "").strip()
+    if len(name) <= 1:
+        return name
+    surname_length = 2 if len(name) > 2 and name[:2] in _COMPOUND_SURNAMES else 1
+    return name[:surname_length] + "X" * max(1, len(name) - surname_length)
+
+
+def replace_labeled_name(match: re.Match) -> str:
+    return f"{match.group(1)}{mask_name_value(match.group(2))}"
+
+
 _PII_RULES = [
-    (re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)"), "[手机号]", "[手机号]"),
+    (re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)"), "[手机号]", lambda match: mask_phone_value(match.group(0))),
     (re.compile(r"(?<!\d)\d{17}[\dXx](?!\d)"), "[身份证号]", "[身份证号]"),
     (re.compile(r"(?<![A-Za-z0-9])[EG]\d{8}(?![A-Za-z0-9])", re.IGNORECASE), "[护照号]", "[护照号]"),
     (re.compile(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+"), "[邮箱]", "[邮箱]"),
     (re.compile(r"(?<!\d)\d{16,19}(?!\d)"), "[银行卡号]", "[银行卡号]"),
-    (re.compile(r"((?:姓名|学生姓名|毕业生姓名|乙方姓名|联系人|乙方)\s*[:：]\s*)([\u4e00-\u9fa5·]{2,20})"), "[姓名]", r"\1[姓名]"),
+    (re.compile(r"((?:姓名|学生姓名|毕业生姓名|乙方姓名|联系人|乙方)\s*[:：]\s*)([\u4e00-\u9fa5·]{2,20})"), "[姓名]", replace_labeled_name),
     (re.compile(r"((?:甲方|用人单位|签约单位|公司名称|单位名称)\s*[:：]\s*)([^\n，,；;]{2,60})"), "[单位]", r"\1[单位]"),
     (re.compile(r"((?:学校|毕业院校|学校名称|丙方)\s*[:：]\s*)([^\n，,；;]{2,60})"), "[学校]", r"\1[学校]"),
     (re.compile(r"((?:住址|通讯地址|联系地址|家庭地址|地址|工作地点)\s*[:：]\s*)([^\n，,；;]{4,80})"), "[地址]", r"\1[地址]"),
@@ -2282,11 +2307,11 @@ _PII_RULES = [
     (re.compile(r"((?:微信号|微信|QQ号|QQ)\s*[:：]\s*)([A-Za-z0-9_-]{4,40})", re.IGNORECASE), "[账号]", r"\1[账号]"),
 ]
 _PII_PLACEHOLDERS = {
-    "[手机号]": r"1[3-9]\d{9}",
-    "[身份证号]": r"\d{17}[\dXx]",
-    "[护照号]": r"[EG]\d{8}",
+    "[手机号]": r"(?<!\d)1[3-9]\d{9}(?!\d)",
+    "[身份证号]": r"(?<!\d)\d{17}[\dXx](?!\d)",
+    "[护照号]": r"(?<![A-Za-z0-9])[EG]\d{8}(?![A-Za-z0-9])",
     "[邮箱]": r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+",
-    "[银行卡号]": r"\d{16,19}",
+    "[银行卡号]": r"(?<!\d)\d{16,19}(?!\d)",
     "[姓名]": r"[\u4e00-\u9fa5·]{2,20}",
     "[单位]": r"[^\n，,；;]{2,60}",
     "[学校]": r"[^\n，,；;]{2,60}",
@@ -2294,7 +2319,13 @@ _PII_PLACEHOLDERS = {
     "[学号]": r"[A-Za-z0-9-]{4,30}",
     "[账号]": r"[A-Za-z0-9_-]{4,40}",
 }
-_PII_SPLIT_RE = re.compile("(" + "|".join(re.escape(item) for item in _PII_PLACEHOLDERS) + ")")
+_MASKED_PHONE_RE = re.compile(r"\d{3}X{4}\d{4}")
+_MASKED_NAME_RE = re.compile(r"([\u4e00-\u9fa5·]{1,2})(X{1,4})")
+_PII_TOKEN_PATTERN = (
+    r"\d{3}X{4}\d{4}|[\u4e00-\u9fa5·]{1,2}X{1,4}|"
+    + "|".join(re.escape(item) for item in _PII_PLACEHOLDERS)
+)
+_PII_SPLIT_RE = re.compile(f"({_PII_TOKEN_PATTERN})")
 _SENSITIVE_FACT_KEYS = {
     "partyA", "school", "actualEmployer", "position", "workLocation", "workCity",
     "studentName", "contactName", "address", "phone", "email", "studentId",
@@ -2314,8 +2345,22 @@ def redact_payload_for_storage(value, key: str = ""):
     if isinstance(value, list):
         return [redact_payload_for_storage(item, key) for item in value]
     if isinstance(value, str):
+        if key in {"studentName", "contactName"} and value.strip():
+            return mask_name_value(value)
         if key in _SENSITIVE_FACT_KEYS and value.strip():
             return "[已脱敏]"
+        return redact_pii(value)
+    return value
+
+
+def redact_payload_for_display(value, key: str = ""):
+    if isinstance(value, dict):
+        return {str(k): redact_payload_for_display(v, str(k)) for k, v in value.items()}
+    if isinstance(value, list):
+        return [redact_payload_for_display(item, key) for item in value]
+    if isinstance(value, str):
+        if key in {"studentName", "contactName"} and value.strip():
+            return mask_name_value(value)
         return redact_pii(value)
     return value
 
@@ -2328,10 +2373,18 @@ def ground_model_clause(candidate: str, source_text: str) -> str | None:
     if candidate in source_text:
         return candidate
     parts = _PII_SPLIT_RE.split(candidate)
-    regex = "".join(
-        f"(?:{_PII_PLACEHOLDERS[part]})" if part in _PII_PLACEHOLDERS else re.escape(part)
-        for part in parts
-    )
+    regex_parts = []
+    for part in parts:
+        if _MASKED_PHONE_RE.fullmatch(part):
+            regex_parts.append(f"(?:{_PII_PLACEHOLDERS['[手机号]']})")
+        elif _MASKED_NAME_RE.fullmatch(part):
+            name_match = _MASKED_NAME_RE.fullmatch(part)
+            regex_parts.append(re.escape(name_match.group(1)) + rf"[\u4e00-\u9fa5·]{{{len(name_match.group(2))}}}")
+        elif part in _PII_PLACEHOLDERS:
+            regex_parts.append(f"(?:{_PII_PLACEHOLDERS[part]})")
+        else:
+            regex_parts.append(re.escape(part))
+    regex = "".join(regex_parts)
     matched = re.search(regex, source_text)
     return matched.group(0) if matched else None
 
@@ -3304,6 +3357,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(health_payload())
             return
         if parsed.path == "/api/laws":
+            if not self.require_user():
+                return
             self.send_json({"laws": LAWS})
             return
         if not parsed.path.startswith("/api/"):
@@ -3660,7 +3715,7 @@ class Handler(BaseHTTPRequestHandler):
                 f"{result['documentType']} / {jurisdiction} / rules={result.get('analysisStats', {}).get('ruleHits', 0)}",
                 self.client_ip(),
             )
-            self.send_json(result)
+            self.send_json(redact_payload_for_display(result))
         except (ValueError, json.JSONDecodeError) as exc:
             self.send_json({"error": str(exc)}, 400)
         except Exception as exc:  # noqa: BLE001 - 本地服务需要返回可读错误

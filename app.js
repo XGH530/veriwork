@@ -13,6 +13,7 @@ const state = {
   sourcePages: [],
   sourceDocument: null,
   fileLoading: false,
+  pendingPage: null,
   history: [],
   evidenceFiles: [],
   checklist: APP_DATA.evidenceChecklist.map((item) => ({ ...item })),
@@ -278,6 +279,20 @@ function isAdminRole(role) {
   return role === "admin" || role === "reviewer_admin";
 }
 
+const PROTECTED_PAGES = new Set([
+  "dashboard", "analysis", "history", "evidence", "policy",
+  "evaluation", "architecture", "account", "admin"
+]);
+
+function requireLogin(message = "请先登录后再使用平台功能。") {
+  if (state.user) return true;
+  showAuthView("login");
+  const dialog = $("#authDialog");
+  if (dialog && !dialog.open) dialog.showModal();
+  toast(message);
+  return false;
+}
+
 function completeLogin(user) {
   state.user = user;
   state.pending2fa = null;
@@ -286,7 +301,9 @@ function completeLogin(user) {
   updateUserUI();
   $("#authDialog")?.close();
   clearAuthError();
-  navigate(isAdminRole(user.role) ? "admin" : "dashboard");
+  const destination = isAdminRole(user.role) ? "admin" : (state.pendingPage || "dashboard");
+  state.pendingPage = null;
+  navigate(destination);
   toast(`已登录：${user.username}`);
 }
 
@@ -309,9 +326,7 @@ async function verifyAdmin2fa() {
 async function registerAccount(username, password) {
   const email = $("#authEmail")?.value.trim() || "";
   const data = await authRequest("/api/auth/register", { username, password, email });
-  state.user = data.user;
-  updateUserUI();
-  $("#authDialog")?.close();
+  completeLogin(data.user);
   toast(`注册成功：${data.user.username}${email ? "，请到账户中心完成邮箱验证。" : ""}`);
 }
 
@@ -548,11 +563,14 @@ async function logoutAccount() {
     console.warn(error);
   }
   state.user = null;
-  state.lastAnalysis = null;
-  state.lastCaseId = null;
   state.history = [];
   state.evidenceFiles = [];
+  clearWorkspaceData();
+  state.pendingPage = "dashboard";
   updateUserUI();
+  showAuthView("login");
+  const dialog = $("#authDialog");
+  if (dialog && !dialog.open) dialog.showModal();
   toast("已退出登录。");
 }
 
@@ -584,6 +602,11 @@ function formatDate(date = new Date()) {
 }
 
 function navigate(page) {
+  if (!state.user && PROTECTED_PAGES.has(page)) {
+    state.pendingPage = page;
+    requireLogin(`登录后才能使用“${page === "analysis" ? "合同研判" : "该功能"}”。`);
+    return;
+  }
   const isAdmin = isAdminRole(state.user?.role);
   if (isAdmin && !["admin", "account"].includes(page)) page = "admin";
   if (!isAdmin && page === "admin") page = "dashboard";
@@ -1136,12 +1159,7 @@ async function runAnalysis() {
     return;
   }
 
-  if (state.settings.runMode === "api" && !state.user) {
-    showAuthView("login");
-    $("#authDialog")?.showModal();
-    toast("请先登录后再使用后端可信研判。");
-    return;
-  }
+  if (!requireLogin("请先登录后再运行合同研判。")) return;
 
   const button = $("#analyzeButton");
   button.disabled = true;
@@ -1304,7 +1322,23 @@ function switchResultTab(tabName) {
   $$(".result-tab-panel").forEach((element) => element.classList.toggle("active", element.id === `result-${tabName}`));
 }
 
+function clearWorkspaceData() {
+  state.sourcePages = [];
+  state.sourceDocument = null;
+  state.lastAnalysis = null;
+  state.lastCaseId = null;
+  const input = $("#contractInput");
+  if (input) input.value = "";
+  const count = $("#charCount");
+  if (count) count.textContent = "0 字";
+  $("#analysisResult")?.classList.add("hidden");
+  $("#emptyResult")?.classList.remove("hidden");
+  const status = $("#resultStatus");
+  if (status) status.textContent = "等待分析";
+}
+
 function loadCase(item, shouldAnalyze = false) {
+  if (!requireLogin("请先登录后再载入研判材料。")) return;
   state.currentCase = item;
   state.sourcePages = [];
   state.sourceDocument = null;
@@ -1452,6 +1486,7 @@ function updateEvidenceScore() {
 }
 
 function addEvidence() {
+  if (!requireLogin("请先登录后再编辑证据链。")) return;
   const input = $("#newEvidenceInput");
   const value = input.value.trim();
   if (!value) return;
@@ -1467,6 +1502,7 @@ function buildTimelineExport() {
 }
 
 async function runEvaluation() {
+  if (!requireLogin("请先登录后再运行可信评测。")) return;
   const button = $("#runEvaluation");
   button.disabled = true;
   button.textContent = "运行中…";
@@ -1607,6 +1643,7 @@ function updateModeUI() {
 }
 
 function matchPolicies() {
+  if (!requireLogin("请先登录后再使用政策服务。")) return;
   const identity = $("#policyIdentity").value;
   const region = $("#policyRegion").value;
   const employment = $("#policyEmployment").value;
@@ -2397,12 +2434,7 @@ async function handleFiles(fileList) {
   }
   const files = Array.from(fileList || []).filter(Boolean);
   if (!files.length) return;
-  if (state.settings.runMode === "api" && !state.user) {
-    showAuthView("login");
-    $("#authDialog")?.showModal();
-    toast("文件解析需要登录，请先登录或注册账号。");
-    return;
-  }
+  if (!requireLogin("文件解析需要登录，请先登录或注册账号。")) return;
   state.fileLoading = true;
   setFileLoading(true, `正在识别 ${files.length} 个文件…`);
   await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -2493,6 +2525,12 @@ function bindEvents() {
       input.focus();
     });
   });
+  $("#authDialog")?.addEventListener("cancel", (event) => {
+    if (!state.user) {
+      event.preventDefault();
+      toast("请先登录后再关闭登录窗口。");
+    }
+  });
   $$(".nav-item").forEach((element) => element.addEventListener("click", () => navigate(element.dataset.page)));
   $$("[data-go]").forEach((element) => element.addEventListener("click", () => navigate(element.dataset.go)));
 
@@ -2504,13 +2542,8 @@ function bindEvents() {
     $("#contractInput").dispatchEvent(new Event("input"));
   });
   $("#clearButton").addEventListener("click", () => {
-    state.sourcePages = [];
-    state.sourceDocument = null;
-    $("#contractInput").value = "";
+    clearWorkspaceData();
     $("#contractInput").dispatchEvent(new Event("input"));
-    $("#analysisResult").classList.add("hidden");
-    $("#emptyResult").classList.remove("hidden");
-    $("#resultStatus").textContent = "等待分析";
   });
   $("#contractInput").addEventListener("input", (event) => {
     $("#charCount").textContent = `${event.target.value.length} 字`;
@@ -2659,7 +2692,14 @@ function bindEvents() {
     if (event.target.closest("#openAdminLogin")) {
       window.location.href = `${window.location.pathname}?admin=1`;
     }
-    if (event.target.closest("#closeAuth")) { clearAuthError(); $("#authDialog")?.close(); }
+    if (event.target.closest("#closeAuth")) {
+      if (!state.user) {
+        toast("请先登录后再关闭登录窗口。");
+        return;
+      }
+      clearAuthError();
+      $("#authDialog")?.close();
+    }
     if (event.target.closest("#loginButton")) {
       loginWithCredentials($("#authUsername").value.trim(), $("#authPassword").value).catch((error) => showAuthError(error.message || "登录失败，请检查账号和密码"));
     }
@@ -2690,7 +2730,7 @@ function updatePrivacyNotice() {
   if (window.location.protocol === "http:" && !isLocal) {
     strip.classList.add("warning");
     const text = strip.querySelector("span");
-    if (text) text.textContent = "当前为 HTTP 演示环境，请勿上传真实合同原件；请使用脱敏件或合成材料。系统调用外部模型前仍会替换常见敏感字段，但浏览器到服务器之间的传输未加密。";
+    if (text) text.textContent = "当前为 HTTP 演示环境，请勿上传真实合同原件；请使用脱敏件或合成材料。系统调用外部模型前会按“黄XX、133XXXX1465”等格式处理敏感字段，但浏览器到服务器之间的传输未加密。";
   }
 }
 
@@ -2710,33 +2750,32 @@ function init() {
   bindEvents();
   updatePrivacyNotice();
   initCarousel();
+  const requestedPage = params.get("page");
+  if (requestedPage && PROTECTED_PAGES.has(requestedPage)) state.pendingPage = requestedPage;
   (async () => {
     await refreshBackendStatus();
     const authenticated = await loadCurrentUser();
-    if (authenticated) {
-      if (state.currentPage === "history") refreshHistory();
-      if (state.currentPage === "evidence") refreshEvidenceFiles();
-      if (state.currentPage === "account") refreshAccountCenter();
-    }
-    if (state.settings.runMode === "api" && !authenticated) {
+    if (!authenticated) {
       showAuthView("login");
       $("#authDialog")?.showModal();
+      return;
+    }
+    const destination = state.pendingPage || "dashboard";
+    state.pendingPage = null;
+    navigate(destination);
+    if (state.currentPage === "history") refreshHistory();
+    if (state.currentPage === "evidence") refreshEvidenceFiles();
+    if (state.currentPage === "account") refreshAccountCenter();
+    if (params.get("demo") === "risk") {
+      window.setTimeout(() => loadCase(APP_DATA.demoCases[0], true), 120);
+    }
+    if (params.get("demo") === "evaluation") {
+      navigate("evaluation");
+      window.setTimeout(runEvaluation, 160);
     }
   })();
   $("#contractInput").value = APP_DATA.demoCases[0].text;
   $("#contractInput").dispatchEvent(new Event("input"));
-
-  const requestedPage = params.get("page");
-  if (requestedPage && ["dashboard", "analysis", "history", "evidence", "policy", "account", "admin", "evaluation", "architecture"].includes(requestedPage)) {
-    navigate(requestedPage);
-  }
-  if (params.get("demo") === "risk") {
-    window.setTimeout(() => loadCase(APP_DATA.demoCases[0], true), 120);
-  }
-  if (params.get("demo") === "evaluation") {
-    navigate("evaluation");
-    window.setTimeout(runEvaluation, 160);
-  }
 }
 
 window.VeriWork = { APP_DATA, analyzeContract, state };

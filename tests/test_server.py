@@ -137,10 +137,12 @@ class RuleEngineTests(unittest.TestCase):
         for sensitive in ("重庆某某科技有限公司", "张三", "示例大学", "重庆市渝北区某路88号", "20260001", "13800138000"):
             self.assertNotIn(sensitive, redacted)
         self.assertIn("[单位]", redacted)
-        self.assertIn("[姓名]", redacted)
+        self.assertIn("张X", redacted)
+        self.assertIn("138XXXX8000", redacted)
         self.assertIn("[学校]", redacted)
         self.assertIn("[地址]", redacted)
         self.assertIn("[学号]", redacted)
+        self.assertEqual(text, server.ground_model_clause(redacted, text))
 
         stored = server.strip_result_for_storage({
             "inputText": text,
