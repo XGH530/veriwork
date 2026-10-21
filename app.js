@@ -262,6 +262,16 @@ function showAuthView(mode = "login") {
   }
 }
 
+function showAuthCloseNotice() {
+  const notice = $("#authCloseNotice");
+  if (!notice) return;
+  notice.classList.remove("show");
+  void notice.offsetWidth;
+  notice.classList.add("show");
+  window.clearTimeout(showAuthCloseNotice.timer);
+  showAuthCloseNotice.timer = window.setTimeout(() => notice.classList.remove("show"), 2200);
+}
+
 async function loginWithCredentials(username, password) {
   clearAuthError();
   const data = await authRequest("/api/auth/login", { username, password });
@@ -2528,7 +2538,7 @@ function bindEvents() {
   $("#authDialog")?.addEventListener("cancel", (event) => {
     if (!state.user) {
       event.preventDefault();
-      toast("请先登录后再关闭登录窗口。");
+      showAuthCloseNotice();
     }
   });
   $$(".nav-item").forEach((element) => element.addEventListener("click", () => navigate(element.dataset.page)));
@@ -2694,7 +2704,7 @@ function bindEvents() {
     }
     if (event.target.closest("#closeAuth")) {
       if (!state.user) {
-        toast("请先登录后再关闭登录窗口。");
+        showAuthCloseNotice();
         return;
       }
       clearAuthError();

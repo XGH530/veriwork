@@ -1893,3 +1893,25 @@ body.reviewer-admin-mode #adminUsers tr td:last-child::after {
   background: #fff9ef;
 }
 .privacy-strip.warning strong { color: #a85b11; }
+
+.auth-close-notice {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 120;
+  max-width: min(360px, 82vw);
+  padding: 13px 18px;
+  color: #ffffff;
+  background: rgba(28, 38, 51, .96);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 8px;
+  box-shadow: 0 18px 45px rgba(15,23,42,.28);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(.96);
+  transition: opacity .18s ease, transform .18s ease;
+}
+.auth-close-notice.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
