@@ -86,7 +86,7 @@ SMTP_FROM = os.environ.get("SMTP_FROM", SMTP_USERNAME).strip()
 SMTP_USE_SSL = os.environ.get("SMTP_USE_SSL", "true").lower() in {"1", "true", "yes"}
 SMTP_USE_STARTTLS = os.environ.get("SMTP_USE_STARTTLS", "false").lower() in {"1", "true", "yes"}
 EMAIL_DELIVERY_MODE = os.environ.get("EMAIL_DELIVERY_MODE", "smtp").strip().lower()
-EMAIL_CODE_TTL_SECONDS = max(120, int(os.environ.get("EMAIL_CODE_TTL_SECONDS", "600")))
+EMAIL_CODE_TTL_SECONDS = max(120, int(os.environ.get("EMAIL_CODE_TTL_SECONDS", "120")))
 EMAIL_CODE_RESEND_SECONDS = max(30, int(os.environ.get("EMAIL_CODE_RESEND_SECONDS", "60")))
 EMAIL_CODE_MAX_ATTEMPTS = max(3, int(os.environ.get("EMAIL_CODE_MAX_ATTEMPTS", "5")))
 _rate_lock = threading.Lock()
@@ -511,6 +511,11 @@ def create_email_challenge(user_id: int, purpose: str) -> tuple[int, str]:
         if recent and (now - datetime.fromisoformat(recent["created_at"])).total_seconds() < EMAIL_CODE_RESEND_SECONDS:
             raise ValueError("验证码发送过于频繁，请稍后再试")
         code = f"{secrets.randbelow(1_000_000):06d}"
+        # 新验证码生成后，旧验证码立即失效，避免多个验证码同时可用。
+        connection.execute(
+            "UPDATE email_challenges SET consumed_at = ? WHERE user_id = ? AND purpose = ? AND consumed_at IS NULL",
+            (now.isoformat(timespec="seconds"), user_id, purpose),
+        )
         cursor = connection.execute(
             "INSERT INTO email_challenges(user_id, purpose, code_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)",
             (
@@ -3060,6 +3065,8 @@ class Handler(BaseHTTPRequestHandler):
                         "requires2fa": True,
                         "challengeId": challenge_id,
                         "emailHint": mask_email(str(user.get("email", ""))),
+                        "resendAfter": EMAIL_CODE_RESEND_SECONDS,
+                        "expiresIn": EMAIL_CODE_TTL_SECONDS,
                     })
                     return
                 clear_login_failures(client_ip, username)
@@ -3070,6 +3077,43 @@ class Handler(BaseHTTPRequestHandler):
                 token = create_session(user["id"], self.headers.get("User-Agent", ""), client_ip)
                 audit_event(user["id"], "login", "user", user["id"], "用户登录", client_ip)
                 self.send_json({"user": user}, extra_headers={"Set-Cookie": self.session_cookie(token)})
+                return
+            if path == "/api/auth/resend-2fa":
+                try:
+                    challenge_id = int(body.get("challengeId"))
+                except (TypeError, ValueError):
+                    self.send_json({"error": "验证码请求无效，请重新登录"}, 400)
+                    return
+                with auth_db() as connection:
+                    challenge = connection.execute(
+                        "SELECT * FROM email_challenges WHERE id = ? AND purpose = 'admin_2fa' AND consumed_at IS NULL",
+                        (challenge_id,),
+                    ).fetchone()
+                user = get_user_record(int(challenge["user_id"])) if challenge else None
+                if not user or user.get("role") != "admin" or user.get("status") != "active" or not user.get("emailVerified"):
+                    self.send_json({"error": "验证码请求已失效，请重新登录"}, 404)
+                    return
+                try:
+                    new_challenge_id, _ = send_auth_code(user, "admin_2fa", str(user.get("email", "")))
+                except ValueError as exc:
+                    latest = latest_email_challenge(int(user["id"]), "admin_2fa")
+                    retry_after = EMAIL_CODE_RESEND_SECONDS
+                    if latest:
+                        elapsed = (datetime.now() - datetime.fromisoformat(latest["created_at"])).total_seconds()
+                        retry_after = max(1, int(EMAIL_CODE_RESEND_SECONDS - elapsed) + 1)
+                    self.send_json({"error": str(exc), "retryAfter": retry_after}, 429)
+                    return
+                except Exception:
+                    self.send_json({"error": "验证码发送失败，请稍后重试"}, 503)
+                    return
+                audit_event(int(user["id"]), "admin_2fa_resent", "user", int(user["id"]), "管理员登录验证码已重新发送", client_ip)
+                self.send_json({
+                    "ok": True,
+                    "challengeId": new_challenge_id,
+                    "emailHint": mask_email(str(user.get("email", ""))),
+                    "resendAfter": EMAIL_CODE_RESEND_SECONDS,
+                    "expiresIn": EMAIL_CODE_TTL_SECONDS,
+                })
                 return
             if path == "/api/auth/verify-2fa":
                 challenge_id = int(body.get("challengeId"))

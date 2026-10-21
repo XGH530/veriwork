@@ -3,6 +3,7 @@ const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selec
 
 let analysisProgressTimer = null;
 let analysisProgressStartedAt = 0;
+let admin2faCountdownTimer = null;
 
 const state = {
   currentPage: "dashboard",
@@ -173,7 +174,12 @@ async function authRequest(path, payload) {
     body: JSON.stringify(payload)
   });
   const data = await response.json();
-  if (!response.ok || data.error) throw new Error(data.error || `请求失败 ${response.status}`);
+  if (!response.ok || data.error) {
+    const error = new Error(data.error || `请求失败 ${response.status}`);
+    error.status = response.status;
+    error.payload = data;
+    throw error;
+  }
   return data;
 }
 
@@ -341,6 +347,59 @@ function setAdminLoginBusy(busy, label) {
   button.textContent = label || (state.pending2fa?.challengeId ? "验证邮箱并进入" : "进入运营控制台");
 }
 
+function clearAdmin2faCountdown() {
+  if (admin2faCountdownTimer) window.clearInterval(admin2faCountdownTimer);
+  admin2faCountdownTimer = null;
+}
+
+function startAdmin2faCountdown(data = {}) {
+  clearAdmin2faCountdown();
+  const resendAfter = Math.max(1, Number(data.resendAfter) || 60);
+  const expiresIn = Math.max(60, Number(data.expiresIn) || 120);
+  const deadline = Date.now() + resendAfter * 1000;
+  const validity = $("#admin2faValidity");
+  const resendButton = $("#adminResendCodeButton");
+  if (validity) validity.textContent = `验证码 ${Math.round(expiresIn / 60)} 分钟内有效`;
+  const update = () => {
+    const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    if (!resendButton) return;
+    resendButton.disabled = remaining > 0;
+    resendButton.textContent = remaining > 0 ? `重新发送（${remaining}s）` : "重新发送验证码";
+  };
+  update();
+  admin2faCountdownTimer = window.setInterval(() => {
+    update();
+    if (Date.now() >= deadline) clearAdmin2faCountdown();
+  }, 250);
+}
+
+async function resendAdmin2faCode() {
+  if (!state.pending2fa?.challengeId) {
+    showAdminLoginError("请先使用管理员账号和密码登录。");
+    return;
+  }
+  const button = $("#adminResendCodeButton");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "正在发送…";
+  }
+  clearAdminLoginError();
+  try {
+    const data = await authRequest("/api/auth/resend-2fa", {
+      challengeId: state.pending2fa.challengeId
+    });
+    state.pending2fa = { ...state.pending2fa, ...data };
+    $("#admin2faCode").value = "";
+    $("#admin2faCode")?.focus();
+    startAdmin2faCountdown(data);
+    showAdminLoginError(`新的验证码已发送到 ${data.emailHint || "管理员邮箱"}。`);
+  } catch (error) {
+    const retryAfter = Number(error.payload?.retryAfter);
+    if (retryAfter > 0) startAdmin2faCountdown({ resendAfter: retryAfter, expiresIn: 120 });
+    showAdminLoginError(error.message || "验证码重新发送失败");
+  }
+}
+
 async function adminLoginWithCredentials() {
   clearAdminLoginError();
   setAdminLoginBusy(true, "正在验证账号…");
@@ -353,6 +412,7 @@ async function adminLoginWithCredentials() {
       state.pending2fa = data;
       $("#admin2faRow")?.classList.remove("hidden");
       $("#admin2faCode")?.focus();
+      startAdmin2faCountdown(data);
       setAdminLoginBusy(false, "验证邮箱并进入");
       showAdminLoginError(`验证码已发送到 ${data.emailHint || "管理员邮箱"}，请在下方输入验证码后点击“验证邮箱并进入”。`);
       return;
@@ -394,6 +454,7 @@ async function verifyAdminLogin2fa() {
       return;
     }
     state.pending2fa = null;
+    clearAdmin2faCountdown();
     window.location.href = `${window.location.pathname}?page=admin`;
   } catch (error) {
     showAdminLoginError(error.message || "邮箱验证码不正确");
@@ -417,6 +478,7 @@ function initAdminLoginPage() {
   $("#admin2faCode")?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") verifyAdminLogin2fa();
   });
+  $("#adminResendCodeButton")?.addEventListener("click", resendAdmin2faCode);
   $("#adminPassword")?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") handleAdminLoginAction();
   });

@@ -1840,3 +1840,27 @@ body.reviewer-admin-mode #adminUsers tr td:last-child::after {
   color: #7a8797;
   font-size: 10px;
 }
+
+
+/* 管理员验证码倒计时与评委通道说明 */
+.admin-code-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  color: #6b7b8d;
+  font-size: 10px;
+}
+.admin-code-meta .link-button { font-size: 10px; white-space: nowrap; }
+.admin-code-meta .link-button:disabled { color: #98a4b1; cursor: not-allowed; }
+.admin-reviewer-note {
+  margin: 12px 0 0;
+  padding: 10px 11px;
+  color: #42566d;
+  border: 1px solid #d7e2ee;
+  border-radius: 6px;
+  background: #f5f8fb;
+  font-size: 10px;
+  line-height: 1.65;
+}

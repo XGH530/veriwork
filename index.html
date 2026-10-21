@@ -6,7 +6,7 @@
   <meta name="description" content="职安盾 VeriWork——面向高校毕业生就业合同的可验证 AI 风险评估与证据链系统">
   <title>职安盾 VeriWork · 可信就业风险决策</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <link rel="stylesheet" href="styles.css?v=20261019r21">
+  <link rel="stylesheet" href="styles.css?v=20261019r22">
 </head>
 <body>
   
@@ -687,11 +687,18 @@
             <button type="button" class="password-toggle" data-password-target="adminPassword" aria-label="显示密码" aria-pressed="false">显示密码</button>
           </span>
         </label>
-        <div id="admin2faRow" class="admin-login-field hidden"><label>邮箱验证码<input id="admin2faCode" type="text" inputmode="numeric" maxlength="6" placeholder="6位验证码"></label></div>
+        <div id="admin2faRow" class="admin-login-field hidden">
+          <label>邮箱验证码<input id="admin2faCode" type="text" inputmode="numeric" maxlength="6" placeholder="6位验证码"></label>
+          <div class="admin-code-meta">
+            <span id="admin2faValidity">验证码 2 分钟内有效</span>
+            <button id="adminResendCodeButton" type="button" class="link-button" disabled>重新发送（60s）</button>
+          </div>
+        </div>
         <div id="adminLoginError" class="auth-error hidden" role="alert"></div>
         <button id="adminLoginButton" class="primary-button admin-login-submit">进入运营控制台</button>
         <button id="backToUserLogin" class="link-button admin-login-back">返回用户登录</button>
         <p class="dialog-note">管理员入口不会绕过服务端权限校验。登录成功后才会加载管理后台。</p>
+        <p class="admin-reviewer-note">评委老师请使用赛事负责人提供的只读评审管理员账号；该通道无需邮箱验证码，且不能修改平台数据。</p>
       </section>
     </div>
   </main>
@@ -810,7 +817,7 @@
     </form>
   </dialog>
 
-  <script src="data.js?v=20261019r21"></script>
-  <script src="app.js?v=20261019r21"></script>
+  <script src="data.js?v=20261019r22"></script>
+  <script src="app.js?v=20261019r22"></script>
 </body>
 </html>

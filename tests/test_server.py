@@ -4,6 +4,7 @@ import os
 import sys
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -154,6 +155,11 @@ class RuleEngineTests(unittest.TestCase):
         user = server.register_user(username, "EmailTest!2345", email="tester@example.com")
         self.assertEqual("tester@example.com", user["email"])
         challenge_id, code = server.create_email_challenge(user["id"], "verify_email")
+        latest = server.latest_email_challenge(user["id"], "verify_email")
+        ttl = (datetime.fromisoformat(latest["expires_at"]) - datetime.fromisoformat(latest["created_at"])).total_seconds()
+        self.assertEqual(120, ttl)
+        with self.assertRaisesRegex(ValueError, "过于频繁"):
+            server.create_email_challenge(user["id"], "verify_email")
         self.assertEqual(user["id"], server.verify_email_challenge(challenge_id, code, "verify_email"))
         with self.assertRaises(ValueError):
             server.verify_email_challenge(challenge_id, code, "verify_email")
