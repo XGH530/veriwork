@@ -131,6 +131,31 @@ class RuleEngineTests(unittest.TestCase):
         self.assertNotIn("13800138000", deposit.get("modelReason", ""))
         self.assertNotIn("test@example.com", deposit.get("modelAction", ""))
 
+    def test_identity_fields_are_redacted_for_llm_and_storage(self):
+        text = "甲方：重庆某某科技有限公司；乙方：张三；学校：示例大学；住址：重庆市渝北区某路88号；学号：20260001；手机：13800138000"
+        redacted = server.redact_pii(text)
+        for sensitive in ("重庆某某科技有限公司", "张三", "示例大学", "重庆市渝北区某路88号", "20260001", "13800138000"):
+            self.assertNotIn(sensitive, redacted)
+        self.assertIn("[单位]", redacted)
+        self.assertIn("[姓名]", redacted)
+        self.assertIn("[学校]", redacted)
+        self.assertIn("[地址]", redacted)
+        self.assertIn("[学号]", redacted)
+
+        stored = server.strip_result_for_storage({
+            "inputText": text,
+            "facts": {"partyA": "重庆某某科技有限公司", "school": "示例大学", "position": "开发岗"},
+            "clauses": [text],
+            "risks": [{"id": "test", "clause": text}],
+            "questions": [f"联系张三，手机13800138000"],
+        })
+        serialized = json.dumps(stored, ensure_ascii=False)
+        self.assertNotIn("inputText", stored)
+        self.assertNotIn("重庆某某科技有限公司", serialized)
+        self.assertNotIn("示例大学", serialized)
+        self.assertNotIn("13800138000", serialized)
+        self.assertEqual("[已脱敏]", stored["facts"]["partyA"])
+
     def test_all_frontend_jurisdictions_have_backend_profiles(self):
         expected = ["全国规则", "北京", "上海", "广东", "深圳", "重庆", "四川", "贵州", "云南", "陕西", "湖北", "湖南", "广西"]
         for name in expected:

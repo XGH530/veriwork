@@ -379,18 +379,12 @@ def resolve_session(token: str | None) -> dict | None:
 def strip_result_for_storage(result: dict) -> dict:
     payload = json.loads(json.dumps(result, ensure_ascii=False))
     payload.pop("inputText", None)
-    for risk in payload.get("risks", []):
-        for key in ("clause", "matchText", "reason", "action", "modelReason", "modelAction"):
-            if risk.get(key):
-                risk[key] = redact_pii(str(risk[key]))
-    if isinstance(payload.get("sourceDocument"), dict):
-        source_document = payload["sourceDocument"]
-        if source_document.get("filename"):
-            source_document["filename"] = redact_pii(str(source_document["filename"]))
-    if payload.get("complaintDraft"):
-        payload["complaintDraft"] = redact_pii(str(payload["complaintDraft"]))
-    if isinstance(payload.get("questions"), list):
-        payload["questions"] = [redact_pii(str(item)) for item in payload["questions"]]
+    # 历史快照中的条款、结构化事实、问题和建议统一递归脱敏。
+    payload = redact_payload_for_storage(payload)
+    source_document = payload.get("sourceDocument")
+    if isinstance(source_document, dict) and source_document.get("filename"):
+        suffix = Path(str(source_document["filename"])).suffix.lower()[:10]
+        source_document["filename"] = f"材料文件{suffix}"
     return payload
 
 
@@ -2275,19 +2269,55 @@ def recompute_after_enhancement(result: dict) -> None:
 
 
 _PII_RULES = [
-    (re.compile(r"1[3-9]\d{9}"), "[手机号]"),
-    (re.compile(r"(?<!\d)\d{17}[\dXx](?!\d)"), "[身份证号]"),
-    (re.compile(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+"), "[邮箱]"),
-    (re.compile(r"(?<!\d)\d{16,19}(?!\d)"), "[银行卡号]"),
+    (re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)"), "[手机号]", "[手机号]"),
+    (re.compile(r"(?<!\d)\d{17}[\dXx](?!\d)"), "[身份证号]", "[身份证号]"),
+    (re.compile(r"(?<![A-Za-z0-9])[EG]\d{8}(?![A-Za-z0-9])", re.IGNORECASE), "[护照号]", "[护照号]"),
+    (re.compile(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+"), "[邮箱]", "[邮箱]"),
+    (re.compile(r"(?<!\d)\d{16,19}(?!\d)"), "[银行卡号]", "[银行卡号]"),
+    (re.compile(r"((?:姓名|学生姓名|毕业生姓名|乙方姓名|联系人|乙方)\s*[:：]\s*)([\u4e00-\u9fa5·]{2,20})"), "[姓名]", r"\1[姓名]"),
+    (re.compile(r"((?:甲方|用人单位|签约单位|公司名称|单位名称)\s*[:：]\s*)([^\n，,；;]{2,60})"), "[单位]", r"\1[单位]"),
+    (re.compile(r"((?:学校|毕业院校|学校名称|丙方)\s*[:：]\s*)([^\n，,；;]{2,60})"), "[学校]", r"\1[学校]"),
+    (re.compile(r"((?:住址|通讯地址|联系地址|家庭地址|地址|工作地点)\s*[:：]\s*)([^\n，,；;]{4,80})"), "[地址]", r"\1[地址]"),
+    (re.compile(r"((?:学号|学生证号)\s*[:：]\s*)([A-Za-z0-9-]{4,30})"), "[学号]", r"\1[学号]"),
+    (re.compile(r"((?:微信号|微信|QQ号|QQ)\s*[:：]\s*)([A-Za-z0-9_-]{4,40})", re.IGNORECASE), "[账号]", r"\1[账号]"),
 ]
-_PII_PLACEHOLDERS = {placeholder: pattern.pattern for pattern, placeholder in _PII_RULES}
+_PII_PLACEHOLDERS = {
+    "[手机号]": r"1[3-9]\d{9}",
+    "[身份证号]": r"\d{17}[\dXx]",
+    "[护照号]": r"[EG]\d{8}",
+    "[邮箱]": r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+",
+    "[银行卡号]": r"\d{16,19}",
+    "[姓名]": r"[\u4e00-\u9fa5·]{2,20}",
+    "[单位]": r"[^\n，,；;]{2,60}",
+    "[学校]": r"[^\n，,；;]{2,60}",
+    "[地址]": r"[^\n，,；;]{4,80}",
+    "[学号]": r"[A-Za-z0-9-]{4,30}",
+    "[账号]": r"[A-Za-z0-9_-]{4,40}",
+}
+_PII_SPLIT_RE = re.compile("(" + "|".join(re.escape(item) for item in _PII_PLACEHOLDERS) + ")")
+_SENSITIVE_FACT_KEYS = {
+    "partyA", "school", "actualEmployer", "position", "workLocation", "workCity",
+    "studentName", "contactName", "address", "phone", "email", "studentId",
+}
 
 
 def redact_pii(text: str) -> str:
     redacted = str(text or "")
-    for pattern, placeholder in _PII_RULES:
-        redacted = pattern.sub(placeholder, redacted)
+    for pattern, placeholder, replacement in _PII_RULES:
+        redacted = pattern.sub(replacement, redacted)
     return redacted
+
+
+def redact_payload_for_storage(value, key: str = ""):
+    if isinstance(value, dict):
+        return {str(k): redact_payload_for_storage(v, str(k)) for k, v in value.items()}
+    if isinstance(value, list):
+        return [redact_payload_for_storage(item, key) for item in value]
+    if isinstance(value, str):
+        if key in _SENSITIVE_FACT_KEYS and value.strip():
+            return "[已脱敏]"
+        return redact_pii(value)
+    return value
 
 
 def ground_model_clause(candidate: str, source_text: str) -> str | None:
@@ -2297,7 +2327,7 @@ def ground_model_clause(candidate: str, source_text: str) -> str | None:
         return None
     if candidate in source_text:
         return candidate
-    parts = re.split(r"(\[手机号\]|\[身份证号\]|\[邮箱\]|\[银行卡号\])", candidate)
+    parts = _PII_SPLIT_RE.split(candidate)
     regex = "".join(
         f"(?:{_PII_PLACEHOLDERS[part]})" if part in _PII_PLACEHOLDERS else re.escape(part)
         for part in parts
@@ -3620,6 +3650,8 @@ class Handler(BaseHTTPRequestHandler):
             stats["totalRisks"] = len(result.get("risks", []))
             case_id = save_case_record(user, result, result["documentType"], jurisdiction, language)
             result["caseId"] = case_id
+            # 浏览器已有原文，无需在响应中再次回传完整合同文本。
+            result.pop("inputText", None)
             audit_event(
                 user["id"],
                 "analyze_contract",

@@ -2683,6 +2683,17 @@ function bindEvents() {
   });
 }
 
+function updatePrivacyNotice() {
+  const strip = $(".privacy-strip");
+  if (!strip) return;
+  const isLocal = ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
+  if (window.location.protocol === "http:" && !isLocal) {
+    strip.classList.add("warning");
+    const text = strip.querySelector("span");
+    if (text) text.textContent = "当前为 HTTP 演示环境，请勿上传真实合同原件；请使用脱敏件或合成材料。系统调用外部模型前仍会替换常见敏感字段，但浏览器到服务器之间的传输未加密。";
+  }
+}
+
 function init() {
   const params = new URLSearchParams(window.location.search);
   if (params.get("admin") === "1") {
@@ -2697,6 +2708,7 @@ function init() {
   updateEvidenceDocuments(null);
   loadSettings();
   bindEvents();
+  updatePrivacyNotice();
   initCarousel();
   (async () => {
     await refreshBackendStatus();

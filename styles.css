@@ -1864,3 +1864,32 @@ body.reviewer-admin-mode #adminUsers tr td:last-child::after {
   font-size: 10px;
   line-height: 1.65;
 }
+
+
+/* 合同材料隐私处理说明 */
+.privacy-strip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 9px 0 12px;
+  padding: 9px 10px;
+  color: #52657a;
+  border: 1px solid #d9e4ef;
+  border-radius: 6px;
+  background: #f6f9fc;
+  font-size: 10px;
+  line-height: 1.6;
+}
+.privacy-strip strong {
+  flex: 0 0 auto;
+  color: #1f5f4a;
+  font-size: 10px;
+}
+
+
+.privacy-strip.warning {
+  color: #7a4a18;
+  border-color: #e5c596;
+  background: #fff9ef;
+}
+.privacy-strip.warning strong { color: #a85b11; }
