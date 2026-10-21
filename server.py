@@ -3715,7 +3715,12 @@ class Handler(BaseHTTPRequestHandler):
                 f"{result['documentType']} / {jurisdiction} / rules={result.get('analysisStats', {}).get('ruleHits', 0)}",
                 self.client_ip(),
             )
-            self.send_json(redact_payload_for_display(result))
+            response_result = redact_payload_for_display(result)
+            response_source = response_result.get("sourceDocument")
+            if isinstance(response_source, dict) and response_source.get("filename"):
+                suffix = Path(str(response_source["filename"])).suffix.lower()[:10]
+                response_source["filename"] = f"材料文件{suffix}"
+            self.send_json(response_result)
         except (ValueError, json.JSONDecodeError) as exc:
             self.send_json({"error": str(exc)}, 400)
         except Exception as exc:  # noqa: BLE001 - 本地服务需要返回可读错误
