@@ -2580,12 +2580,19 @@ function bindEvents() {
       event.stopPropagation();
       dropZone.classList.add("dragover");
     }));
-    ["dragleave", "drop"].forEach((name) => dropZone.addEventListener(name, (event) => {
+    dropZone.addEventListener("dragleave", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      if (name === "dragleave" && event.relatedTarget && dropZone.contains(event.relatedTarget)) return;
+      if (event.relatedTarget && dropZone.contains(event.relatedTarget)) return;
       dropZone.classList.remove("dragover");
-    }));
+    });
+    dropZone.addEventListener("drop", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      dropZone.classList.remove("dragover");
+      const files = event.dataTransfer?.files;
+      if (files?.length) await handleFiles(files);
+    });
   }
   document.addEventListener("dragover", (event) => {
     if (state.currentPage === "analysis" && Array.from(event.dataTransfer?.types || []).includes("Files")) {
