@@ -34,6 +34,8 @@ class SecurityIntegrationTests(unittest.TestCase):
             "VERIWORK_DB_PATH": str(cls.db_path),
             "ADMIN_USERNAME": "admin",
             "ADMIN_PASSWORD": "TestAdmin!2345",
+            "REVIEW_ADMIN_USERNAME": "reviewer_admin",
+            "REVIEW_ADMIN_PASSWORD": "ReviewerAdmin!2026",
             "DEMO_PASSWORD": "",
             "LLM_API_URL": "",
             "LLM_API_KEY": "",
@@ -138,6 +140,21 @@ class SecurityIntegrationTests(unittest.TestCase):
             self.assertEqual(200, response.status)
         with self.request(student, "/api/auth/me") as response:
             self.assertFalse(json.loads(response.read().decode("utf-8"))["authenticated"])
+
+    def test_reviewer_admin_is_read_only_and_skips_email_code(self):
+        reviewer = self.opener()
+        with self.request(reviewer, "/api/auth/login", {
+            "username": "reviewer_admin",
+            "password": "ReviewerAdmin!2026",
+        }) as response:
+            body = json.loads(response.read().decode("utf-8"))
+        self.assertEqual("reviewer_admin", body["user"]["role"])
+        self.assertFalse(body.get("requires2fa", False))
+        with self.request(reviewer, "/api/admin/stats") as response:
+            self.assertEqual(200, response.status)
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            self.request(reviewer, "/api/admin/set-status", {"user_id": 1, "status": "disabled"})
+        self.assertEqual(403, caught.exception.code)
 
     def test_admin_login_and_login_rate_limit(self):
         admin = self.opener()

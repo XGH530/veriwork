@@ -268,6 +268,10 @@ async function loginWithCredentials(username, password) {
   completeLogin(data.user);
 }
 
+function isAdminRole(role) {
+  return role === "admin" || role === "reviewer_admin";
+}
+
 function completeLogin(user) {
   state.user = user;
   state.pending2fa = null;
@@ -276,7 +280,7 @@ function completeLogin(user) {
   updateUserUI();
   $("#authDialog")?.close();
   clearAuthError();
-  navigate(user.role === "admin" ? "admin" : "dashboard");
+  navigate(isAdminRole(user.role) ? "admin" : "dashboard");
   toast(`已登录：${user.username}`);
 }
 
@@ -330,8 +334,16 @@ async function refreshAdminLoginStatus() {
   }
 }
 
+function setAdminLoginBusy(busy, label) {
+  const button = $("#adminLoginButton");
+  if (!button) return;
+  button.disabled = busy;
+  button.textContent = label || (state.pending2fa?.challengeId ? "验证邮箱并进入" : "进入运营控制台");
+}
+
 async function adminLoginWithCredentials() {
   clearAdminLoginError();
+  setAdminLoginBusy(true, "正在验证账号…");
   try {
     const data = await authRequest("/api/auth/login", {
       username: $("#adminUsername").value.trim(),
@@ -341,10 +353,11 @@ async function adminLoginWithCredentials() {
       state.pending2fa = data;
       $("#admin2faRow")?.classList.remove("hidden");
       $("#admin2faCode")?.focus();
-      showAdminLoginError(`验证码已发送到 ${data.emailHint || "管理员邮箱"}。`);
+      setAdminLoginBusy(false, "验证邮箱并进入");
+      showAdminLoginError(`验证码已发送到 ${data.emailHint || "管理员邮箱"}，请在下方输入验证码后点击“验证邮箱并进入”。`);
       return;
     }
-    if (data.user?.role !== "admin") {
+    if (!isAdminRole(data.user?.role)) {
       await authRequest("/api/auth/logout", {});
       showAdminLoginError("该账号不是管理员，不能进入运营控制台。");
       return;
@@ -352,6 +365,8 @@ async function adminLoginWithCredentials() {
     window.location.href = `${window.location.pathname}?page=admin`;
   } catch (error) {
     showAdminLoginError(error.message || "管理员登录失败");
+  } finally {
+    setAdminLoginBusy(false);
   }
 }
 
@@ -360,21 +375,36 @@ async function verifyAdminLogin2fa() {
     showAdminLoginError("请先输入管理员账号和密码。");
     return;
   }
+  const code = $("#admin2faCode").value.trim();
+  if (!/^\d{6}$/.test(code)) {
+    showAdminLoginError("请输入6位邮箱验证码。");
+    $("#admin2faCode")?.focus();
+    return;
+  }
   clearAdminLoginError();
+  setAdminLoginBusy(true, "正在验证邮箱验证码…");
   try {
     const data = await authRequest("/api/auth/verify-2fa", {
       challengeId: state.pending2fa.challengeId,
-      code: $("#admin2faCode").value.trim()
+      code
     });
-    if (data.user?.role !== "admin") {
+    if (!isAdminRole(data.user?.role)) {
       await authRequest("/api/auth/logout", {});
       showAdminLoginError("该账号不是管理员，不能进入运营控制台。");
       return;
     }
+    state.pending2fa = null;
     window.location.href = `${window.location.pathname}?page=admin`;
   } catch (error) {
     showAdminLoginError(error.message || "邮箱验证码不正确");
+  } finally {
+    setAdminLoginBusy(false);
   }
+}
+
+function handleAdminLoginAction() {
+  if (state.pending2fa?.challengeId) return verifyAdminLogin2fa();
+  return adminLoginWithCredentials();
 }
 
 function initAdminLoginPage() {
@@ -383,12 +413,12 @@ function initAdminLoginPage() {
   page?.classList.remove("hidden");
   loadSettings();
   refreshAdminLoginStatus();
-  $("#adminLoginButton")?.addEventListener("click", adminLoginWithCredentials);
+  $("#adminLoginButton")?.addEventListener("click", handleAdminLoginAction);
   $("#admin2faCode")?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") verifyAdminLogin2fa();
   });
   $("#adminPassword")?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") adminLoginWithCredentials();
+    if (event.key === "Enter") handleAdminLoginAction();
   });
   $("#backToUserLogin")?.addEventListener("click", () => {
     window.location.href = window.location.pathname;
@@ -474,8 +504,9 @@ function updateUserUI() {
     chip.innerHTML = '<span>未登录</span><button id="openAuth" class="link-button">登录</button>';
     $("#openAuth")?.addEventListener("click", () => { showAuthView("login"); $("#authDialog")?.showModal(); });
   }
-  const isAdmin = state.user?.role === "admin";
+  const isAdmin = isAdminRole(state.user?.role);
   document.body.classList.toggle("admin-mode", isAdmin);
+  document.body.classList.toggle("reviewer-admin-mode", state.user?.role === "reviewer_admin");
   $$('[data-admin-only]').forEach((element) => { element.style.display = isAdmin ? "" : "none"; });
   $$('[data-student-only]').forEach((element) => { element.style.display = isAdmin ? "none" : ""; });
   if (!isAdmin && state.currentPage === "admin") navigate("dashboard");
@@ -491,7 +522,7 @@ function formatDate(date = new Date()) {
 }
 
 function navigate(page) {
-  const isAdmin = state.user?.role === "admin";
+  const isAdmin = isAdminRole(state.user?.role);
   if (isAdmin && !["admin", "account"].includes(page)) page = "admin";
   if (!isAdmin && page === "admin") page = "dashboard";
   state.currentPage = page;
@@ -1904,7 +1935,7 @@ async function downloadEvidencePackage() {
 }
 
 async function refreshAdminPage() {
-  if (!state.user || state.user.role !== "admin") return;
+  if (!state.user || !isAdminRole(state.user.role)) return;
   try {
     const data = await apiRequest("/api/admin/stats");
     $("#adminUserCount").textContent = data.userCount;

@@ -1828,3 +1828,15 @@ input[type="password"]::-ms-clear {
   font-size: 11px;
   line-height: 1.7;
 }
+
+
+/* 评审管理员为只读角色，隐藏会触发写操作的用户管理控件。 */
+body.reviewer-admin-mode .admin-role-select,
+body.reviewer-admin-mode .admin-action-group {
+  display: none !important;
+}
+body.reviewer-admin-mode #adminUsers tr td:last-child::after {
+  content: "只读";
+  color: #7a8797;
+  font-size: 10px;
+}

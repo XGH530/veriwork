@@ -77,6 +77,7 @@ STARTED_AT = time.time()
 APP_SECRET = os.environ.get("APP_SECRET", "").strip() or hashlib.sha256(f"veriwork-local:{DB_PATH}".encode("utf-8")).hexdigest()
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "").strip()
 ADMIN_2FA_ENABLED = os.environ.get("ADMIN_2FA_ENABLED", "").lower() in {"1", "true", "yes"}
+ADMIN_ROLES = {"admin", "reviewer_admin"}
 SMTP_HOST = os.environ.get("SMTP_HOST", "").strip()
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "465"))
 SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "").strip()
@@ -248,6 +249,21 @@ def init_auth_db() -> None:
 
         sync_configured_account("DEMO_USERNAME", "DEMO_PASSWORD", "demo", "student", required=False)
         sync_configured_account("ADMIN_USERNAME", "ADMIN_PASSWORD", "admin", "admin", required=True)
+        review_admin_username = os.environ.get("REVIEW_ADMIN_USERNAME", "").strip()
+        review_admin_password = os.environ.get("REVIEW_ADMIN_PASSWORD", "").strip()
+        if review_admin_username and review_admin_password:
+            sync_configured_account(
+                "REVIEW_ADMIN_USERNAME",
+                "REVIEW_ADMIN_PASSWORD",
+                "reviewer_admin",
+                "reviewer_admin",
+                required=False,
+            )
+            now = datetime.now().isoformat(timespec="seconds")
+            connection.execute(
+                "UPDATE users SET status = 'active', email = NULL, email_verified_at = NULL, updated_at = ? WHERE username = ?",
+                (now, review_admin_username),
+            )
         if ADMIN_EMAIL:
             admin_username = os.environ.get("ADMIN_USERNAME", "admin").strip() or "admin"
             now = datetime.now().isoformat(timespec="seconds")
@@ -550,11 +566,23 @@ def send_auth_code(user: dict, purpose: str, email: str) -> tuple[int, str]:
         "verify_email": "邮箱绑定验证码",
     }
     label = labels.get(purpose, "身份验证码")
-    send_email_message(
-        email,
-        f"职安盾 VeriWork {label}",
-        f"你的{label}是：{code}\n\n验证码{EMAIL_CODE_TTL_SECONDS // 60}分钟内有效。如非本人操作，请忽略本邮件。",
-    )
+    try:
+        send_email_message(
+            email,
+            f"职安盾 VeriWork {label}",
+            f"你的{label}是：{code}\n\n验证码{EMAIL_CODE_TTL_SECONDS // 60}分钟内有效。如非本人操作，请忽略本邮件。",
+        )
+    except Exception as exc:
+        # 邮件发送失败时撤销刚创建的挑战，避免错误地触发“发送过于频繁”。
+        with auth_db() as connection:
+            connection.execute("DELETE FROM email_challenges WHERE id = ?", (challenge_id,))
+            connection.commit()
+        print(
+            f"[VERIWORK_EMAIL_ERROR] purpose={purpose} recipient={mask_email(email)} "
+            f"error={type(exc).__name__}: {str(exc)[:300]}",
+            flush=True,
+        )
+        raise
     return challenge_id, code
 
 
@@ -2956,7 +2984,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def require_admin(self) -> dict | None:
         user = self.current_user()
-        if not user or user.get("role") != "admin" or user.get("status") != "active":
+        if not user or user.get("role") not in ADMIN_ROLES or user.get("status") != "active":
             self.send_json({"error": "需要管理员权限"}, 403)
             return None
         return user
@@ -3216,7 +3244,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"sessions": list_sessions(user["id"], self.session_token())})
             return
         if parsed.path == "/api/admin/stats":
-            if user.get("role") != "admin":
+            if user.get("role") not in ADMIN_ROLES:
                 self.send_json({"error": "需要管理员权限"}, 403)
                 return
             self.send_json(admin_stats())
@@ -3325,6 +3353,9 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path.startswith("/api/admin/"):
             admin = self.require_admin()
             if not admin:
+                return
+            if admin.get("role") != "admin":
+                self.send_json({"error": "只读评审管理员不能修改用户或系统数据"}, 403)
                 return
             try:
                 body = self.read_json_body(MAX_AUTH_BODY)

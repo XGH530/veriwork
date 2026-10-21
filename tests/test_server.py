@@ -158,6 +158,18 @@ class RuleEngineTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             server.verify_email_challenge(challenge_id, code, "verify_email")
 
+    def test_failed_auth_email_does_not_block_resend(self):
+        username = f"emailfail_{os.getpid()}"
+        user = server.register_user(username, "EmailFail!2345", email="fail@example.com")
+        with patch("server.send_email_message", side_effect=RuntimeError("smtp unavailable")):
+            with self.assertRaises(RuntimeError):
+                server.send_auth_code(user, "admin_2fa", "fail@example.com")
+        self.assertIsNone(server.latest_email_challenge(user["id"], "admin_2fa"))
+        with patch("server.send_email_message", return_value=None):
+            challenge_id, code = server.send_auth_code(user, "admin_2fa", "fail@example.com")
+        self.assertGreater(challenge_id, 0)
+        self.assertEqual(user["id"], server.verify_email_challenge(challenge_id, code, "admin_2fa", user["id"]))
+
     def test_each_defined_risk_has_legal_basis(self):
         for risk in server.RISKS:
             self.assertTrue(risk["lawIds"], risk["id"])
