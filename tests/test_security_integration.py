@@ -94,7 +94,7 @@ class SecurityIntegrationTests(unittest.TestCase):
                 with self.assertRaises(urllib.error.HTTPError) as caught:
                     urllib.request.urlopen(self.base + path, timeout=5)
                 self.assertEqual(404, caught.exception.code)
-        for path in ("/", "/styles.css", "/app.js", "/assets/logo-mark.svg"):
+        for path in ("/", "/styles.css", "/app.js", "/presentation.html", "/assets/logo-mark.svg"):
             with self.subTest(path=path):
                 with urllib.request.urlopen(self.base + path, timeout=5) as response:
                     self.assertEqual(200, response.status)

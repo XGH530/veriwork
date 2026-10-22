@@ -1594,10 +1594,13 @@ function loadSettings() {
   try {
     const raw = localStorage.getItem("veriwork-settings");
     if (raw) state.settings = { ...state.settings, ...JSON.parse(raw) };
-    else if (location.protocol === "http:" || location.protocol === "https:") {
-      state.settings.runMode = "api";
+    if (location.protocol === "http:" || location.protocol === "https:") {
       const path = location.pathname.endsWith("/") ? location.pathname.slice(0, -1) : location.pathname.replace(/\/[^/]*$/, "");
-      state.settings.apiBase = `${location.origin}${path}`;
+      const mixedContent = location.protocol === "https:" && /^http:/.test(state.settings.apiBase);
+      if (!raw || mixedContent) {
+        state.settings.runMode = "api";
+        state.settings.apiBase = `${location.origin}${path}`;
+      }
     }
   } catch (error) {
     console.warn("设置读取失败", error);

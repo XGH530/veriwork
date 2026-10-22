@@ -3749,7 +3749,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def serve_static(self, request_path: str) -> None:
         relative = unquote(request_path).lstrip("/") or "index.html"
-        public_files = {"index.html", "styles.css", "app.js", "data.js"}
+        public_files = {"index.html", "styles.css", "app.js", "data.js", "presentation.html"}
         public_asset_suffixes = {".svg", ".png", ".jpg", ".jpeg", ".webp", ".ico", ".gif"}
         suffix = Path(relative).suffix.lower()
         allowed = relative in public_files or (relative.startswith("assets/") and suffix in public_asset_suffixes)

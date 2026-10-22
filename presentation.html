@@ -74,17 +74,17 @@
   </div>
   <main class="deck">
     <section class="slide active cover">
-      <span class="kicker">TRUSTED EMPLOYMENT AI</span>
+      <span class="kicker">EMPLOYMENT CONTRACT REVIEW</span>
       <h1>职安盾 <em>VeriWork</em></h1>
-      <p class="lead">面向高校毕业生就业合同的可验证 AI 风险评估与证据链系统</p>
-      <p class="sub">规则硬约束 · 法源可追溯 · 大模型语义研判 · 交叉验证 · 行动闭环</p>
-      <p class="team">团队：待填写　|　指导教师：待填写　|　2026年第十四届全国大学生数字媒体科技作品及创意竞赛</p>
+      <p class="lead">面向高校毕业生就业合同的风险提示与证据整理系统</p>
+      <p class="sub">规则校验 · 法源检索 · 模型辅助 · 人工复核 · 行动建议</p>
+      <p class="team">匿名评审版　|　作品编号 347761　|　2026年第十四届全国大学生数字媒体科技作品及创意竞赛</p>
       <div class="footer">01</div>
     </section>
 
     <section class="slide">
       <span class="kicker">01 · 问题</span>
-      <h2>不是“看不懂合同”，而是风险判断不可信、行动不闭环</h2>
+      <h2>不是“看不懂合同”，而是风险判断缺少依据，发现风险后也不知道下一步做什么</h2>
       <div class="grid four">
         <div class="card"><strong>用户缺少法律知识</strong><p>应届生难以及时识别试用期、社保、收费、竞业和离职条款中的风险。</p></div>
         <div class="card"><strong>通用模型会编造</strong><p>答案看似专业，却可能引用错误法条，甚至把合法条款判成违法。</p></div>
@@ -166,7 +166,7 @@
 
     <section class="slide">
       <span class="kicker">07 · 评测方法</span>
-      <h2>把“看起来能用”变成可复现实验</h2>
+      <h2>把“演示效果”变成可复查结果</h2>
       <div class="grid three">
         <div class="card"><strong>80条开发回归集</strong><p>覆盖13类风险、安全对照和待核实场景，用于规则开发和功能回归。</p></div>
         <div class="card"><strong>32条早期留出集</strong><p>暴露关键词规则在“工装费、毕业证、技能贷款”等新表述上的泛化问题。</p></div>
@@ -178,7 +178,7 @@
 
     <section class="slide">
       <span class="kicker">08 · 当前结果</span>
-      <h2>开发回归稳定，冻结留出集揭示模型层必要性</h2>
+      <h2>开发集结果稳定，冻结留出集揭示了规则边界</h2>
       <div class="metric-row">
         <div class="metric"><strong>99.1%</strong><span>80条开发回归 F1</span></div>
         <div class="metric"><strong>100%</strong><span>32条早期留出集 F1（已参与一次规则强化）</span></div>
@@ -186,19 +186,19 @@
       </div>
       <div class="grid">
         <div class="card"><strong>诚实结论</strong><p>固定规则对已覆盖表达准确，但对开放语言的长尾表述召回不足。</p></div>
-        <div class="card"><strong>已完成双模型公平对照</strong><p>DeepSeek-Flash：F1 98.1%，法源覆盖从0提升到100%；DeepSeek-V4-Pro：32条成功样本F1 96.2%，其余因账户余额限制未完成。</p></div>
+        <div class="card"><strong>已完成双模型公平对照</strong><p>DeepSeek-Flash：40条全部完成，F1 98.1%，法源覆盖从0提升到100%；DeepSeek-V4-Pro：40条全部完成，F1 96.3%，法源覆盖从0提升到100%。</p></div>
       </div>
       <div class="note">冻结留出集只在创建后运行一次，未根据其结果继续修改规则；该低召回率被保留作为系统的真实边界证据。</div>
       <div class="footer">09</div>
     </section>
 
     <section class="slide">
-      <span class="kicker">09 · 对照实验</span>
-      <h2>省赛前要完成的正式实验</h2>
+      <span class="kicker">09 · 验证状态</span>
+      <h2>双模型对照已完成，用户测试与外部复核仍需继续</h2>
       <div class="grid">
-        <div class="card"><span class="status todo">待完成</span><h3 style="margin-top:14px">多模型对照</h3><p>选择两个通用模型与职安盾混合链比较风险召回、错误引用、拒答和时延。</p></div>
-        <div class="card"><span class="status todo">待完成</span><h3 style="margin-top:14px">用户测试</h3><p>招募不少于20名高校学生，比较使用系统前后的风险识别和材料整理效率。</p></div>
-        <div class="card"><span class="status todo">待完成</span><h3 style="margin-top:14px">外部抽样复核</h3><p>邀请法律实务人员抽样复核规则、标签和引用，不夸大专家背书范围。</p></div>
+        <div class="card"><span class="status done">已完成</span><h3 style="margin-top:14px">多模型对照</h3><p>DeepSeek-Flash 与 DeepSeek-V4-Pro 各完成40条冻结样例，请求失败数为0。</p></div>
+        <div class="card"><span class="status todo">待汇总</span><h3 style="margin-top:14px">用户测试</h3><p>匿名问卷、观察表和记录模板已准备，实际用户结果仍需汇总，不提前写成已完成。</p></div>
+        <div class="card"><span class="status todo">待复核</span><h3 style="margin-top:14px">外部抽样复核</h3><p>40条复核表和填写说明已准备，仍需实际复核人填写身份、意见和日期。</p></div>
         <div class="card"><span class="status done">已准备好</span><h3 style="margin-top:14px">实验工具</h3><p>数据集生成、规则评测、LLM对照、政策包校验和结果汇总脚本均已放入项目。</p></div>
       </div>
       <div class="footer">10</div>
@@ -218,21 +218,21 @@
 
     <section class="slide">
       <span class="kicker">11 · 交付与边界</span>
-      <h2>已经具备省赛原型，仍需补齐真实证据</h2>
+      <h2>原型与实验已完成，真实场景验证仍需继续</h2>
       <div class="grid">
         <div class="card"><span class="status done">已完成</span><h3 style="margin-top:14px">可运行系统</h3><p>前端演示、规则/语义链、法源检索、证据链、评测中心和可选大模型接口。</p></div>
         <div class="card"><span class="status done">已完成</span><h3 style="margin-top:14px">可复现实验</h3><p>80条开发回归、32条早期留出、40条冻结留出和对比看板。</p></div>
-        <div class="card"><span class="status todo">提交前完成</span><h3 style="margin-top:14px">外部效度</h3><p>补充真实匿名案例、用户测试和多模型对照，避免过度依赖合成数据。</p></div>
-        <div class="card"><span class="status todo">提交前完成</span><h3 style="margin-top:14px">地方政策核验</h3><p>为北京、上海、广东填入带来源、生效日期和核验人的正式政策数据。</p></div>
+        <div class="card"><span class="status todo">待补充</span><h3 style="margin-top:14px">外部效度</h3><p>真实匿名案例、用户测试和外部复核仍需继续补充，避免把合成数据当成真实准确率。</p></div>
+        <div class="card"><span class="status done">已建立</span><h3 style="margin-top:14px">地方政策包</h3><p>已覆盖12个地区；北京、上海、广东、深圳、重庆已完成官方来源核验，其余标记待属地复核。</p></div>
       </div>
       <div class="footer">12</div>
     </section>
 
     <section class="slide cover">
       <span class="kicker">THANK YOU</span>
-      <h1>让高风险场景中的 AI<br><em>有依据、可验证、能行动</em></h1>
-      <p class="lead">职安盾 VeriWork · 可信就业风险决策系统</p>
-      <p class="team">答辩团队：待填写　|　联系方式：待填写</p>
+      <h1>让每一条风险结论<br><em>有原文、有依据、有下一步</em></h1>
+      <p class="lead">职安盾 VeriWork · 就业合同风险提示与证据整理系统</p>
+      <p class="team">匿名评审版　|　作品编号 347761</p>
       <div class="footer">13</div>
     </section>
   </main>
