@@ -1,6 +1,18 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
 
+function isWebRuntime() {
+  return location.protocol === "http:" || location.protocol === "https:";
+}
+
+function sameOriginApiBase() {
+  if (!isWebRuntime()) return "http://127.0.0.1:8000";
+  const path = location.pathname.endsWith("/")
+    ? location.pathname.slice(0, -1)
+    : location.pathname.replace(/\/[^/]*$/, "");
+  return `${location.origin}${path}`;
+}
+
 let analysisProgressTimer = null;
 let analysisProgressStartedAt = 0;
 let admin2faCountdownTimer = null;
@@ -19,9 +31,10 @@ const state = {
   checklist: APP_DATA.evidenceChecklist.map((item) => ({ ...item })),
   timeline: APP_DATA.timeline.map((item) => ({ ...item })),
   settings: {
-    apiBase: "http://127.0.0.1:8000",
-    runMode: "demo",
-    model: ""
+    apiBase: sameOriginApiBase(),
+    runMode: isWebRuntime() ? "api" : "demo",
+    model: "",
+    settingsVersion: 2
   },
   user: null,
   authMode: "login",
@@ -1593,26 +1606,30 @@ function renderComparison() {
 function loadSettings() {
   try {
     const raw = localStorage.getItem("veriwork-settings");
-    if (raw) state.settings = { ...state.settings, ...JSON.parse(raw) };
-    if (location.protocol === "http:" || location.protocol === "https:") {
-      const path = location.pathname.endsWith("/") ? location.pathname.slice(0, -1) : location.pathname.replace(/\/[^/]*$/, "");
-      const mixedContent = location.protocol === "https:" && /^http:/.test(state.settings.apiBase);
-      if (!raw || mixedContent) {
-        state.settings.runMode = "api";
-        state.settings.apiBase = `${location.origin}${path}`;
-      }
+    const saved = raw ? JSON.parse(raw) : null;
+    if (saved) state.settings = { ...state.settings, ...saved };
+    if (isWebRuntime()) {
+      // 线上页面始终使用当前站点的同源接口，自动继承 HTTP/HTTPS，避免旧地址和混合内容。
+      state.settings.apiBase = sameOriginApiBase();
+      if (!saved || saved.settingsVersion !== 2) state.settings.runMode = "api";
+      state.settings.settingsVersion = 2;
     }
   } catch (error) {
     console.warn("设置读取失败", error);
+    state.settings.apiBase = sameOriginApiBase();
   }
   $("#apiBaseInput").value = state.settings.apiBase;
+  $("#apiBaseInput").readOnly = isWebRuntime();
   $("#runModeInput").value = state.settings.runMode;
   updateModeUI();
 }
 
 function saveSettings() {
-  state.settings.apiBase = $("#apiBaseInput").value.trim() || "http://127.0.0.1:8000";
+  state.settings.apiBase = isWebRuntime()
+    ? sameOriginApiBase()
+    : ($("#apiBaseInput").value.trim() || "http://127.0.0.1:8000");
   state.settings.runMode = $("#runModeInput").value;
+  state.settings.settingsVersion = 2;
   try {
     localStorage.setItem("veriwork-settings", JSON.stringify(state.settings));
   } catch (error) {

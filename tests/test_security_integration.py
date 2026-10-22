@@ -99,6 +99,12 @@ class SecurityIntegrationTests(unittest.TestCase):
                 with urllib.request.urlopen(self.base + path, timeout=5) as response:
                     self.assertEqual(200, response.status)
 
+        with urllib.request.urlopen(self.base + "/presentation.html", timeout=5) as response:
+            presentation = response.read().decode("utf-8")
+        self.assertIn("作品编号 347761", presentation)
+        self.assertIn("赛道：移动与网络应用", presentation)
+        self.assertNotIn("待填写", presentation)
+
     def test_business_api_requires_login(self):
         for path in ("/api/laws", "/api/cases", "/api/evidence"):
             with self.subTest(path=path):
